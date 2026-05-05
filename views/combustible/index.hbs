@@ -1,0 +1,281 @@
+<!-- ══════════════════════════════════════════
+     VIEW: combustible/index.hbs — Responsive
+     Toolbar · Listview · Modal Registro/Edición · Modal Descarga
+══════════════════════════════════════════ -->
+
+<!-- TOOLBAR DE ACCIONES -->
+<div class="cb-toolbar">
+  <button class="btn btn-primary" onclick="abrirModalNuevo()">
+    <i data-lucide="plus"></i><span class="btn-label"> Registrar</span>
+  </button>
+  <button class="btn btn-ghost" id="btnEditar" onclick="abrirModalEditar()" disabled>
+    <i data-lucide="pencil"></i><span class="btn-label"> Editar</span>
+  </button>
+  <button class="btn btn-danger" id="btnEliminar" onclick="eliminarSeleccionado()" disabled>
+    <i data-lucide="trash-2"></i><span class="btn-label"> Eliminar</span>
+  </button>
+  <div class="cb-toolbar-sep"></div>
+  <button class="btn btn-ghost" onclick="abrirModalDescarga()">
+    <i data-lucide="download"></i><span class="btn-label"> Descargar</span>
+  </button>
+  <div class="cb-search">
+    <i data-lucide="search"></i>
+    <input type="text" id="cbSearch" placeholder="Buscar vale, placa, estacion..."
+           oninput="filtrarTabla(this.value)" />
+  </div>
+</div>
+
+<!-- LISTVIEW -->
+<div class="card cb-card">
+  <div class="table-wrapper">
+    {{#if registros.length}}
+    <table class="table cb-table" id="cbTabla">
+      <thead>
+        <tr>
+          <th style="width:36px"></th>
+          <th>Vale</th>
+          <th>Estacion</th>
+          <th>Placa</th>
+          <th>Galones</th>
+          <th class="hide-sm">Precio (S/)</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody id="cbTbody">
+        {{#each registros}}
+        <tr class="cb-row" data-id="{{id}}"
+            onclick="seleccionarFila(this)"
+            ondblclick="abrirModalEditarFila(this)"
+            title="Clic = seleccionar, Doble clic = editar">
+          <td class="cb-select-cell"><span class="cb-row-dot"></span></td>
+          <td class="cb-vale">{{vale}}</td>
+          <td>{{#if estaciones}}{{estaciones.nombre}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
+          <td>{{#if placas}}{{placas.numero}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
+          <td class="cb-galones">{{galones}}</td>
+          <td class="hide-sm">{{#if precio}}S/ {{precio}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
+          <td style="white-space:nowrap">{{fecha}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="fuel"></i>
+      <p>No hay registros de combustible aun.</p>
+      <button class="btn btn-primary btn-sm" onclick="abrirModalNuevo()">
+        <i data-lucide="plus"></i> Crear primer registro
+      </button>
+    </div>
+    {{/if}}
+  </div>
+</div>
+
+<!-- MODAL: Registrar / Editar -->
+<div class="modal-backdrop" id="modalCombustible" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitulo">
+        <i data-lucide="fuel"></i> Nuevo Registro
+      </h3>
+      <button class="modal-close" onclick="cerrarModal('modalCombustible')">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <form id="formCombustible" method="POST" action="/combustible">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Vale *</label>
+            <input type="text" name="vale" id="fVale" class="form-control"
+                   placeholder="Ej: V-00123" required
+                   oninput="this.value=this.value.toUpperCase()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha *</label>
+            <input type="date" name="fecha" id="fFecha" class="form-control" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Estacion *</label>
+            <select name="estacion_id" id="fEstacion" class="form-control" required>
+              <option value="">Selecciona estacion</option>
+              {{#each estaciones}}
+                <option value="{{id}}">{{nombre}}</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Placa *</label>
+            <select name="placa_id" id="fPlaca" class="form-control" required>
+              <option value="">Selecciona placa</option>
+              {{#each placas}}
+                <option value="{{id}}">{{numero}}</option>
+              {{/each}}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Galones *</label>
+            <input type="number" name="galones" id="fGalones" class="form-control"
+                   placeholder="Ej: 20.5" step="0.01" min="0.01" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Precio (S/) <span style="font-weight:400;font-size:var(--text-xs);color:var(--text-muted)">(Opcional)</span></label>
+            <input type="number" name="precio" id="fPrecio" class="form-control"
+                   placeholder="Ej: 15.80" step="0.01" min="0" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalCombustible')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnGuardar">
+          <i data-lucide="save"></i> Guardar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL: Descargar CSV -->
+<div class="modal-backdrop" id="modalDescarga" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3 class="modal-title"><i data-lucide="file-down"></i> Descargar Reporte</h3>
+      <button class="modal-close" onclick="cerrarModal('modalDescarga')"><i data-lucide="x"></i></button>
+    </div>
+    <form action="/combustible/descargar" method="GET">
+      <div class="modal-body">
+        <p class="modal-hint">Selecciona el rango de fechas para exportar en formato CSV (compatible con Excel).</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Desde *</label>
+            <input type="date" name="desde" id="dDesde" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hasta *</label>
+            <input type="date" name="hasta" id="dHasta" class="form-control" required />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalDescarga')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="download"></i> Descargar CSV
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+@media (max-width: 639px) { .hide-sm { display: none; } }
+@media (max-width: 400px)  { .btn-label { display: none; } }
+</style>
+
+<script>
+var filaSeleccionada = null;
+var idSeleccionado   = null;
+
+function seleccionarFila(tr) {
+  if (filaSeleccionada === tr) {
+    tr.classList.remove('selected');
+    filaSeleccionada = idSeleccionado = null;
+    actualizarBotones(false);
+    return;
+  }
+  if (filaSeleccionada) filaSeleccionada.classList.remove('selected');
+  tr.classList.add('selected');
+  filaSeleccionada = tr;
+  idSeleccionado   = tr.getAttribute('data-id');
+  actualizarBotones(true);
+}
+
+function actualizarBotones(activo) {
+  document.getElementById('btnEditar').disabled   = !activo;
+  document.getElementById('btnEliminar').disabled = !activo;
+}
+
+function abrirModalNuevo() {
+  document.getElementById('modalTitulo').innerHTML = '<i data-lucide="fuel"></i> Nuevo Registro';
+  document.getElementById('formCombustible').action = '/combustible';
+  document.getElementById('formCombustible').reset();
+  document.getElementById('fFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('btnGuardar').innerHTML = '<i data-lucide="save"></i> Guardar';
+  abrirModal('modalCombustible');
+  lucide.createIcons();
+}
+
+function abrirModalEditar() {
+  if (!idSeleccionado) return;
+  cargarYEditarId(idSeleccionado);
+}
+
+function abrirModalEditarFila(tr) {
+  seleccionarFila(tr);
+  cargarYEditarId(tr.getAttribute('data-id'));
+}
+
+function cargarYEditarId(id) {
+  fetch('/combustible/' + id + '/json')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      document.getElementById('modalTitulo').innerHTML = '<i data-lucide="pencil"></i> Editar Registro';
+      document.getElementById('formCombustible').action = '/combustible/' + id + '/editar';
+      document.getElementById('fVale').value     = data.vale        || '';
+      document.getElementById('fFecha').value    = data.fecha       || '';
+      document.getElementById('fEstacion').value = data.estacion_id || '';
+      document.getElementById('fPlaca').value    = data.placa_id    || '';
+      document.getElementById('fGalones').value  = data.galones     || '';
+      document.getElementById('fPrecio').value   = data.precio      || '';
+      document.getElementById('btnGuardar').innerHTML = '<i data-lucide="save"></i> Actualizar';
+      abrirModal('modalCombustible');
+      lucide.createIcons();
+    })
+    .catch(function() { alert('No se pudo cargar el registro. Intenta de nuevo.'); });
+}
+
+function eliminarSeleccionado() {
+  if (!idSeleccionado) return;
+  var vale = filaSeleccionada ? filaSeleccionada.querySelector('.cb-vale').textContent.trim() : '';
+  if (!confirm('Eliminar el registro "' + vale + '"?\nEsta accion no se puede deshacer.')) return;
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/combustible/' + idSeleccionado + '/eliminar';
+  document.body.appendChild(form);
+  form.submit();
+}
+
+function abrirModalDescarga() {
+  var hoy    = new Date();
+  var inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  document.getElementById('dDesde').value = inicio.toISOString().split('T')[0];
+  document.getElementById('dHasta').value = hoy.toISOString().split('T')[0];
+  abrirModal('modalDescarga');
+}
+
+function abrirModal(id) {
+  document.getElementById(id).style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function cerrarModal(id) {
+  document.getElementById(id).style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.querySelectorAll('.modal-backdrop').forEach(function(b) {
+  b.addEventListener('click', function(e) { if (e.target === b) cerrarModal(b.id); });
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { cerrarModal('modalCombustible'); cerrarModal('modalDescarga'); }
+});
+
+function filtrarTabla(texto) {
+  var term = texto.toLowerCase();
+  document.querySelectorAll('#cbTbody .cb-row').forEach(function(row) {
+    row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+  });
+}
+</script>

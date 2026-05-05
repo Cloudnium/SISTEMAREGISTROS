@@ -1,0 +1,89 @@
+<!-- VIEW: usuarios/index.hbs — Lista de usuarios, responsive -->
+<div class="page-header">
+  <div></div>
+  <a href="/usuarios/nuevo" class="btn btn-primary">
+    <i data-lucide="user-plus"></i>
+    <span>Nuevo Usuario</span>
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i data-lucide="users"></i> Usuarios registrados
+    </h3>
+    <span class="badge badge-neutral">{{usuarios.length}} usuarios</span>
+  </div>
+
+  <div class="table-wrapper">
+    {{#if usuarios.length}}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th class="hide-sm">Usuario</th>
+          <th>Rol</th>
+          <th>Estado</th>
+          <th class="hide-sm">Último acceso</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each usuarios}}
+        <tr>
+          <td>
+            <div class="user-cell">
+              <div class="user-avatar-sm">{{nombre.[0]}}</div>
+              <span class="user-nombre">{{nombre}}</span>
+            </div>
+          </td>
+          <td class="text-secondary" style="font-size:var(--text-xs)">{{email}}</td>
+          <td class="hide-sm"><code class="code-text">{{username}}</code></td>
+          <td>
+            <span class="badge {{#if (eq rol 'admin')}}badge-primary{{else}}badge-neutral{{/if}}">
+              {{rol}}
+            </span>
+          </td>
+          <td>
+            <span class="status-dot {{#if activo}}status-active{{else}}status-inactive{{/if}}">
+              {{#if activo}}Activo{{else}}Inactivo{{/if}}
+            </span>
+          </td>
+          <td class="hide-sm text-muted" style="font-size:var(--text-xs)">{{formatDate ultimo_acceso}}</td>
+          <td>
+            <div class="table-actions">
+              <a href="/usuarios/{{id}}/editar" class="btn-icon btn-icon-edit" title="Editar">
+                <i data-lucide="pencil"></i>
+              </a>
+              <form action="/usuarios/{{id}}/eliminar" method="POST"
+                    onsubmit="return confirm('¿Eliminar a {{nombre}}? Esta acción no se puede deshacer.')">
+                <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="user-x"></i>
+      <p>No hay usuarios registrados aún.</p>
+      <a href="/usuarios/nuevo" class="btn btn-primary btn-sm">
+        <i data-lucide="plus"></i> Crear primer usuario
+      </a>
+    </div>
+    {{/if}}
+  </div>
+</div>
+
+<style>
+/* Oculta columnas secundarias en pantallas pequeñas */
+@media (max-width: 639px) {
+  .hide-sm { display: none; }
+  .user-nombre { font-size: var(--text-xs); }
+}
+</style>

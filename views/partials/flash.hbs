@@ -1,0 +1,29 @@
+<!-- ══════════════════════════════════════════
+     PARTIAL: flash.hbs
+     Mensajes de éxito y error entre páginas
+     Se ocultan automáticamente después de 4s
+══════════════════════════════════════════ -->
+
+{{#if success}}
+  {{#each success}}
+    <div class="flash flash-success" role="alert">
+      <i data-lucide="check-circle"></i>
+      <span>{{this}}</span>
+      <button class="flash-close" onclick="this.parentElement.remove()">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+  {{/each}}
+{{/if}}
+
+{{#if error}}
+  {{#each error}}
+    <div class="flash flash-error" role="alert">
+      <i data-lucide="alert-circle"></i>
+      <span>{{this}}</span>
+      <button class="flash-close" onclick="this.parentElement.remove()">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+  {{/each}}
+{{/if}}

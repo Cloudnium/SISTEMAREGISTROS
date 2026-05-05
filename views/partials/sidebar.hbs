@@ -1,0 +1,73 @@
+<!-- ══════════════════════════════════════════
+     PARTIAL: sidebar.hbs
+     ► LOGO: reemplaza .sidebar-logo-text con:
+       <img src="/images/logos/logo.png" class="sidebar-logo-img" />
+     ► ÍCONOS: cambia data-lucide="nombre"
+       ver todos en https://lucide.dev/icons/
+══════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+
+  <!-- Marca -->
+  <div class="sidebar-brand">
+    <div class="sidebar-logo-text">
+      <span class="sidebar-logo-icon"><i data-lucide="zap"></i></span>
+      <span class="sidebar-logo-name">Cloud<span class="accent">nium</span></span>
+    </div>
+  </div>
+
+  <!-- Usuario en sesión -->
+  <div class="sidebar-user">
+    <div class="sidebar-user-avatar">
+      {{#if user.avatar}}
+        <img src="{{user.avatar}}" alt="Avatar" />
+      {{else}}
+        <span>{{user.nombre.[0]}}</span>
+      {{/if}}
+    </div>
+    <div class="sidebar-user-info">
+      <span class="sidebar-user-name">{{user.nombre}}</span>
+      <span class="sidebar-user-role">{{user.rol}}</span>
+    </div>
+  </div>
+
+  <!-- Navegación -->
+  <nav class="sidebar-nav">
+
+    <a href="/dashboard" class="sidebar-nav-item {{#if (eq currentPath '/dashboard')}}active{{/if}}">
+      <i data-lucide="layout-dashboard"></i><span>Dashboard</span>
+    </a>
+
+    <div class="sidebar-section-label">Módulos</div>
+
+    <a href="/combustible" class="sidebar-nav-item {{#if (eq currentPath '/combustible')}}active{{/if}}">
+      <i data-lucide="fuel"></i><span>Combustible</span>
+    </a>
+
+    <a href="/personal" class="sidebar-nav-item {{#if (eq currentPath '/personal')}}active{{/if}}">
+      <i data-lucide="users"></i><span>Personal</span>
+    </a>
+
+    <a href="/inventario" class="sidebar-nav-item {{#if (eq currentPath '/inventario')}}active{{/if}}">
+      <i data-lucide="package"></i><span>Inventario</span>
+    </a>
+
+    {{#if (eq user.rol 'admin')}}
+    <div class="sidebar-section-label">Administración</div>
+    <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">
+      <i data-lucide="shield-check"></i><span>Usuarios</span>
+    </a>
+    {{/if}}
+
+  </nav>
+
+  <!-- Footer -->
+  <div class="sidebar-footer">
+    <span class="sidebar-version">v1.0.0</span>
+    <a href="/logout" class="sidebar-logout" title="Cerrar sesión">
+      <i data-lucide="log-out"></i>
+    </a>
+  </div>
+
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

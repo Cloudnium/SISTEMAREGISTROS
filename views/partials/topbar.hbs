@@ -1,0 +1,16 @@
+<!-- PARTIAL: topbar.hbs -->
+<header class="topbar">
+  <button class="topbar-menu-btn" onclick="toggleSidebar()" aria-label="Menú">
+    <i data-lucide="menu"></i>
+  </button>
+  <div class="topbar-title-group">
+    <h1 class="topbar-title">{{pageTitle}}</h1>
+    {{#if pageSubtitle}}<p class="topbar-subtitle">{{pageSubtitle}}</p>{{/if}}
+  </div>
+  <div class="topbar-actions">
+    <span class="topbar-greeting">Hola, <strong>{{user.nombre}}</strong></span>
+    <a href="/logout" class="topbar-icon-btn" title="Cerrar sesión">
+      <i data-lucide="log-out"></i>
+    </a>
+  </div>
+</header>

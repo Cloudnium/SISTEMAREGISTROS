@@ -1,0 +1,120 @@
+<!-- VIEW: usuarios/form.hbs — Crear/editar usuario, responsive -->
+<div class="page-header">
+  <a href="/usuarios" class="btn btn-ghost">
+    <i data-lucide="arrow-left"></i> Volver
+  </a>
+</div>
+
+<div class="form-card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i data-lucide="{{#if (eq accion 'editar')}}user-cog{{else}}user-plus{{/if}}"></i>
+      {{#if (eq accion 'editar')}}Editar usuario{{else}}Nuevo usuario{{/if}}
+    </h3>
+  </div>
+
+  <form action="{{#if (eq accion 'editar')}}/usuarios/{{usuario.id}}/editar{{else}}/usuarios{{/if}}"
+        method="POST" class="form-body" id="userForm">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nombre completo *</label>
+        <input type="text" name="nombre" class="form-control"
+               value="{{usuario.nombre}}" placeholder="Ej: Juan Pérez" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre de usuario *</label>
+        <input type="text" name="username" class="form-control"
+               value="{{usuario.username}}" placeholder="Ej: jperez"
+               autocomplete="off"
+               oninput="this.value=this.value.toUpperCase()" required />
+        <small class="form-hint">Se guardará en MAYÚSCULAS</small>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Correo electrónico *</label>
+        <input type="email" name="email" class="form-control"
+               value="{{usuario.email}}" placeholder="correo@empresa.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rol *</label>
+        <select name="rol" class="form-control" required>
+          <option value="">Selecciona un rol</option>
+          <option value="admin"        {{#if (eq usuario.rol 'admin')}}selected{{/if}}>Administrador</option>
+          <option value="operador"     {{#if (eq usuario.rol 'operador')}}selected{{/if}}>Operador</option>
+          <option value="visualizador" {{#if (eq usuario.rol 'visualizador')}}selected{{/if}}>Visualizador</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section-label">
+      {{#if (eq accion 'editar')}}Cambiar contraseña (dejar vacío para mantener){{else}}Contraseña *{{/if}}
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">{{#if (eq accion 'editar')}}Nueva contraseña{{else}}Contraseña *{{/if}}</label>
+        <div class="input-with-toggle">
+          <input type="password" id="password" name="password" class="form-control"
+                 placeholder="Mínimo 6 caracteres"
+                 {{#unless (eq accion 'editar')}}required{{/unless}}
+                 autocomplete="new-password" />
+          <button type="button" class="password-toggle" onclick="togglePass('password','eye1')">
+            <i data-lucide="eye" id="eye1"></i>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar contraseña</label>
+        <div class="input-with-toggle">
+          <input type="password" id="confirmar_password" name="confirmar_password"
+                 class="form-control" placeholder="Repite la contraseña"
+                 autocomplete="new-password" />
+          <button type="button" class="password-toggle" onclick="togglePass('confirmar_password','eye2')">
+            <i data-lucide="eye" id="eye2"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {{#if (eq accion 'editar')}}
+    <div class="form-group form-check-group">
+      <label class="form-check-label">
+        <input type="checkbox" name="activo" class="form-check"
+               {{#if usuario.activo}}checked{{/if}} />
+        <span>Usuario activo</span>
+      </label>
+    </div>
+    {{/if}}
+
+    <div class="form-actions">
+      <a href="/usuarios" class="btn btn-ghost">Cancelar</a>
+      <button type="submit" class="btn btn-primary">
+        <i data-lucide="save"></i>
+        {{#if (eq accion 'editar')}}Guardar cambios{{else}}Crear usuario{{/if}}
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+function togglePass(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon  = document.getElementById(iconId);
+  input.type  = input.type === 'password' ? 'text' : 'password';
+  icon.setAttribute('data-lucide', input.type === 'password' ? 'eye' : 'eye-off');
+  lucide.createIcons();
+}
+document.getElementById('userForm').addEventListener('submit', function(e) {
+  const pass    = document.getElementById('password').value;
+  const confirm = document.getElementById('confirmar_password').value;
+  if (pass && pass !== confirm) {
+    e.preventDefault();
+    alert('Las contraseñas no coinciden.');
+    document.getElementById('confirmar_password').focus();
+  }
+});
+</script>
