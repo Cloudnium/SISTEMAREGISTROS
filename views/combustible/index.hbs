@@ -1,28 +1,41 @@
-<!-- ══════════════════════════════════════════
-     VIEW: combustible/index.hbs — Responsive
-     Toolbar · Listview · Modal Registro/Edición · Modal Descarga
-══════════════════════════════════════════ -->
+<!-- VIEW: combustible/index.hbs
+     Botones Editar y Eliminar solo visibles para admin
+     isAdmin viene del middleware exposeUserRole en app.js
+-->
 
-<!-- TOOLBAR DE ACCIONES -->
+<!-- TOOLBAR -->
 <div class="cb-toolbar">
+
+  <!-- Registrar: todos los roles -->
   <button class="btn btn-primary" onclick="abrirModalNuevo()">
     <i data-lucide="plus"></i><span class="btn-label"> Registrar</span>
   </button>
+
+  {{#if isAdmin}}
+  <!-- Editar y Eliminar: SOLO admin (oculto para otros roles) -->
   <button class="btn btn-ghost" id="btnEditar" onclick="abrirModalEditar()" disabled>
     <i data-lucide="pencil"></i><span class="btn-label"> Editar</span>
   </button>
   <button class="btn btn-danger" id="btnEliminar" onclick="eliminarSeleccionado()" disabled>
     <i data-lucide="trash-2"></i><span class="btn-label"> Eliminar</span>
   </button>
+  {{/if}}
+
   <div class="cb-toolbar-sep"></div>
+
+  <!-- Descargar: todos los roles -->
   <button class="btn btn-ghost" onclick="abrirModalDescarga()">
     <i data-lucide="download"></i><span class="btn-label"> Descargar</span>
   </button>
+
+  <!-- Buscador -->
   <div class="cb-search">
     <i data-lucide="search"></i>
-    <input type="text" id="cbSearch" placeholder="Buscar vale, placa, estacion..."
+    <input type="text" id="cbSearch"
+           placeholder="Buscar vale, placa, estacion..."
            oninput="filtrarTabla(this.value)" />
   </div>
+
 </div>
 
 <!-- LISTVIEW -->
@@ -32,7 +45,7 @@
     <table class="table cb-table" id="cbTabla">
       <thead>
         <tr>
-          <th style="width:36px"></th>
+          {{#if isAdmin}}<th style="width:36px"></th>{{/if}}
           <th>Vale</th>
           <th>Estacion</th>
           <th>Placa</th>
@@ -43,11 +56,16 @@
       </thead>
       <tbody id="cbTbody">
         {{#each registros}}
-        <tr class="cb-row" data-id="{{id}}"
-            onclick="seleccionarFila(this)"
-            ondblclick="abrirModalEditarFila(this)"
-            title="Clic = seleccionar, Doble clic = editar">
+        <tr class="cb-row {{#if ../isAdmin}}cb-selectable{{/if}}"
+            data-id="{{id}}"
+            {{#if ../isAdmin}}
+              onclick="seleccionarFila(this)"
+              ondblclick="abrirModalEditarFila(this)"
+              title="Clic = seleccionar, Doble clic = editar"
+            {{/if}}>
+          {{#if ../isAdmin}}
           <td class="cb-select-cell"><span class="cb-row-dot"></span></td>
+          {{/if}}
           <td class="cb-vale">{{vale}}</td>
           <td>{{#if estaciones}}{{estaciones.nombre}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
           <td>{{#if placas}}{{placas.numero}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
@@ -70,7 +88,7 @@
   </div>
 </div>
 
-<!-- MODAL: Registrar / Editar -->
+<!-- MODAL: Registrar / Editar (el form de editar solo lo abre admin via JS) -->
 <div class="modal-backdrop" id="modalCombustible" style="display:none">
   <div class="modal">
     <div class="modal-header">
@@ -122,7 +140,10 @@
                    placeholder="Ej: 20.5" step="0.01" min="0.01" required />
           </div>
           <div class="form-group">
-            <label class="form-label">Precio (S/) <span style="font-weight:400;font-size:var(--text-xs);color:var(--text-muted)">(Opcional)</span></label>
+            <label class="form-label">
+              Precio (S/)
+              <span style="font-weight:400;font-size:var(--text-xs);color:var(--text-muted)"> (Opcional)</span>
+            </label>
             <input type="number" name="precio" id="fPrecio" class="form-control"
                    placeholder="Ej: 15.80" step="0.01" min="0" />
           </div>
@@ -147,7 +168,7 @@
     </div>
     <form action="/combustible/descargar" method="GET">
       <div class="modal-body">
-        <p class="modal-hint">Selecciona el rango de fechas para exportar en formato CSV (compatible con Excel).</p>
+        <p class="modal-hint">Selecciona el rango de fechas para exportar en CSV (compatible con Excel).</p>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Desde *</label>
@@ -171,14 +192,20 @@
 
 <style>
 @media (max-width: 639px) { .hide-sm { display: none; } }
-@media (max-width: 400px)  { .btn-label { display: none; } }
+@media (max-width: 400px) { .btn-label { display: none; } }
+/* Cursor normal para filas no seleccionables (no admin) */
+.cb-row:not(.cb-selectable) { cursor: default; }
 </style>
 
 <script>
+// isAdmin viene del servidor via Handlebars
+var IS_ADMIN = {{#if isAdmin}}true{{else}}false{{/if}};
+
 var filaSeleccionada = null;
 var idSeleccionado   = null;
 
 function seleccionarFila(tr) {
+  if (!IS_ADMIN) return; // doble proteccion
   if (filaSeleccionada === tr) {
     tr.classList.remove('selected');
     filaSeleccionada = idSeleccionado = null;
@@ -193,8 +220,11 @@ function seleccionarFila(tr) {
 }
 
 function actualizarBotones(activo) {
-  document.getElementById('btnEditar').disabled   = !activo;
-  document.getElementById('btnEliminar').disabled = !activo;
+  if (!IS_ADMIN) return;
+  var e = document.getElementById('btnEditar');
+  var d = document.getElementById('btnEliminar');
+  if (e) e.disabled = !activo;
+  if (d) d.disabled = !activo;
 }
 
 function abrirModalNuevo() {
@@ -208,11 +238,12 @@ function abrirModalNuevo() {
 }
 
 function abrirModalEditar() {
-  if (!idSeleccionado) return;
+  if (!IS_ADMIN || !idSeleccionado) return;
   cargarYEditarId(idSeleccionado);
 }
 
 function abrirModalEditarFila(tr) {
+  if (!IS_ADMIN) return;
   seleccionarFila(tr);
   cargarYEditarId(tr.getAttribute('data-id'));
 }
@@ -233,12 +264,14 @@ function cargarYEditarId(id) {
       abrirModal('modalCombustible');
       lucide.createIcons();
     })
-    .catch(function() { alert('No se pudo cargar el registro. Intenta de nuevo.'); });
+    .catch(function() { alert('No se pudo cargar el registro.'); });
 }
 
 function eliminarSeleccionado() {
-  if (!idSeleccionado) return;
-  var vale = filaSeleccionada ? filaSeleccionada.querySelector('.cb-vale').textContent.trim() : '';
+  if (!IS_ADMIN || !idSeleccionado) return;
+  var vale = filaSeleccionada
+    ? filaSeleccionada.querySelector('.cb-vale').textContent.trim()
+    : '';
   if (!confirm('Eliminar el registro "' + vale + '"?\nEsta accion no se puede deshacer.')) return;
   var form = document.createElement('form');
   form.method = 'POST';
@@ -267,7 +300,6 @@ function cerrarModal(id) {
 document.querySelectorAll('.modal-backdrop').forEach(function(b) {
   b.addEventListener('click', function(e) { if (e.target === b) cerrarModal(b.id); });
 });
-
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') { cerrarModal('modalCombustible'); cerrarModal('modalDescarga'); }
 });

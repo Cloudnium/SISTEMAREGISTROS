@@ -1,4 +1,7 @@
-<!-- VIEW: usuarios/index.hbs — Lista de usuarios, responsive -->
+<!-- VIEW: usuarios/index.hbs
+     Accesible solo para admin (protegido en la ruta)
+     Editar y eliminar con doble proteccion: backend + frontend
+-->
 <div class="page-header">
   <div></div>
   <a href="/usuarios/nuevo" class="btn btn-primary">
@@ -21,12 +24,12 @@
       <thead>
         <tr>
           <th>Nombre</th>
-          <th>Correo</th>
-          <th class="hide-sm">Usuario</th>
+          <th class="hide-sm">Correo</th>
+          <th class="hide-xs">Usuario</th>
           <th>Rol</th>
           <th>Estado</th>
-          <th class="hide-sm">Último acceso</th>
-          <th>Acciones</th>
+          <th class="hide-sm">Ultimo acceso</th>
+          {{#if isAdmin}}<th>Acciones</th>{{/if}}
         </tr>
       </thead>
       <tbody>
@@ -35,11 +38,11 @@
           <td>
             <div class="user-cell">
               <div class="user-avatar-sm">{{nombre.[0]}}</div>
-              <span class="user-nombre">{{nombre}}</span>
+              <span>{{nombre}}</span>
             </div>
           </td>
-          <td class="text-secondary" style="font-size:var(--text-xs)">{{email}}</td>
-          <td class="hide-sm"><code class="code-text">{{username}}</code></td>
+          <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-secondary)">{{email}}</td>
+          <td class="hide-xs"><code class="code-text">{{username}}</code></td>
           <td>
             <span class="badge {{#if (eq rol 'admin')}}badge-primary{{else}}badge-neutral{{/if}}">
               {{rol}}
@@ -50,20 +53,24 @@
               {{#if activo}}Activo{{else}}Inactivo{{/if}}
             </span>
           </td>
-          <td class="hide-sm text-muted" style="font-size:var(--text-xs)">{{formatDate ultimo_acceso}}</td>
+          <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
+            {{formatDate ultimo_acceso}}
+          </td>
+          {{#if ../isAdmin}}
           <td>
             <div class="table-actions">
               <a href="/usuarios/{{id}}/editar" class="btn-icon btn-icon-edit" title="Editar">
                 <i data-lucide="pencil"></i>
               </a>
               <form action="/usuarios/{{id}}/eliminar" method="POST"
-                    onsubmit="return confirm('¿Eliminar a {{nombre}}? Esta acción no se puede deshacer.')">
+                    onsubmit="return confirm('Eliminar a {{nombre}}? Esta accion no se puede deshacer.')">
                 <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
                   <i data-lucide="trash-2"></i>
                 </button>
               </form>
             </div>
           </td>
+          {{/if}}
         </tr>
         {{/each}}
       </tbody>
@@ -71,7 +78,7 @@
     {{else}}
     <div class="empty-state">
       <i data-lucide="user-x"></i>
-      <p>No hay usuarios registrados aún.</p>
+      <p>No hay usuarios registrados aun.</p>
       <a href="/usuarios/nuevo" class="btn btn-primary btn-sm">
         <i data-lucide="plus"></i> Crear primer usuario
       </a>
@@ -81,9 +88,6 @@
 </div>
 
 <style>
-/* Oculta columnas secundarias en pantallas pequeñas */
-@media (max-width: 639px) {
-  .hide-sm { display: none; }
-  .user-nombre { font-size: var(--text-xs); }
-}
+@media (max-width: 639px) { .hide-sm { display: none; } }
+@media (max-width: 480px) { .hide-xs { display: none; } }
 </style>

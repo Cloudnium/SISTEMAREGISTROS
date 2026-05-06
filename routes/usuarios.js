@@ -5,7 +5,7 @@ const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const { db }   = require('../config/supabase');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
 
 router.use(requireAuth, requireAdmin);
 
@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
 });
 
 // ─── EDIT FORM ───
-router.get('/:id/editar', async (req, res) => {
+router.get('/:id/editar', requireAdminToEdit, async (req, res) => {
   const { data, error } = await db.select('usuarios',
     `select=id,nombre,username,email,rol,activo&id=eq.${req.params.id}&limit=1`);
   if (error || !data || data.length === 0) {
@@ -83,7 +83,7 @@ router.get('/:id/editar', async (req, res) => {
 });
 
 // ─── UPDATE ───
-router.post('/:id/editar', async (req, res) => {
+router.post('/:id/editar', requireAdminToEdit, async (req, res) => {
   const { nombre, username, email, password, confirmar_password, rol, activo } = req.body;
   try {
     const updates = { nombre, username: username.toLowerCase(), email, rol, activo: activo === 'on' };
@@ -106,7 +106,7 @@ router.post('/:id/editar', async (req, res) => {
 });
 
 // ─── DELETE ───
-router.post('/:id/eliminar', async (req, res) => {
+router.post('/:id/eliminar', requireAdminToDelete, async (req, res) => {
   if (req.params.id === String(req.session.user.id)) {
     req.flash('error', 'No puedes eliminarte a ti mismo.');
     return res.redirect('/usuarios');

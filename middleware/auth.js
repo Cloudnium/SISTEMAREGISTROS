@@ -1,34 +1,60 @@
 // =============================================
-// middleware/auth.js
-// Middleware de autenticación — protege rutas privadas
+// middleware/auth.js — Control de acceso
+//
+// Roles del sistema:
+//   admin       → todo: ver, registrar, editar, eliminar
+//   operador    → ver y registrar solamente
+//   visualizador → solo ver
 // =============================================
 
-// Verifica que el usuario tenga sesión activa
-// Si no, redirige al login con mensaje de error
+// Verifica sesión activa — requerido en todas las rutas privadas
 function requireAuth(req, res, next) {
-  if (req.session && req.session.user) {
-    return next();
-  }
-  req.flash('error', 'Debes iniciar sesión para acceder.');
+  if (req.session && req.session.user) return next();
+  req.flash('error', 'Debes iniciar sesion para acceder.');
   res.redirect('/login');
 }
 
-// Verifica que el usuario sea administrador
-// Usado para rutas sensibles como gestión de usuarios
+// Solo administradores (gestión de usuarios del sistema)
 function requireAdmin(req, res, next) {
-  if (req.session && req.session.user && req.session.user.rol === 'admin') {
-    return next();
-  }
-  req.flash('error', 'No tienes permisos para acceder a esta sección.');
+  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  req.flash('error', 'No tienes permisos para acceder a esta seccion.');
   res.redirect('/dashboard');
 }
 
-// Redirige al dashboard si ya está autenticado (para login/register)
+// Solo admin puede EDITAR (PUT/POST editar)
+function requireAdminToEdit(req, res, next) {
+  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  req.flash('error', 'Solo el administrador puede editar registros.');
+  res.redirect('back');
+}
+
+// Solo admin puede ELIMINAR (POST eliminar)
+function requireAdminToDelete(req, res, next) {
+  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  req.flash('error', 'Solo el administrador puede eliminar registros.');
+  res.redirect('back');
+}
+
+// Redirige al dashboard si ya tiene sesión activa (para el login)
 function redirectIfAuth(req, res, next) {
-  if (req.session && req.session.user) {
-    return res.redirect('/dashboard');
-  }
+  if (req.session && req.session.user) return res.redirect('/dashboard');
   next();
 }
 
-module.exports = { requireAuth, requireAdmin, redirectIfAuth };
+// Expone el rol del usuario a las vistas HBS como variable global
+// Usado para mostrar/ocultar botones según el rol
+function exposeUserRole(req, res, next) {
+  res.locals.isAdmin      = req.session && req.session.user && req.session.user.rol === 'admin';
+  res.locals.isOperador   = req.session && req.session.user && req.session.user.rol === 'operador';
+  res.locals.userRol      = req.session && req.session.user ? req.session.user.rol : null;
+  next();
+}
+
+module.exports = {
+  requireAuth,
+  requireAdmin,
+  requireAdminToEdit,
+  requireAdminToDelete,
+  redirectIfAuth,
+  exposeUserRole
+};

@@ -74,10 +74,12 @@ app.use(flash());
 
 // Expone datos de sesión y flash a todas las vistas HBS
 app.use((req, res, next) => {
-  res.locals.user = req.session.user || null;
+  res.locals.user        = req.session.user || null;
   res.locals.currentPath = req.path;
-  res.locals.success = req.flash('success');
-  res.locals.error = req.flash('error');
+  res.locals.success     = req.flash('success');
+  res.locals.error       = req.flash('error');
+  // Expone rol a todas las vistas para mostrar/ocultar botones
+  res.locals.isAdmin     = req.session.user && req.session.user.rol === 'admin';
   next();
 });
 
