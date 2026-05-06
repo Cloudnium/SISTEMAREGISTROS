@@ -1,31 +1,34 @@
 /* ══════════════════════════════════════════
-   variables.css — Tokens de diseño globales
-   Modifica aquí colores, fuentes y espaciados
+   variables.css — Tema claro estilo Cloudsoft
+   Fondo blanco, acentos morado/violeta
 ══════════════════════════════════════════ */
 :root {
-  /* ─── COLORES ─── */
-  --color-bg:           #0f1117;
-  --color-surface:      #1a1d27;
-  --color-surface-2:    #222636;
-  --color-border:       #2e3347;
-  --color-border-light: #3d4460;
+  /* ─── FONDOS Y SUPERFICIES ─── */
+  --color-bg:           #f4f5fb;       /* Fondo general: gris muy claro azulado */
+  --color-surface:      #ffffff;       /* Cards, sidebar, topbar: blanco puro */
+  --color-surface-2:    #f0f1f8;       /* Inputs, hover: gris claro */
+  --color-border:       #e4e6f0;       /* Bordes suaves */
+  --color-border-light: #c9cde6;       /* Bordes con más contraste */
 
-  --color-accent:       #6366f1;
+  /* ─── ACENTO PRINCIPAL: morado/violeta ─── */
+  --color-accent:       #6366f1;       /* Indigo/violeta — igual que Cloudsoft */
   --color-accent-hover: #4f52d4;
-  --color-accent-light: rgba(99,102,241,0.15);
+  --color-accent-light: rgba(99,102,241,0.10);
 
+  /* ─── COLORES DE ESTADO ─── */
   --color-success:       #10b981;
-  --color-success-light: rgba(16,185,129,0.12);
+  --color-success-light: rgba(16,185,129,0.10);
   --color-error:         #ef4444;
-  --color-error-light:   rgba(239,68,68,0.12);
+  --color-error-light:   rgba(239,68,68,0.10);
   --color-warning:       #f59e0b;
-  --color-warning-light: rgba(245,158,11,0.12);
+  --color-warning-light: rgba(245,158,11,0.10);
   --color-info:          #3b82f6;
-  --color-info-light:    rgba(59,130,246,0.12);
+  --color-info-light:    rgba(59,130,246,0.10);
 
-  --text-primary:   #f1f3f9;
-  --text-secondary: #8b92a9;
-  --text-muted:     #525b72;
+  /* ─── TEXTO ─── */
+  --text-primary:   #1a1d2e;           /* Casi negro — muy legible */
+  --text-secondary: #4b5068;           /* Gris oscuro */
+  --text-muted:     #9095b0;           /* Gris claro */
   --text-on-accent: #ffffff;
 
   /* ─── TIPOGRAFÍA ─── */
@@ -53,9 +56,9 @@
   --space-12: 3rem;
 
   /* ─── LAYOUT ─── */
-  --sidebar-width:      240px;
-  --topbar-height:      60px;
-  --content-max-width:  1200px;
+  --sidebar-width:     240px;
+  --topbar-height:     60px;
+  --content-max-width: 1200px;
 
   /* ─── RADIOS Y SOMBRAS ─── */
   --radius-sm:   6px;
@@ -64,10 +67,11 @@
   --radius-xl:   20px;
   --radius-full: 9999px;
 
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.3);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.5);
-  --shadow-accent: 0 4px 20px rgba(99,102,241,0.3);
+  /* Sombras suaves para tema claro */
+  --shadow-sm:     0 1px 3px rgba(99,102,241,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:     0 4px 12px rgba(99,102,241,0.10), 0 2px 4px rgba(0,0,0,0.05);
+  --shadow-lg:     0 8px 24px rgba(99,102,241,0.12), 0 4px 8px rgba(0,0,0,0.06);
+  --shadow-accent: 0 4px 14px rgba(99,102,241,0.35);
 
   /* ─── TRANSICIONES ─── */
   --transition-fast: 150ms ease;

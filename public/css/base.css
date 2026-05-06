@@ -1,12 +1,10 @@
 /* ══════════════════════════════════════════
-   base.css — Reset y estilos globales
+   base.css — Reset y globales (tema claro)
 ══════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-  font-size: 16px;
-  /* Escala de fuente adaptiva: 14px en móvil, 16px en desktop */
-  font-size: clamp(14px, 1.2vw, 16px);
+  font-size: clamp(14px, 1.1vw, 16px);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
@@ -20,7 +18,7 @@ body {
   background-color: var(--color-bg);
   line-height: 1.6;
   min-height: 100vh;
-  min-height: 100dvh; /* Dynamic viewport para móvil */
+  min-height: 100dvh;
   overflow-x: hidden;
 }
 
@@ -55,16 +53,16 @@ input:focus, select:focus, textarea:focus { outline: none; }
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   background: var(--color-surface-2);
-  padding: 2px 6px;
+  border: 1px solid var(--color-border);
+  padding: 2px 7px;
   border-radius: var(--radius-sm);
   color: var(--color-accent);
 }
 
-/* Scrollbar personalizado */
+/* Scrollbar suave */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-full); }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-border-light); }
 
-/* Tap highlight para móvil */
 * { -webkit-tap-highlight-color: transparent; }
