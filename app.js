@@ -8,10 +8,12 @@ const express = require('express');
 const { engine } = require('express-handlebars');
 const session = require('express-session');
 const flash = require('connect-flash');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SECRET = process.env.SESSION_SECRET || 'cloudnium_secret_2026';
 
 // ─────────────────────────────────────────────
 // CONFIGURACIÓN DE HANDLEBARS (motor de vistas)
@@ -57,15 +59,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Parsea cuerpos JSON y URL-encoded (formularios)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser(SECRET));
+
 
 // Configura sesiones de usuario
 app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: true,          // <- cambia false por true
+  secret: SECRET,
+  resave: false,
   saveUninitialized: false,
-  rolling: true,         // <- agrega esta línea
+  rolling: true,
+  proxy: true,
   cookie: {
-    secure: false,
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
     maxAge: 1000 * 60 * 60 * 24 * 7
   }
 }));
