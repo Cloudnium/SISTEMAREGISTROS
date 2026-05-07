@@ -60,12 +60,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Configura sesiones de usuario
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'secreto_temporal',
-  resave: false,
+  secret: process.env.SESSION_SECRET,
+  resave: true,          // <- cambia false por true
   saveUninitialized: false,
+  rolling: true,         // <- agrega esta línea
   cookie: {
-    secure: false, // cambiar a true en producción con HTTPS
-    maxAge: 1000 * 60 * 60 * 8 // 8 horas de sesión
+    secure: false,
+    maxAge: 1000 * 60 * 60 * 24 * 7
   }
 }));
 

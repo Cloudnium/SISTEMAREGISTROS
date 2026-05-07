@@ -15,7 +15,7 @@ const { requireAuth, requireAdminToEdit, requireAdminToDelete } = require('../mi
 // ─── LIST ─────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
   const { data: registros } = await db.select('combustible_registros',
-    'select=id,vale,fecha,estacion_id,placa_id,galones,precio,creado_en,estaciones(nombre),placas(numero)&order=fecha.desc,creado_en.desc');
+    'select=id,vale,fecha,estacion_id,placa_id,galones,precio,creado_en,estaciones(nombre),placas(numero)&order=creado_en.desc');
   const { data: estaciones } = await db.select('estaciones',
     'select=id,nombre&activo=eq.true&order=nombre.asc');
   const { data: placas } = await db.select('placas',
