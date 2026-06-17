@@ -100,6 +100,7 @@ const usuariosRoutes = require('./routes/usuarios');
 const combustibleRoutes = require('./routes/combustible');
 const personalRoutes = require('./routes/personal');
 const inventarioRoutes = require('./routes/inventario');
+const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
@@ -107,6 +108,7 @@ app.use('/usuarios', usuariosRoutes);
 app.use('/combustible', combustibleRoutes);
 app.use('/personal', personalRoutes);
 app.use('/inventario', inventarioRoutes);
+app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────
 // MANEJO DE ERRORES 404
