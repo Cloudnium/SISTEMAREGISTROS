@@ -6,14 +6,18 @@
 require('dotenv').config();
 const express = require('express');
 const { engine } = require('express-handlebars');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const flash = require('connect-flash');
-const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET = process.env.SESSION_SECRET || 'cloudnium_secret_2026';
+
+// Necesario en Vercel para que Express reconozca correctamente
+// que la conexion original del navegador es HTTPS (Vercel hace
+// el TLS y reenvia internamente), asi las cookies "secure" funcionan bien
+app.set('trust proxy', 1);
 
 // ─────────────────────────────────────────────
 // CONFIGURACIÓN DE HANDLEBARS (motor de vistas)
@@ -59,22 +63,28 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Parsea cuerpos JSON y URL-encoded (formularios)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser(SECRET));
 
-
-// Configura sesiones de usuario
-app.use(session({
-  secret: SECRET,
-  resave: false,
-  saveUninitialized: false,
-  rolling: true,
-  proxy: true,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24 * 7
-  }
+// ─────────────────────────────────────────────
+// SESIONES — 100% sin estado en el servidor
+//
+// IMPORTANTE: cookie-session guarda TODA la sesion
+// (firmada y comprimida) dentro de la cookie del
+// navegador. No depende de memoria del servidor,
+// por eso funciona perfecto en Vercel serverless,
+// donde cada peticion puede caer en una instancia
+// distinta sin memoria compartida.
+//
+// Antes se usaba express-session con MemoryStore
+// (memoria del servidor) y eso causaba que la sesion
+// se "perdiera" al cambiar de pagina en Vercel.
+// ─────────────────────────────────────────────
+app.use(cookieSession({
+  name: 'cloudnium_session',
+  keys: [SECRET],
+  maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dias
+  secure: process.env.NODE_ENV === 'production', // HTTPS en produccion
+  httpOnly: true,  // no accesible desde JS del navegador
+  sameSite: 'lax'  // proteccion CSRF basica
 }));
 
 // Flash messages (mensajes de éxito/error entre redirecciones)
@@ -100,6 +110,7 @@ const usuariosRoutes = require('./routes/usuarios');
 const combustibleRoutes = require('./routes/combustible');
 const personalRoutes = require('./routes/personal');
 const inventarioRoutes = require('./routes/inventario');
+const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
@@ -107,6 +118,7 @@ app.use('/usuarios', usuariosRoutes);
 app.use('/combustible', combustibleRoutes);
 app.use('/personal', personalRoutes);
 app.use('/inventario', inventarioRoutes);
+app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────
 // MANEJO DE ERRORES 404

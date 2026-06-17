@@ -157,8 +157,11 @@ router.post('/login', redirectIfAuth, async (req, res) => {
 });
 
 // ─── GET /logout ───
+// cookie-session no tiene .destroy(); se limpia asignando null
+// y eso hace que el navegador borre la cookie de sesion
 router.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+  req.session = null;
+  res.redirect('/login');
 });
 
 module.exports = router;

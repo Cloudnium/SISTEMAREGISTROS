@@ -1,0 +1,68 @@
+<!-- ══════════════════════════════════════════
+     PARTIAL: chat-widget.hbs
+     Chat flotante tipo Facebook Messenger
+     Solo se incluye si hay usuario en sesion (ver main.hbs)
+
+     ► Para cambiar colores: usa las variables de variables.css
+     ► Para cambiar la velocidad de "tiempo real": ver POLL_MS en el script
+══════════════════════════════════════════ -->
+<div class="chatw" id="chatw">
+
+  <!-- ── Barra colapsada (siempre visible) ── -->
+  <button class="chatw-bar" id="chatwBar" onclick="ChatWidget.toggle()">
+    <i data-lucide="message-circle"></i>
+    <span>Chat</span>
+    <span class="chatw-badge" id="chatwBadgeBar" style="display:none">0</span>
+    <i data-lucide="chevron-up" class="chatw-chevron"></i>
+  </button>
+
+  <!-- ── Panel expandido ── -->
+  <div class="chatw-panel" id="chatwPanel" style="display:none">
+
+    <!-- Header del panel -->
+    <div class="chatw-header">
+      <span class="chatw-header-title">
+        <i data-lucide="message-circle"></i> Chat
+      </span>
+      <div class="chatw-header-actions">
+        <button class="chatw-icon-btn" id="chatwBackBtn" onclick="ChatWidget.volverALista()" style="display:none" title="Volver">
+          <i data-lucide="arrow-left"></i>
+        </button>
+        <button class="chatw-icon-btn" onclick="ChatWidget.toggle()" title="Minimizar">
+          <i data-lucide="minus"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Vista: Lista de contactos ── -->
+    <div class="chatw-body" id="chatwListaView">
+      <div class="chatw-contactos" id="chatwContactos">
+        <!-- Se llena dinamicamente via JS -->
+        <div class="chatw-empty">
+          <i data-lucide="loader-2" class="chatw-spin"></i>
+          <span>Cargando contactos...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Vista: Conversacion abierta ── -->
+    <div class="chatw-body" id="chatwConvView" style="display:none">
+      <div class="chatw-conv-header" id="chatwConvHeader">
+        <!-- Se llena dinamicamente: avatar + nombre + estado -->
+      </div>
+      <div class="chatw-mensajes" id="chatwMensajes">
+        <!-- Burbujas de mensajes -->
+      </div>
+      <div class="chatw-typing" id="chatwTyping" style="display:none"></div>
+      <form class="chatw-input-row" id="chatwForm" onsubmit="return ChatWidget.enviarMensaje(event)">
+        <input type="text" id="chatwInput" placeholder="Escribe un mensaje..." autocomplete="off" maxlength="2000" />
+        <button type="submit" class="chatw-send-btn" title="Enviar">
+          <i data-lucide="send"></i>
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script src="/js/chat-widget.js"></script>
