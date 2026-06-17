@@ -22,7 +22,6 @@
   <link rel="stylesheet" href="/css/layout.css" />
   <link rel="stylesheet" href="/css/components.css" />
   <link rel="stylesheet" href="/css/pages.css" />
-  <link rel="stylesheet" href="/css/chat-widget.css" />
 </head>
 <body>
 
@@ -36,22 +35,8 @@
     </main>
   </div>
 
-  {{#if user}}
-    {{> chat-widget}}
-  {{/if}}
-
   <script>lucide.createIcons();</script>
   <script src="/js/main.js"></script>
-  {{#if user}}
-  <script>
-    // Inicializa el chat con el ID del usuario en sesion
-    document.addEventListener('DOMContentLoaded', function () {
-      if (typeof ChatWidget !== 'undefined') {
-        ChatWidget.init('{{user.id}}');
-      }
-    });
-  </script>
-  {{/if}}
 
 </body>
 </html>
