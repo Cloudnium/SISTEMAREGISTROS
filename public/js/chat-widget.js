@@ -1,286 +1,461 @@
 // =============================================
 // public/js/chat-widget.js
-// Logica del chat flotante tipo Messenger
-// Polling cada POLL_MS para sentir "tiempo real"
-// Heartbeat cada HEARTBEAT_MS para marcar "en linea"
+// Chat completo: 1-a-1 + grupos + emojis
+// Polling cada POLL_MS para "tiempo real"
 // =============================================
-
 const ChatWidget = (function () {
 
-  const POLL_MS      = 3000;   // cada cuanto revisa mensajes nuevos / contactos
-  const HEARTBEAT_MS = 10000;  // cada cuanto avisa "sigo activo"
+  const POLL_MS      = 3000;
+  const HEARTBEAT_MS = 10000;
 
-  let abierto          = false;
-  let conversacionActiva = null; // { id, nombre, rol }
-  let pollTimer         = null;
-  let heartbeatTimer    = null;
-  let ultimaFirmaMsgs  = '';
+  let abierto            = false;
+  let conversacionActiva = null; // { id, nombre, tipo: 'usuario'|'grupo', ... }
+  let ultimaFirma        = '';
+  let grupoInfoVisible   = false;
+  let grupoActualCreador = null;
 
-  // ─── Helpers de fetch ───
-  // Si la sesion alguna vez expira, el servidor redirige a /login
-  // en vez de devolver JSON. Antes esto causaba fallos silenciosos
-  // que se sentian como "el chat no carga". Ahora se detecta y
-  // se recarga la pagina para volver al login correctamente.
-  function manejarRespuesta(r) {
-    if (r.redirected && r.url.indexOf('/login') !== -1) {
+  // ══════════════════════════════════════
+  // FETCH HELPERS
+  // ══════════════════════════════════════
+  function manejarResp(r) {
+    if (r.redirected && r.url.includes('/login')) {
       window.location.href = '/login';
-      return Promise.reject(new Error('Sesion expirada'));
+      return Promise.reject('sesion-expirada');
     }
     return r.json();
   }
-  function getJSON(url) {
-    return fetch(url, { credentials: 'same-origin' }).then(manejarRespuesta);
-  }
-  function postJSON(url, body) {
+  function get(url)        { return fetch(url, { credentials: 'same-origin' }).then(manejarResp); }
+  function post(url, body) {
     return fetch(url, {
-      method: 'POST',
-      credentials: 'same-origin',
+      method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body || {})
-    }).then(manejarRespuesta);
+    }).then(manejarResp);
+  }
+  function del(url) {
+    return fetch(url, { method: 'DELETE', credentials: 'same-origin' }).then(manejarResp);
   }
 
-  // ─── Iniciales para avatar sin foto ───
-  function iniciales(nombre) {
-    if (!nombre) return '?';
-    const partes = nombre.trim().split(' ');
-    return partes.length > 1
-      ? (partes[0][0] + partes[1][0]).toUpperCase()
-      : partes[0].substring(0, 2).toUpperCase();
+  // ══════════════════════════════════════
+  // UTILIDADES
+  // ══════════════════════════════════════
+  function iniciales(n) {
+    if (!n) return '?';
+    const p = n.trim().split(' ');
+    return p.length > 1 ? (p[0][0]+p[1][0]).toUpperCase() : n.substring(0,2).toUpperCase();
   }
-
-  // ─── Formato de hora corta ───
-  function horaCorta(iso) {
+  function hora(iso) {
     if (!iso) return '';
-    const d = new Date(iso);
-    return d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+  }
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
   }
 
-  // ─── Abre / cierra el panel ───
+  // ══════════════════════════════════════
+  // TOGGLE PANEL
+  // ══════════════════════════════════════
   function toggle() {
     abierto = !abierto;
     document.getElementById('chatwPanel').style.display = abierto ? 'flex' : 'none';
     document.getElementById('chatwBar').classList.toggle('chatw-bar-active', abierto);
-    if (abierto) {
-      cargarContactos();
-    }
+    if (abierto) cargarContactos();
   }
 
-  // ─── Vuelve de la conversacion a la lista ───
-  function volverALista() {
-    conversacionActiva = null;
-    document.getElementById('chatwListaView').style.display = '';
-    document.getElementById('chatwConvView').style.display  = 'none';
-    document.getElementById('chatwBackBtn').style.display   = 'none';
-    cargarContactos();
-  }
-
-  // ─── Abre una conversacion con un contacto ───
-  function abrirConversacion(contacto) {
-    conversacionActiva = contacto;
-    ultimaFirmaMsgs = ''; // reinicia para forzar el primer render de esta conversacion
-    document.getElementById('chatwListaView').style.display = 'none';
-    document.getElementById('chatwConvView').style.display  = 'flex';
-    document.getElementById('chatwBackBtn').style.display   = 'flex';
-
-    const header = document.getElementById('chatwConvHeader');
-    header.innerHTML =
-      '<div class="chatw-avatar">' +
-        '<span>' + iniciales(contacto.nombre) + '</span>' +
-        (contacto.enLinea ? '<span class="chatw-dot"></span>' : '') +
-      '</div>' +
-      '<div class="chatw-conv-info">' +
-        '<span class="chatw-conv-name">' + escapeHtml(contacto.nombre) + '</span>' +
-        '<span class="chatw-conv-status">' + (contacto.enLinea ? 'En linea' : 'Desconectado') + '</span>' +
-      '</div>';
-
-    cargarMensajes();
-    document.getElementById('chatwInput').focus();
-  }
-
-  // ─── Escape basico para evitar inyeccion HTML ───
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
-  }
-
-  // ─── Carga lista de contactos con estado en linea y no leidos ───
+  // ══════════════════════════════════════
+  // LISTA DE CONTACTOS Y GRUPOS
+  // ══════════════════════════════════════
   function cargarContactos() {
-    getJSON('/chat/contactos').then(function (data) {
-      const cont = document.getElementById('chatwContactos');
-      const contactos = data.contactos || [];
+    get('/chat/contactos').then(function(data) {
+      actualizarBadge(data.totalNoLeidos || 0);
+      window._contactosCache = data.contactos || [];
+      const lista = data.contactos || [];
+      const cont  = document.getElementById('chatwContactos');
 
-      actualizarBadgeGlobal(data.totalNoLeidos || 0);
-
-      if (contactos.length === 0) {
-        cont.innerHTML = '<div class="chatw-empty"><i data-lucide="users"></i><span>No hay otros usuarios aun.</span></div>';
+      if (lista.length === 0) {
+        cont.innerHTML = '<div class="chatw-empty"><i data-lucide="users"></i><span>No hay contactos aún.</span></div>';
         if (window.lucide) lucide.createIcons();
         return;
       }
 
-      cont.innerHTML = contactos.map(function (c) {
+      cont.innerHTML = lista.map(function(c) {
+        const esGrupo   = c.tipo === 'grupo';
+        const iconExtra = esGrupo
+          ? '<span class="chatw-tipo-badge">Grupo</span>'
+          : (c.enLinea ? '<span class="chatw-dot"></span>' : '');
         const preview = c.ultimoMensaje
-          ? escapeHtml(c.ultimoMensaje.substring(0, 40)) + (c.ultimoMensaje.length > 40 ? '...' : '')
-          : 'Sin mensajes aun';
+          ? esc(c.ultimoMensaje.substring(0,38)) + (c.ultimoMensaje.length > 38 ? '…' : '')
+          : '<em>Sin mensajes aún</em>';
         return (
-          '<div class="chatw-contacto" data-id="' + c.id + '" onclick="ChatWidget.seleccionarContacto(\'' + c.id + '\')">' +
-            '<div class="chatw-avatar">' +
+          '<div class="chatw-contacto" onclick="ChatWidget.seleccionar(\'' + c.id + '\')">' +
+            '<div class="chatw-avatar chatw-avatar-' + (esGrupo ? 'grupo' : 'user') + '">' +
               '<span>' + iniciales(c.nombre) + '</span>' +
-              (c.enLinea ? '<span class="chatw-dot"></span>' : '') +
+              iconExtra +
             '</div>' +
             '<div class="chatw-contacto-info">' +
               '<div class="chatw-contacto-top">' +
-                '<span class="chatw-contacto-name">' + escapeHtml(c.nombre) + '</span>' +
-                '<span class="chatw-contacto-time">' + horaCorta(c.ultimaFecha) + '</span>' +
+                '<span class="chatw-contacto-name">' + esc(c.nombre) + '</span>' +
+                '<span class="chatw-contacto-time">' + hora(c.ultimaFecha) + '</span>' +
               '</div>' +
               '<div class="chatw-contacto-bottom">' +
                 '<span class="chatw-contacto-preview' + (c.noLeidos > 0 ? ' chatw-unread' : '') + '">' + preview + '</span>' +
-                (c.noLeidos > 0 ? '<span class="chatw-badge-mini">' + c.noLeidos + '</span>' : '') +
+                (c.noLeidos > 0 ? '<span class="chatw-badge-mini">'+c.noLeidos+'</span>' : '') +
               '</div>' +
             '</div>' +
           '</div>'
         );
       }).join('');
-
-      // Guarda referencia para abrir conversacion al click
-      window._chatwContactosCache = contactos;
       if (window.lucide) lucide.createIcons();
-    }).catch(function () { /* silencioso, reintenta en el siguiente poll */ });
+    }).catch(function(){});
   }
 
-  function seleccionarContacto(id) {
-    const contacto = (window._chatwContactosCache || []).find(c => c.id === id);
-    if (contacto) abrirConversacion(contacto);
+  function seleccionar(id) {
+    const c = (window._contactosCache || []).find(x => x.id === id);
+    if (c) abrirConversacion(c);
   }
 
-  // ─── Carga mensajes de la conversacion activa ───
-  // Compara un "firma" de todos los mensajes (id + leido) para detectar
-  // cambios reales, incluyendo cuando solo cambia el estado "visto"
-  // (antes solo comparaba la cantidad y por eso los checks no se
-  // actualizaban en vivo cuando no llegaban mensajes nuevos)
+  // ══════════════════════════════════════
+  // ABRIR CONVERSACIÓN (usuario o grupo)
+  // ══════════════════════════════════════
+  function abrirConversacion(c) {
+    conversacionActiva = c;
+    ultimaFirma        = '';
+    grupoInfoVisible   = false;
+
+    document.getElementById('chatwListaView').style.display  = 'none';
+    document.getElementById('chatwConvView').style.display   = 'flex';
+    document.getElementById('chatwBackBtn').style.display    = 'flex';
+    document.getElementById('chatwNuevoGrupoBtn').style.display = 'none';
+    document.getElementById('chatwGrupoInfo').style.display  = 'none';
+
+    const esGrupo = c.tipo === 'grupo';
+    document.getElementById('chatwGrupoInfoBtn').style.display = esGrupo ? 'flex' : 'none';
+    document.getElementById('chatwHeaderLabel').textContent   = c.nombre;
+
+    const header = document.getElementById('chatwConvHeader');
+    header.innerHTML =
+      '<div class="chatw-avatar chatw-avatar-sm chatw-avatar-' + (esGrupo ? 'grupo' : 'user') + '">' +
+        '<span>' + iniciales(c.nombre) + '</span>' +
+        (!esGrupo && c.enLinea ? '<span class="chatw-dot"></span>' : '') +
+      '</div>' +
+      '<div class="chatw-conv-info">' +
+        '<span class="chatw-conv-name">' + esc(c.nombre) + '</span>' +
+        '<span class="chatw-conv-status">' +
+          (esGrupo ? 'Grupo de chat' : (c.enLinea ? 'En línea' : 'Desconectado')) +
+        '</span>' +
+      '</div>';
+
+    if (esGrupo) cargarInfoGrupo(c.id);
+    cargarMensajes();
+    document.getElementById('chatwInput').focus();
+  }
+
+  function volverALista() {
+    conversacionActiva = null;
+    grupoInfoVisible   = false;
+    document.getElementById('chatwListaView').style.display  = '';
+    document.getElementById('chatwConvView').style.display   = 'none';
+    document.getElementById('chatwBackBtn').style.display    = 'none';
+    document.getElementById('chatwGrupoInfoBtn').style.display = 'none';
+    document.getElementById('chatwNuevoGrupoBtn').style.display = 'flex';
+    document.getElementById('chatwHeaderLabel').textContent  = 'Chat';
+    cerrarEmojis();
+    cargarContactos();
+  }
+
+  // ══════════════════════════════════════
+  // INFO DEL GRUPO
+  // ══════════════════════════════════════
+  function cargarInfoGrupo(grupoId) {
+    get('/chat/grupos/' + grupoId).then(function(data) {
+      grupoActualCreador = data.grupo ? data.grupo.creado_por : null;
+      const miId = window.CHATW_USER_ID;
+      const miembros = data.miembros || [];
+      document.getElementById('chatwGrupoMiembros').innerHTML =
+        miembros.map(function(m) {
+          const u = m.usuarios;
+          if (!u) return '';
+          return (
+            '<div class="chatw-miembro-item">' +
+              '<div class="chatw-avatar chatw-avatar-xs">' +
+                '<span>' + iniciales(u.nombre) + '</span>' +
+              '</div>' +
+              '<span>' + esc(u.nombre) + '</span>' +
+              (grupoActualCreador === u.id ? '<span class="chatw-admin-badge">Admin</span>' : '') +
+            '</div>'
+          );
+        }).join('');
+      // Solo el creador puede eliminar
+      const elimBtn = document.getElementById('chatwEliminarGrupoBtn');
+      if (elimBtn) elimBtn.style.display = grupoActualCreador === miId ? 'flex' : 'none';
+      if (window.lucide) lucide.createIcons();
+    }).catch(function(){});
+  }
+
+  function toggleInfoGrupo() {
+    grupoInfoVisible = !grupoInfoVisible;
+    document.getElementById('chatwGrupoInfo').style.display = grupoInfoVisible ? 'block' : 'none';
+  }
+
+  // ══════════════════════════════════════
+  // CARGAR Y RENDERIZAR MENSAJES
+  // ══════════════════════════════════════
   function cargarMensajes(silencioso) {
     if (!conversacionActiva) return;
-    getJSON('/chat/conversacion/' + conversacionActiva.id).then(function (data) {
-      const mensajes = data.mensajes || [];
-      const firma = mensajes.map(function (m) { return m.id + ':' + (m.leido ? 1 : 0); }).join('|');
+    const esGrupo = conversacionActiva.tipo === 'grupo';
+    const url = esGrupo
+      ? '/chat/grupos/' + conversacionActiva.id + '/mensajes'
+      : '/chat/conversacion/' + conversacionActiva.id;
 
-      if (!silencioso || firma !== ultimaFirmaMsgs) {
-        renderMensajes(mensajes);
-        ultimaFirmaMsgs = firma;
+    get(url).then(function(data) {
+      const msgs  = data.mensajes || [];
+      const firma = msgs.map(function(m) {
+        return m.id + ':' + (m.leido ? 1 : 0);
+      }).join('|');
+      if (!silencioso || firma !== ultimaFirma) {
+        renderMensajes(msgs, esGrupo);
+        ultimaFirma = firma;
       }
-    }).catch(function () {});
+    }).catch(function(){});
   }
 
-  function renderMensajes(mensajes) {
+  function renderMensajes(msgs, esGrupo) {
     const cont = document.getElementById('chatwMensajes');
     const miId = window.CHATW_USER_ID;
-    const estabaAbajo = cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 30;
+    const abajo = cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 40;
 
-    cont.innerHTML = mensajes.map(function (m) {
+    cont.innerHTML = msgs.map(function(m) {
       const esMio = m.remitente_id === miId;
-      // Solo mis propios mensajes muestran el estado de "visto"
-      const estado = esMio ? renderChecks(m.leido) : '';
+      const nombreRemitente = esGrupo && !esMio && m.usuarios
+        ? '<span class="chatw-msg-remitente">' + esc(m.usuarios.nombre) + '</span>'
+        : '';
+      const checks = esMio && !esGrupo ? renderChecks(m.leido) : '';
       return (
         '<div class="chatw-msg ' + (esMio ? 'chatw-msg-mio' : 'chatw-msg-otro') + '">' +
-          '<span class="chatw-msg-bubble">' + escapeHtml(m.contenido) + '</span>' +
-          '<span class="chatw-msg-time">' + horaCorta(m.creado_en) + estado + '</span>' +
+          nombreRemitente +
+          '<span class="chatw-msg-bubble">' + esc(m.contenido) + '</span>' +
+          '<span class="chatw-msg-time">' + hora(m.creado_en) + checks + '</span>' +
         '</div>'
       );
     }).join('');
 
-    if (estabaAbajo || mensajes.length <= 1) {
-      cont.scrollTop = cont.scrollHeight;
-    }
+    if (abajo || msgs.length <= 1) cont.scrollTop = cont.scrollHeight;
   }
 
-  // ─── Checks estilo WhatsApp: gris = enviado, azul = visto ───
   function renderChecks(leido) {
-    const claseExtra = leido ? 'chatw-check-leido' : '';
-    // Doble check SVG inline (sin depender de Lucide para que siempre se vea)
+    const cls = leido ? 'chatw-check-leido' : '';
     return (
-      '<svg class="chatw-check ' + claseExtra + '" viewBox="0 0 16 11" width="14" height="10">' +
+      '<svg class="chatw-check ' + cls + '" viewBox="0 0 16 11" width="14" height="10">' +
         '<path d="M1 5.5L4.5 9L11 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
         '<path d="M5.5 5.5L9 9L15.5 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' +
       '</svg>'
     );
   }
 
-  // ─── Envia un mensaje nuevo ───
+  // ══════════════════════════════════════
+  // ENVIAR MENSAJE
+  // ══════════════════════════════════════
   function enviarMensaje(e) {
     e.preventDefault();
     if (!conversacionActiva) return false;
-
-    const input = document.getElementById('chatwInput');
-    const texto = input.value.trim();
+    const input   = document.getElementById('chatwInput');
+    const texto   = input.value.trim();
     if (!texto) return false;
-
     input.value = '';
-    input.focus();
+    cerrarEmojis();
 
-    postJSON('/chat/enviar', {
-      destinatario_id: conversacionActiva.id,
-      contenido: texto
-    }).then(function () {
-      cargarMensajes();
-    }).catch(function () {
-      alert('No se pudo enviar el mensaje. Intenta de nuevo.');
-    });
+    const esGrupo = conversacionActiva.tipo === 'grupo';
+    const url     = esGrupo
+      ? '/chat/grupos/' + conversacionActiva.id + '/enviar'
+      : '/chat/enviar';
+    const body    = esGrupo
+      ? { contenido: texto }
+      : { destinatario_id: conversacionActiva.id, contenido: texto };
 
+    post(url, body).then(function() { cargarMensajes(); })
+                   .catch(function() { alert('Error al enviar. Intenta de nuevo.'); });
     return false;
   }
 
-  // ─── Actualiza el contador en la barra colapsada ───
-  function actualizarBadgeGlobal(total) {
-    const badgeBar = document.getElementById('chatwBadgeBar');
-    if (total > 0) {
-      badgeBar.textContent = total > 9 ? '9+' : total;
-      badgeBar.style.display = 'inline-flex';
-    } else {
-      badgeBar.style.display = 'none';
+  // ══════════════════════════════════════
+  // EMOJIS
+  // ══════════════════════════════════════
+  // Lista de emojis organizados por categoría
+  const EMOJIS = [
+    // Caritas
+    '😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇',
+    '🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚',
+    '😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔',
+    '🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥',
+    '😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤧','🥵',
+    '🥶','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟',
+    '🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨',
+    '😰','😥','😢','😭','😱','😖','😣','😞','😓','😩',
+    '😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️',
+    // Gestos y manos
+    '👍','👎','👌','🤌','✌️','🤞','🤟','🤘','🤙','👈',
+    '👉','👆','👇','☝️','👋','🤚','🖐️','✋','🖖','💪',
+    '🦵','🦶','👏','🙌','🤲','🤝','🙏',
+    // Corazones
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔',
+    '❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️',
+    // Objetos y símbolos
+    '🔥','✨','⭐','🌟','💥','💢','💬','💭','💤','🎉',
+    '🎊','🎈','🎁','🏆','🥇','🚀','⚡','☀️','🌙','⚽',
+    '🍕','🍔','🍟','🍦','☕','🎵','🎶','💻','📱','📷'
+  ];
+
+  function toggleEmojis(e) {
+    e.stopPropagation();
+    const panel = document.getElementById('chatwEmojiPanel');
+    const visible = panel.style.display !== 'none';
+    if (visible) { cerrarEmojis(); return; }
+
+    // Construye la grilla si aún no tiene contenido
+    if (!panel.dataset.built) {
+      panel.innerHTML = EMOJIS.map(function(em) {
+        return '<button type="button" class="chatw-emoji-item" onclick="ChatWidget.insertarEmoji(\'' + em + '\')">' + em + '</button>';
+      }).join('');
+      panel.dataset.built = '1';
     }
+    panel.style.display = 'grid';
   }
 
-  // ─── Ciclo de polling: refresca contactos y/o conversacion abierta ───
-  function poll() {
-    if (!document.getElementById('chatw')) return;
+  function cerrarEmojis() {
+    document.getElementById('chatwEmojiPanel').style.display = 'none';
+  }
 
-    // Siempre refresca el contador global aunque el panel este cerrado
-    getJSON('/chat/contactos').then(function (data) {
-      actualizarBadgeGlobal(data.totalNoLeidos || 0);
-      window._chatwContactosCache = data.contactos || [];
-      // Si el panel esta abierto y estamos viendo la lista, refresca la lista visualmente
-      if (abierto && !conversacionActiva) {
-        const listaVisible = document.getElementById('chatwListaView').style.display !== 'none';
-        if (listaVisible) cargarContactos();
+  function insertarEmoji(emoji) {
+    const input = document.getElementById('chatwInput');
+    const pos   = input.selectionStart;
+    const val   = input.value;
+    input.value = val.substring(0, pos) + emoji + val.substring(pos);
+    input.selectionStart = input.selectionEnd = pos + emoji.length;
+    input.focus();
+    // No cierra el panel para poder insertar varios emojis seguidos
+  }
+
+  // ══════════════════════════════════════
+  // GRUPOS — MODAL CREAR
+  // ══════════════════════════════════════
+  function abrirModalGrupo() {
+    document.getElementById('chatwModalGrupo').style.display = 'flex';
+    document.getElementById('grupoNombre').value = '';
+    // Carga usuarios disponibles
+    get('/chat/usuarios-disponibles').then(function(data) {
+      const lista = data.usuarios || [];
+      const cont  = document.getElementById('grupoMiembrosLista');
+      if (lista.length === 0) {
+        cont.innerHTML = '<p style="font-size:.8rem;color:var(--text-muted)">No hay otros usuarios.</p>';
+        return;
       }
-    }).catch(function () {});
+      cont.innerHTML = lista.map(function(u) {
+        return (
+          '<label class="chatw-miembro-check">' +
+            '<input type="checkbox" value="' + u.id + '" class="chatw-chk-miembro" />' +
+            '<div class="chatw-avatar chatw-avatar-xs"><span>' + iniciales(u.nombre) + '</span></div>' +
+            '<span>' + esc(u.nombre) + '</span>' +
+          '</label>'
+        );
+      }).join('');
+    }).catch(function(){});
+  }
 
-    // Si hay conversacion abierta, refresca sus mensajes en silencio
-    if (abierto && conversacionActiva) {
-      cargarMensajes(true);
+  function cerrarModalGrupo(e) {
+    if (e && e.target !== document.getElementById('chatwModalGrupo')) return;
+    document.getElementById('chatwModalGrupo').style.display = 'none';
+  }
+
+  function crearGrupo() {
+    const nombre   = document.getElementById('grupoNombre').value.trim();
+    const checks   = document.querySelectorAll('.chatw-chk-miembro:checked');
+    const miembros = Array.from(checks).map(function(c) { return c.value; });
+
+    if (!nombre) { alert('Escribe un nombre para el grupo.'); return; }
+    if (miembros.length === 0) { alert('Selecciona al menos un miembro.'); return; }
+
+    post('/chat/grupos/crear', { nombre, miembros }).then(function(data) {
+      document.getElementById('chatwModalGrupo').style.display = 'none';
+      cargarContactos();
+      // Abre el grupo recién creado
+      if (data.grupo) {
+        abrirConversacion({
+          id: data.grupo.id,
+          nombre: data.grupo.nombre,
+          tipo: 'grupo',
+          enLinea: false
+        });
+      }
+    }).catch(function() { alert('Error al crear el grupo. Intenta de nuevo.'); });
+  }
+
+  function eliminarGrupo() {
+    if (!conversacionActiva || conversacionActiva.tipo !== 'grupo') return;
+    if (!confirm('¿Eliminar el grupo "' + conversacionActiva.nombre + '"? Esta acción no se puede deshacer.')) return;
+    del('/chat/grupos/' + conversacionActiva.id).then(function() {
+      volverALista();
+    }).catch(function() { alert('No se pudo eliminar el grupo.'); });
+  }
+
+  // ══════════════════════════════════════
+  // BADGE GLOBAL
+  // ══════════════════════════════════════
+  function actualizarBadge(total) {
+    const b = document.getElementById('chatwBadgeBar');
+    if (total > 0) {
+      b.textContent    = total > 9 ? '9+' : total;
+      b.style.display  = 'inline-flex';
+    } else {
+      b.style.display = 'none';
     }
   }
 
-  // ─── Heartbeat: avisa que el usuario sigue activo ───
-  function heartbeat() {
-    postJSON('/chat/heartbeat', {}).catch(function () {});
+  // ══════════════════════════════════════
+  // POLLING
+  // ══════════════════════════════════════
+  function poll() {
+    // Siempre actualiza el badge global aunque el panel esté cerrado
+    get('/chat/contactos').then(function(data) {
+      actualizarBadge(data.totalNoLeidos || 0);
+      window._contactosCache = data.contactos || [];
+      if (abierto && !conversacionActiva) cargarContactos();
+    }).catch(function(){});
+
+    if (abierto && conversacionActiva) cargarMensajes(true);
   }
 
-  // ─── Inicializa todo cuando el DOM esta listo ───
+  function heartbeat() {
+    post('/chat/heartbeat', {}).catch(function(){});
+  }
+
+  // ══════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════
   function init(userId) {
     window.CHATW_USER_ID = userId;
+
+    // Cierra emojis al hacer clic fuera
+    document.addEventListener('click', function(e) {
+      const panel = document.getElementById('chatwEmojiPanel');
+      const btn   = document.querySelector('.chatw-emoji-btn');
+      if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
+        cerrarEmojis();
+      }
+    });
+
     heartbeat();
-    heartbeatTimer = setInterval(heartbeat, HEARTBEAT_MS);
-    pollTimer = setInterval(poll, POLL_MS);
-    poll(); // primera carga inmediata del badge
+    setInterval(heartbeat, HEARTBEAT_MS);
+    setInterval(poll, POLL_MS);
+    poll();
   }
 
   return {
-    init: init,
-    toggle: toggle,
-    volverALista: volverALista,
-    seleccionarContacto: seleccionarContacto,
-    enviarMensaje: enviarMensaje
+    init, toggle, volverALista, seleccionar,
+    enviarMensaje, toggleEmojis, insertarEmoji,
+    abrirModalGrupo, cerrarModalGrupo, crearGrupo,
+    eliminarGrupo, toggleInfoGrupo
   };
+
 })();
