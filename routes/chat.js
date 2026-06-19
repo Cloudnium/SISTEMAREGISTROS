@@ -84,21 +84,32 @@ router.get('/contactos', requireAuth, async (req, res) => {
   }).filter(Boolean);
 
   // Si hay grupos, traemos su ultimo mensaje y no leidos
+  //
+  // IMPORTANTE: antes esto comparaba fechas directamente en la URL
+  // (creado_en=gt.2026-01-01T00:00:00+00:00), pero el simbolo "+"
+  // en una URL se interpreta como espacio y corrompe la fecha,
+  // haciendo que la consulta fallara en silencio y el contador
+  // de no leidos siempre diera 0. Ahora se traen todos los mensajes
+  // del grupo y se comparan las fechas como objetos Date en JS,
+  // igual que ya se hace en los chats 1-a-1 (que si funcionaban bien).
   if (grupos.length > 0) {
-    const grupoIds = grupos.map(g => g.id);
     for (const g of grupos) {
-      const { data: ultMsgs } = await db.select('chat_grupo_mensajes',
-        `select=id,contenido,creado_en,remitente_id&grupo_id=eq.${g.id}&order=creado_en.desc&limit=1`);
+      const { data: msgs } = await db.select('chat_grupo_mensajes',
+        `select=id,contenido,creado_en,remitente_id&grupo_id=eq.${g.id}&order=creado_en.desc`);
       const { data: lectura } = await db.select('chat_grupo_lecturas',
         `select=ultimo_leido_en&grupo_id=eq.${g.id}&usuario_id=eq.${miId}&limit=1`);
-      if (ultMsgs && ultMsgs.length > 0) {
-        g.ultimoMensaje = ultMsgs[0].contenido;
-        g.ultimaFecha   = ultMsgs[0].creado_en;
-        // Cuenta mensajes más nuevos que mi última lectura
-        const desde = lectura && lectura[0] ? lectura[0].ultimo_leido_en : '2000-01-01';
-        const { data: sinLeer } = await db.select('chat_grupo_mensajes',
-          `select=id&grupo_id=eq.${g.id}&creado_en=gt.${desde}&remitente_id=neq.${miId}`);
-        g.noLeidos = sinLeer ? sinLeer.length : 0;
+
+      if (msgs && msgs.length > 0) {
+        g.ultimoMensaje = msgs[0].contenido;
+        g.ultimaFecha   = msgs[0].creado_en;
+
+        const desdeMs = (lectura && lectura[0])
+          ? new Date(lectura[0].ultimo_leido_en).getTime()
+          : 0; // si nunca leyo, todos los mensajes de otros cuentan
+
+        g.noLeidos = msgs.filter(m =>
+          m.remitente_id !== miId && new Date(m.creado_en).getTime() > desdeMs
+        ).length;
       }
     }
   }

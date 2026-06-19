@@ -71,6 +71,11 @@
       <div class="chatw-mensajes" id="chatwMensajes"></div>
 
       <!-- Input con emoji y enviar -->
+      <!-- IMPORTANTE: el panel de emojis vive DENTRO de este form
+           para que se posicione relativo a la barra de texto
+           (que tiene position:relative), no al chat completo.
+           Si se mueve afuera, el panel "desaparece" porque el
+           chat tiene overflow:hidden y lo recorta. -->
       <form class="chatw-input-row" id="chatwForm"
             onsubmit="return ChatWidget.enviarMensaje(event)">
         <!-- Botón emoji -->
@@ -84,10 +89,10 @@
         <button type="submit" class="chatw-send-btn" title="Enviar">
           <i data-lucide="send"></i>
         </button>
-      </form>
 
-      <!-- Panel de emojis (oculto por defecto) -->
-      <div class="chatw-emoji-panel" id="chatwEmojiPanel" style="display:none"></div>
+        <!-- Panel de emojis (oculto por defecto) -->
+        <div class="chatw-emoji-panel" id="chatwEmojiPanel" style="display:none"></div>
+      </form>
     </div>
 
   </div>
