@@ -8,11 +8,36 @@ const ChatWidget = (function () {
   const POLL_MS      = 3000;
   const HEARTBEAT_MS = 10000;
 
+  // ─── SONIDO DE NOTIFICACION ───
+  // Para cambiar el sonido: reemplaza el archivo en public/sounds/
+  // manteniendo el mismo nombre, o cambia esta ruta por la tuya.
+  // Ver public/sounds/INSTRUCCIONES.md para mas detalles.
+  const SONIDO_NOTIFICACION = '/sounds/notificacion.mp3';
+  const VOLUMEN_NOTIFICACION = 0.5; // 0.0 a 1.0
+  let audioNotificacion = null; // se crea una sola vez, se reutiliza
+
   let abierto            = false;
   let conversacionActiva = null; // { id, nombre, tipo: 'usuario'|'grupo', ... }
   let ultimaFirma        = '';
   let grupoInfoVisible   = false;
   let grupoActualCreador = null;
+  let idsMensajesConocidos = new Set(); // ids ya vistos en la conversacion abierta
+  let totalOtrosAnterior   = null;      // no leidos de OTRAS conversaciones (no la abierta)
+
+  // ─── Reproduce el sonido de notificacion ───
+  // Falla en silencio si el navegador bloquea el autoplay
+  // (los navegadores requieren al menos una interaccion del
+  // usuario con la pagina antes de permitir sonidos automaticos)
+  function reproducirSonido() {
+    try {
+      if (!audioNotificacion) {
+        audioNotificacion = new Audio(SONIDO_NOTIFICACION);
+        audioNotificacion.volume = VOLUMEN_NOTIFICACION;
+      }
+      audioNotificacion.currentTime = 0;
+      audioNotificacion.play().catch(function () { /* bloqueado por el navegador, ignorar */ });
+    } catch (e) { /* ignorar */ }
+  }
 
   // ══════════════════════════════════════
   // FETCH HELPERS
@@ -123,6 +148,7 @@ const ChatWidget = (function () {
     conversacionActiva = c;
     ultimaFirma        = '';
     grupoInfoVisible   = false;
+    idsMensajesConocidos = new Set(); // nueva conversacion, reinicia el seguimiento
 
     document.getElementById('chatwListaView').style.display  = 'none';
     document.getElementById('chatwConvView').style.display   = 'flex';
@@ -214,7 +240,19 @@ const ChatWidget = (function () {
       const firma = msgs.map(function(m) {
         return m.id + ':' + (m.leido ? 1 : 0);
       }).join('|');
+
       if (!silencioso || firma !== ultimaFirma) {
+        // Detecta si llego un mensaje nuevo de OTRA persona mientras
+        // estoy viendo esta conversacion (en polls silenciosos en
+        // segundo plano) para sonar la notificacion
+        if (silencioso) {
+          const miId = window.CHATW_USER_ID;
+          const hayNuevoDeOtro = msgs.some(function (m) {
+            return m.remitente_id !== miId && !idsMensajesConocidos.has(m.id);
+          });
+          if (hayNuevoDeOtro) reproducirSonido();
+        }
+        idsMensajesConocidos = new Set(msgs.map(function (m) { return m.id; }));
         renderMensajes(msgs, esGrupo);
         ultimaFirma = firma;
       }
@@ -418,8 +456,23 @@ const ChatWidget = (function () {
   function poll() {
     // Siempre actualiza el badge global aunque el panel esté cerrado
     get('/chat/contactos').then(function(data) {
+      const contactos = data.contactos || [];
+
+      // Suma de no leidos de OTRAS conversaciones (excluye la que tengo
+      // abierta ahora mismo, porque esos mensajes ya se detectan en
+      // cargarMensajes() y sonarian el aviso dos veces por el mismo mensaje)
+      const idActivo = conversacionActiva ? conversacionActiva.id : null;
+      const totalOtros = contactos.reduce(function (sum, c) {
+        return c.id === idActivo ? sum : sum + (c.noLeidos || 0);
+      }, 0);
+
+      if (totalOtrosAnterior !== null && totalOtros > totalOtrosAnterior) {
+        reproducirSonido();
+      }
+      totalOtrosAnterior = totalOtros;
+
       actualizarBadge(data.totalNoLeidos || 0);
-      window._contactosCache = data.contactos || [];
+      window._contactosCache = contactos;
       if (abierto && !conversacionActiva) cargarContactos();
     }).catch(function(){});
 
