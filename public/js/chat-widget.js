@@ -12,7 +12,7 @@ const ChatWidget = (function () {
   // Para cambiar el sonido: reemplaza el archivo en public/sounds/
   // manteniendo el mismo nombre, o cambia esta ruta por la tuya.
   // Ver public/sounds/INSTRUCCIONES.md para mas detalles.
-  const SONIDO_NOTIFICACION = '/sounds/notificacion.mp3';
+  const SONIDO_NOTIFICACION = '/sounds/notificacion.wav';
   const VOLUMEN_NOTIFICACION = 0.5; // 0.0 a 1.0
   let audioNotificacion = null; // se crea una sola vez, se reutiliza
 

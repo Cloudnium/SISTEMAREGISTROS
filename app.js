@@ -46,7 +46,12 @@ app.engine('hbs', engine({
       return `S/ ${parseFloat(num).toFixed(2)}`;
     },
     // Helper: devuelve "active" si la ruta coincide con la actual
-    isActive: (currentPath, routePath) => currentPath === routePath ? 'active' : ''
+    isActive: (currentPath, routePath) => currentPath === routePath ? 'active' : '',
+    // Helper: serializa un objeto a JSON seguro para usar en atributos
+    // HTML (onclick='...'), escapando comillas simples para que no
+    // rompa el atributo. Usado en personal/index.hbs para pasar los
+    // datos del tripulante al abrir el modal de edición sin AJAX extra.
+    json: (obj) => JSON.stringify(obj).replace(/'/g, '&apos;')
   }
 }));
 

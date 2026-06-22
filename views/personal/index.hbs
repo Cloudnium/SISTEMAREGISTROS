@@ -1,7 +1,230 @@
-<div class="module-coming-soon">
-  <div class="module-icon" style="--mod-color:#3b82f6;">
-    <i data-lucide="users"></i>
-  </div>
-  <h2>Personal</h2>
-  <p>Gestión del personal de la empresa<br/>Este modulo esta listo para ser desarrollado.</p>
+<!-- ══════════════════════════════════════════
+     VIEW: personal/index.hbs
+     Gestion de Personal / Tripulantes
+══════════════════════════════════════════ -->
+
+<!-- ── Header con título y botón Registrar ── -->
+<div class="page-header">
+  <div></div>
+  <button class="btn btn-primary" onclick="Personal.abrirModalNuevo()">
+    <i data-lucide="user-plus"></i>
+    <span>Registrar Tripulante</span>
+  </button>
 </div>
+
+<!-- ── Tabla de tripulantes ── -->
+<div class="card">
+  <div class="table-wrapper">
+    {{#if tripulantes.length}}
+    <table class="table" id="personalTabla">
+      <thead>
+        <tr>
+          <th>Nombre completo</th>
+          <th>DNI</th>
+          <th>Tipo de personal</th>
+          <th class="hide-sm">Teléfono</th>
+          <th class="hide-sm">Licencia / Otros</th>
+          {{#if isAdmin}}<th>Acción</th>{{/if}}
+        </tr>
+      </thead>
+      <tbody>
+        {{#each tripulantes}}
+        <tr class="{{#unless activo}}pers-row-inactivo{{/unless}}">
+          <td class="pers-nombre">{{nombres}} {{apellidos}}</td>
+          <td>{{dni}}</td>
+          <td>
+            <span class="badge
+              {{#if (eq tipo 'Chofer')}}badge-primary{{/if}}
+              {{#if (eq tipo 'Terramoza')}}badge-warning{{/if}}
+              {{#if (eq tipo 'Ayudante')}}badge-neutral{{/if}}
+            ">{{tipo}}</span>
+          </td>
+          <td class="hide-sm">{{#if telefono}}{{telefono}}{{else}}<span class="text-muted">—</span>{{/if}}</td>
+          <td class="hide-sm">
+            {{#if licencia}}
+              <span class="pers-licencia"><i data-lucide="credit-card"></i> {{licencia}}</span>
+            {{else}}
+              <span class="text-muted">—</span>
+            {{/if}}
+          </td>
+          {{#if ../isAdmin}}
+          <td>
+            <button class="btn-icon btn-icon-edit" title="Editar"
+                    onclick='Personal.abrirModalEditar({{json this}})'>
+              <i data-lucide="pencil"></i>
+            </button>
+          </td>
+          {{/if}}
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="users"></i>
+      <p>No hay tripulantes registrados aún.</p>
+      <button class="btn btn-primary btn-sm" onclick="Personal.abrirModalNuevo()">
+        <i data-lucide="plus"></i> Registrar primer tripulante
+      </button>
+    </div>
+    {{/if}}
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Registrar / Editar tripulante
+     Diseño: tarjeta "Datos Personales" con grid 2 columnas
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalPersonal" style="display:none">
+  <div class="modal pers-modal">
+
+    <form id="formPersonal" method="POST" action="/personal">
+
+      <!-- Header tipo tarjeta, igual al diseño de referencia -->
+      <div class="pers-modal-header">
+        <span class="pers-modal-header-icon"><i data-lucide="user"></i></span>
+        <h3 id="persModalTitulo">Datos Personales</h3>
+      </div>
+
+      <div class="modal-body pers-modal-body">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label-pers">Nombres *</label>
+            <input type="text" name="nombres" id="pNombres" class="form-control"
+                   placeholder="Ej: Juan Carlos" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label-pers">Apellidos *</label>
+            <input type="text" name="apellidos" id="pApellidos" class="form-control"
+                   placeholder="Ej: Pérez García" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label-pers">Tipo de personal *</label>
+            <select name="tipo" id="pTipo" class="form-control" required onchange="Personal.toggleLicencia()">
+              <option value="">Selecciona un tipo</option>
+              <option value="Chofer">Chofer</option>
+              <option value="Terramoza">Terramoza</option>
+              <option value="Ayudante">Ayudante</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label-pers">Número de DNI *</label>
+            <input type="text" name="dni" id="pDni" class="form-control"
+                   placeholder="00000000" maxlength="15" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label-pers">Teléfono / Celular</label>
+            <input type="text" name="telefono" id="pTelefono" class="form-control"
+                   placeholder="999 999 999" />
+          </div>
+
+          <!-- Campo Licencia: solo visible si Tipo = Chofer -->
+          <div class="form-group pers-licencia-box" id="pLicenciaBox" style="display:none">
+            <label class="form-label-pers pers-licencia-label">
+              <i data-lucide="credit-card"></i> Licencia de conducir
+            </label>
+            <input type="text" name="licencia" id="pLicencia" class="form-control"
+                   placeholder="Nro de Licencia (Categoría A-III)"
+                   oninput="this.value=this.value.toUpperCase()" />
+          </div>
+        </div>
+
+        <!-- Estado activo (solo visible al editar) -->
+        <div class="form-group form-check-group" id="pActivoGroup" style="display:none">
+          <label class="form-check-label">
+            <input type="checkbox" name="activo" id="pActivo" class="form-check" checked />
+            <span>Tripulante activo</span>
+          </label>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Personal.cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="pBtnGuardar">
+          <i data-lucide="save"></i> Guardar Tripulante
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<style>
+@media (max-width: 639px) { .hide-sm { display: none; } }
+</style>
+
+<script>
+const Personal = (function () {
+
+  // ── Muestra/oculta el campo Licencia según el tipo seleccionado ──
+  function toggleLicencia() {
+    const tipo = document.getElementById('pTipo').value;
+    const box  = document.getElementById('pLicenciaBox');
+    const input = document.getElementById('pLicencia');
+    if (tipo === 'Chofer') {
+      box.style.display = 'flex';
+    } else {
+      box.style.display = 'none';
+      input.value = ''; // limpia el valor si cambia a otro tipo
+    }
+  }
+
+  function abrirModal() {
+    document.getElementById('modalPersonal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalPersonal').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function abrirModalNuevo() {
+    document.getElementById('persModalTitulo').textContent = 'Datos Personales';
+    document.getElementById('formPersonal').action = '/personal';
+    document.getElementById('formPersonal').reset();
+    document.getElementById('pActivoGroup').style.display = 'none';
+    document.getElementById('pBtnGuardar').innerHTML = '<i data-lucide="save"></i> Guardar Tripulante';
+    toggleLicencia();
+    abrirModal();
+  }
+
+  function abrirModalEditar(data) {
+    document.getElementById('persModalTitulo').textContent = 'Editar Tripulante';
+    document.getElementById('formPersonal').action = '/personal/' + data.id + '/editar';
+    document.getElementById('pNombres').value   = data.nombres   || '';
+    document.getElementById('pApellidos').value = data.apellidos || '';
+    document.getElementById('pTipo').value      = data.tipo      || '';
+    document.getElementById('pDni').value       = data.dni       || '';
+    document.getElementById('pTelefono').value  = data.telefono  || '';
+    document.getElementById('pLicencia').value  = data.licencia  || '';
+    document.getElementById('pActivo').checked  = !!data.activo;
+    document.getElementById('pActivoGroup').style.display = 'flex';
+    document.getElementById('pBtnGuardar').innerHTML = '<i data-lucide="save"></i> Actualizar Tripulante';
+    toggleLicencia();
+    abrirModal();
+  }
+
+  // Cierra modal al hacer clic en el fondo
+  document.addEventListener('DOMContentLoaded', function () {
+    const backdrop = document.getElementById('modalPersonal');
+    backdrop.addEventListener('click', function (e) {
+      if (e.target === backdrop) cerrarModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') cerrarModal();
+    });
+  });
+
+  return { abrirModalNuevo, abrirModalEditar, cerrarModal, toggleLicencia };
+})();
+</script>
