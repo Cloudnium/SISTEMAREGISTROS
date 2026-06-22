@@ -51,7 +51,10 @@ app.engine('hbs', engine({
     // HTML (onclick='...'), escapando comillas simples para que no
     // rompa el atributo. Usado en personal/index.hbs para pasar los
     // datos del tripulante al abrir el modal de edición sin AJAX extra.
-    json: (obj) => JSON.stringify(obj).replace(/'/g, '&apos;')
+    json: (obj) => JSON.stringify(obj).replace(/'/g, '&apos;'),
+    // Helper: formatea número con cero a la izquierda si es menor a 10
+    // Ej: 8 → "08", 24 → "24" — para los indicadores del módulo Personal
+    padNum: (n) => String(n || 0).padStart(2, '0')
   }
 }));
 

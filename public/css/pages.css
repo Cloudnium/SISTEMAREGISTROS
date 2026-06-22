@@ -226,3 +226,105 @@
   .pers-modal-header { padding: var(--space-4) var(--space-5); }
   .pers-modal-body { padding: var(--space-4); }
 }
+
+/* ══════════════════════════════════════════
+   PERSONAL — Resumen de Tripulación
+   Cards de conteo: Choferes, Terramozas/os, Ayudantes
+   Se muestran SIEMPRE aunque no haya registros (valor = 00)
+══════════════════════════════════════════ */
+.pers-resumen {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+.pers-resumen-titulo {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-5);
+}
+
+.pers-resumen-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.pers-stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.pers-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Ícono grande centrado */
+.pers-stat-icon {
+  width: 52px; height: 52px;
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--space-2);
+}
+.pers-stat-icon svg { width: 30px; height: 30px; }
+
+/* Número grande en negrita — estilo "24", "08" */
+.pers-stat-numero {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+/* Etiqueta en mayúsculas pequeñas debajo del número */
+.pers-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* Barra de color en la parte inferior de cada card */
+.pers-stat-barra {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+}
+
+/* ── Colores por tipo ── */
+/* Choferes — morado/indigo */
+.pers-stat-chofer .pers-stat-icon    { background: var(--color-accent-light); color: var(--color-accent); }
+.pers-stat-chofer .pers-stat-numero  { color: var(--color-accent); }
+.pers-barra-chofer                   { background: var(--color-accent); }
+
+/* Terramozas — amarillo/naranja */
+.pers-stat-terramoza .pers-stat-icon   { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.pers-stat-terramoza .pers-stat-numero { color: #f59e0b; }
+.pers-barra-terramoza                  { background: #f59e0b; }
+
+/* Ayudantes — gris azulado */
+.pers-stat-ayudante .pers-stat-icon   { background: rgba(100,116,139,0.1); color: #64748b; }
+.pers-stat-ayudante .pers-stat-numero { color: #64748b; }
+.pers-barra-ayudante                  { background: #64748b; }
+
+/* ─── Responsive ─── */
+@media (max-width: 639px) {
+  .pers-resumen-cards { grid-template-columns: 1fr; gap: var(--space-3); }
+  .pers-stat-card { padding: var(--space-4); flex-direction: row; text-align: left; gap: var(--space-4); }
+  .pers-stat-icon { width: 44px; height: 44px; flex-shrink: 0; margin-bottom: 0; }
+  .pers-stat-icon svg { width: 24px; height: 24px; }
+  .pers-stat-numero { font-size: 2rem; }
+  .pers-stat-barra { width: 4px; height: auto; top: 0; left: 0; bottom: 0; right: auto; }
+}

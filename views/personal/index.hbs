@@ -1,9 +1,6 @@
-<!-- ══════════════════════════════════════════
-     VIEW: personal/index.hbs
-     Gestion de Personal / Tripulantes
-══════════════════════════════════════════ -->
+<!-- VIEW: personal/index.hbs -->
 
-<!-- ── Header con título y botón Registrar ── -->
+<!-- ── Header ── -->
 <div class="page-header">
   <div></div>
   <button class="btn btn-primary" onclick="Personal.abrirModalNuevo()">
@@ -12,11 +9,57 @@
   </button>
 </div>
 
+<!-- ══ RESUMEN DE TRIPULACIÓN ══
+     Siempre se muestra, aunque no haya registros (mostrará 0)
+-->
+<div class="pers-resumen">
+  <h2 class="pers-resumen-titulo">Resumen de Tripulación</h2>
+  <div class="pers-resumen-cards">
+
+    <!-- Choferes -->
+    <div class="pers-stat-card pers-stat-chofer">
+      <div class="pers-stat-icon">
+        <i data-lucide="id-card"></i>
+      </div>
+      <div class="pers-stat-numero">
+        {{padNum resumen.choferes}}
+      </div>
+      <div class="pers-stat-label">Choferes habilitados</div>
+      <div class="pers-stat-barra pers-barra-chofer"></div>
+    </div>
+
+    <!-- Terramozas/os -->
+    <div class="pers-stat-card pers-stat-terramoza">
+      <div class="pers-stat-icon">
+        <i data-lucide="person-standing"></i>
+      </div>
+      <div class="pers-stat-numero">
+        {{padNum resumen.terramozas}}
+      </div>
+      <div class="pers-stat-label">Terramozas/os</div>
+      <div class="pers-stat-barra pers-barra-terramoza"></div>
+    </div>
+
+    <!-- Ayudantes -->
+    <div class="pers-stat-card pers-stat-ayudante">
+      <div class="pers-stat-icon">
+        <i data-lucide="hand-helping"></i>
+      </div>
+      <div class="pers-stat-numero">
+        {{padNum resumen.ayudantes}}
+      </div>
+      <div class="pers-stat-label">Ayudantes</div>
+      <div class="pers-stat-barra pers-barra-ayudante"></div>
+    </div>
+
+  </div>
+</div>
+
 <!-- ── Tabla de tripulantes ── -->
 <div class="card">
   <div class="table-wrapper">
     {{#if tripulantes.length}}
-    <table class="table" id="personalTabla">
+    <table class="table">
       <thead>
         <tr>
           <th>Nombre completo</th>
@@ -36,10 +79,13 @@
             <span class="badge
               {{#if (eq tipo 'Chofer')}}badge-primary{{/if}}
               {{#if (eq tipo 'Terramoza')}}badge-warning{{/if}}
-              {{#if (eq tipo 'Ayudante')}}badge-neutral{{/if}}
-            ">{{tipo}}</span>
+              {{#if (eq tipo 'Ayudante')}}badge-neutral{{/if}}">
+              {{tipo}}
+            </span>
           </td>
-          <td class="hide-sm">{{#if telefono}}{{telefono}}{{else}}<span class="text-muted">—</span>{{/if}}</td>
+          <td class="hide-sm">
+            {{#if telefono}}{{telefono}}{{else}}<span class="text-muted">—</span>{{/if}}
+          </td>
           <td class="hide-sm">
             {{#if licencia}}
               <span class="pers-licencia"><i data-lucide="credit-card"></i> {{licencia}}</span>
@@ -71,23 +117,17 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════
-     MODAL: Registrar / Editar tripulante
-     Diseño: tarjeta "Datos Personales" con grid 2 columnas
-══════════════════════════════════════════ -->
+<!-- ══ MODAL: Registrar / Editar tripulante ══ -->
 <div class="modal-backdrop" id="modalPersonal" style="display:none">
   <div class="modal pers-modal">
-
     <form id="formPersonal" method="POST" action="/personal">
 
-      <!-- Header tipo tarjeta, igual al diseño de referencia -->
       <div class="pers-modal-header">
         <span class="pers-modal-header-icon"><i data-lucide="user"></i></span>
         <h3 id="persModalTitulo">Datos Personales</h3>
       </div>
 
       <div class="modal-body pers-modal-body">
-
         <div class="form-row">
           <div class="form-group">
             <label class="form-label-pers">Nombres *</label>
@@ -104,7 +144,8 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label-pers">Tipo de personal *</label>
-            <select name="tipo" id="pTipo" class="form-control" required onchange="Personal.toggleLicencia()">
+            <select name="tipo" id="pTipo" class="form-control" required
+                    onchange="Personal.toggleLicencia()">
               <option value="">Selecciona un tipo</option>
               <option value="Chofer">Chofer</option>
               <option value="Terramoza">Terramoza</option>
@@ -125,7 +166,7 @@
                    placeholder="999 999 999" />
           </div>
 
-          <!-- Campo Licencia: solo visible si Tipo = Chofer -->
+          <!-- Campo Licencia — solo visible si Tipo = Chofer -->
           <div class="form-group pers-licencia-box" id="pLicenciaBox" style="display:none">
             <label class="form-label-pers pers-licencia-label">
               <i data-lucide="credit-card"></i> Licencia de conducir
@@ -136,14 +177,12 @@
           </div>
         </div>
 
-        <!-- Estado activo (solo visible al editar) -->
         <div class="form-group form-check-group" id="pActivoGroup" style="display:none">
           <label class="form-check-label">
             <input type="checkbox" name="activo" id="pActivo" class="form-check" checked />
             <span>Tripulante activo</span>
           </label>
         </div>
-
       </div>
 
       <div class="modal-footer">
@@ -163,31 +202,22 @@
 
 <script>
 const Personal = (function () {
-
-  // ── Muestra/oculta el campo Licencia según el tipo seleccionado ──
   function toggleLicencia() {
-    const tipo = document.getElementById('pTipo').value;
-    const box  = document.getElementById('pLicenciaBox');
+    const tipo  = document.getElementById('pTipo').value;
+    const box   = document.getElementById('pLicenciaBox');
     const input = document.getElementById('pLicencia');
-    if (tipo === 'Chofer') {
-      box.style.display = 'flex';
-    } else {
-      box.style.display = 'none';
-      input.value = ''; // limpia el valor si cambia a otro tipo
-    }
+    if (tipo === 'Chofer') { box.style.display = 'flex'; }
+    else { box.style.display = 'none'; input.value = ''; }
   }
-
   function abrirModal() {
     document.getElementById('modalPersonal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
     if (window.lucide) lucide.createIcons();
   }
-
   function cerrarModal() {
     document.getElementById('modalPersonal').style.display = 'none';
     document.body.style.overflow = '';
   }
-
   function abrirModalNuevo() {
     document.getElementById('persModalTitulo').textContent = 'Datos Personales';
     document.getElementById('formPersonal').action = '/personal';
@@ -197,7 +227,6 @@ const Personal = (function () {
     toggleLicencia();
     abrirModal();
   }
-
   function abrirModalEditar(data) {
     document.getElementById('persModalTitulo').textContent = 'Editar Tripulante';
     document.getElementById('formPersonal').action = '/personal/' + data.id + '/editar';
@@ -213,18 +242,14 @@ const Personal = (function () {
     toggleLicencia();
     abrirModal();
   }
-
-  // Cierra modal al hacer clic en el fondo
   document.addEventListener('DOMContentLoaded', function () {
-    const backdrop = document.getElementById('modalPersonal');
-    backdrop.addEventListener('click', function (e) {
-      if (e.target === backdrop) cerrarModal();
+    document.getElementById('modalPersonal').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModal();
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') cerrarModal();
     });
   });
-
   return { abrirModalNuevo, abrirModalEditar, cerrarModal, toggleLicencia };
 })();
 </script>

@@ -16,11 +16,21 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: tripulantes } = await db.select('personal_tripulantes',
     'select=id,nombres,apellidos,tipo,dni,telefono,licencia,activo&order=creado_en.desc');
 
+  const lista = tripulantes || [];
+
+  // Contadores por tipo — siempre se calculan aunque no haya registros
+  const resumen = {
+    choferes:   lista.filter(t => t.tipo === 'Chofer'    && t.activo).length,
+    terramozas: lista.filter(t => t.tipo === 'Terramoza' && t.activo).length,
+    ayudantes:  lista.filter(t => t.tipo === 'Ayudante'  && t.activo).length
+  };
+
   res.render('personal/index', {
     layout: 'main', title: 'Personal',
     pageTitle: 'Gestión de Personal',
     pageSubtitle: 'Tripulación activa para rutas e itinerarios',
-    tripulantes: tripulantes || []
+    tripulantes: lista,
+    resumen
   });
 });
 
