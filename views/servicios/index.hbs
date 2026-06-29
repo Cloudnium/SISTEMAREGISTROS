@@ -1,0 +1,289 @@
+<!-- ══════════════════════════════════════════
+     VIEW: servicios/index.hbs
+     Tipos de Servicio — cards en grid
+══════════════════════════════════════════ -->
+
+<!-- ── Header ── -->
+<div class="page-header">
+  <div></div>
+  <button class="btn btn-primary" onclick="Servicios.abrirModalNuevo()">
+    <i data-lucide="plus"></i>
+    <span>Crear Nuevo Servicio</span>
+  </button>
+</div>
+
+<!-- ── Grid de cards ── -->
+{{#if servicios.length}}
+<div class="srv-grid">
+  {{#each servicios}}
+  <div class="srv-card {{#unless activo}}srv-card-inactivo{{/unless}}">
+
+    <!-- Ícono del servicio — se elige al crear/editar -->
+    <div class="srv-card-icon">
+      <i data-lucide="{{icono}}"></i>
+    </div>
+
+    <!-- Nombre en mayúsculas -->
+    <h3 class="srv-card-nombre">{{nombre}}</h3>
+
+    <!-- Descripción / características -->
+    {{#if descripcion}}
+      <p class="srv-card-desc">{{descripcion}}</p>
+    {{/if}}
+
+    <!-- Badge de categoría -->
+    {{#if categoria}}
+      <span class="srv-badge">{{categoria}}</span>
+    {{/if}}
+
+    <!-- Acciones solo para admin -->
+    {{#if ../isAdmin}}
+    <div class="srv-card-actions">
+      <button class="btn-icon btn-icon-edit" title="Editar"
+              onclick='Servicios.abrirModalEditar({{json this}})'>
+        <i data-lucide="pencil"></i>
+      </button>
+      <form method="POST" action="/servicios/{{id}}/eliminar" style="display:inline"
+            onsubmit="return confirm('Eliminar el servicio {{nombre}}?')">
+        <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </form>
+    </div>
+    {{/if}}
+
+  </div>
+  {{/each}}
+</div>
+{{else}}
+<div class="card">
+  <div class="empty-state">
+    <i data-lucide="layout-grid"></i>
+    <p>No hay servicios registrados aún.</p>
+    <button class="btn btn-primary btn-sm" onclick="Servicios.abrirModalNuevo()">
+      <i data-lucide="plus"></i> Crear primer servicio
+    </button>
+  </div>
+</div>
+{{/if}}
+
+
+<!-- ══════════════════════════════════════════
+     MODAL: Nuevo / Editar servicio
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalServicio" style="display:none">
+  <div class="modal srv-modal">
+    <form id="formServicio" method="POST" action="/servicios">
+
+      <!-- Header tipo tarjeta igual al diseño de referencia -->
+      <div class="srv-modal-header">
+        <span class="srv-modal-header-icon"><i data-lucide="clipboard-list"></i></span>
+        <h3 id="srvModalTitulo">Nuevo Registro</h3>
+        <button type="button" class="modal-close" onclick="Servicios.cerrarModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="modal-body srv-modal-body">
+
+        <!-- Nombre del servicio -->
+        <div class="form-group">
+          <label class="form-label-pers">Nombre del servicio *</label>
+          <input type="text" name="nombre" id="sNombre" class="form-control"
+                 placeholder="Ej: SUITE, LUJO, ECONÓMICO"
+                 oninput="this.value=this.value.toUpperCase()" required />
+        </div>
+
+        <!-- Características -->
+        <div class="form-group">
+          <label class="form-label-pers">Características</label>
+          <textarea name="descripcion" id="sDescripcion" class="form-control srv-textarea"
+                    placeholder="Características" rows="3"></textarea>
+        </div>
+
+        <!-- Categoría/badge -->
+        <div class="form-group">
+          <label class="form-label-pers">Categoría / Etiqueta</label>
+          <input type="text" name="categoria" id="sCategoria" class="form-control"
+                 placeholder="Ej: PREMIUM, VIP, BÁSICO"
+                 oninput="this.value=this.value.toUpperCase()" />
+          <small class="form-hint">Se muestra como badge debajo del nombre en la card</small>
+        </div>
+
+        <!-- Selector de ícono -->
+        <div class="form-group">
+          <label class="form-label-pers">Ícono</label>
+          <div class="srv-icon-selector">
+            <!-- Preview del ícono seleccionado -->
+            <div class="srv-icon-preview" id="sIconoPreview">
+              <i data-lucide="star" id="sIconoPreviewIcon"></i>
+            </div>
+            <!-- Dropdown con lista de íconos disponibles -->
+            <select name="icono" id="sIcono" class="form-control"
+                    onchange="Servicios.actualizarPreviewIcono()">
+              <!-- ══════════════════════════════════════════════
+                   LISTA DE ÍCONOS DISPONIBLES
+                   Para agregar tu propio ícono:
+                   1. Ve a https://lucide.dev/icons/
+                   2. Busca el ícono que quieras
+                   3. Copia el nombre (en kebab-case, ej: "star", "bus", "truck")
+                   4. Agrega una línea <option value="nombre">Etiqueta</option>
+                   ════════════════════════════════════════════ -->
+
+              <!-- Transporte -->
+              <optgroup label="🚌 Transporte">
+                <option value="bus">Bus</option>
+                <option value="bus-front">Bus (frente)</option>
+                <option value="truck">Camión</option>
+                <option value="car">Auto</option>
+                <option value="plane">Avión</option>
+                <option value="train">Tren</option>
+                <option value="ship">Barco</option>
+              </optgroup>
+
+              <!-- Categorías de servicio -->
+              <optgroup label="⭐ Calidad / Categoría">
+                <option value="star">Estrella</option>
+                <option value="gem">Diamante / Premium</option>
+                <option value="crown">Corona / VIP</option>
+                <option value="award">Premio / Destacado</option>
+                <option value="trophy">Trofeo</option>
+                <option value="medal">Medalla</option>
+                <option value="badge-check">Badge verificado</option>
+                <option value="sparkles">Destellos / Lujo</option>
+                <option value="zap">Rayo / Express</option>
+                <option value="shield">Escudo / Seguro</option>
+              </optgroup>
+
+              <!-- Comodidades -->
+              <optgroup label="🛋️ Comodidades">
+                <option value="sofa">Sofá / Suite</option>
+                <option value="bed">Cama</option>
+                <option value="tv">Televisión</option>
+                <option value="wifi">WiFi</option>
+                <option value="coffee">Café / Catering</option>
+                <option value="utensils">Alimentación</option>
+                <option value="wind">Aire acondicionado</option>
+                <option value="music">Música / Entretenimiento</option>
+                <option value="headphones">Auriculares</option>
+                <option value="monitor">Pantalla / Monitor</option>
+                <option value="usb">Puerto USB</option>
+              </optgroup>
+
+              <!-- Economía / Precios -->
+              <optgroup label="💰 Economía">
+                <option value="wallet">Billetera / Económico</option>
+                <option value="tag">Etiqueta / Precio</option>
+                <option value="percent">Porcentaje / Descuento</option>
+                <option value="dollar-sign">Precio / Tarifa</option>
+                <option value="banknote">Billete</option>
+                <option value="piggy-bank">Ahorro</option>
+              </optgroup>
+
+              <!-- Asientos / Personas -->
+              <optgroup label="💺 Asientos / Personas">
+                <option value="armchair">Sillón / Asiento</option>
+                <option value="users">Pasajeros</option>
+                <option value="user">Pasajero</option>
+                <option value="user-check">Pasajero confirmado</option>
+                <option value="accessibility">Accesibilidad</option>
+              </optgroup>
+
+              <!-- General -->
+              <optgroup label="📦 General">
+                <option value="package">Paquete</option>
+                <option value="map-pin">Destino</option>
+                <option value="route">Ruta</option>
+                <option value="clock">Puntual / Express</option>
+                <option value="calendar">Programa / Horario</option>
+                <option value="ticket">Pasaje / Ticket</option>
+                <option value="map">Mapa / Itinerario</option>
+                <option value="globe">Internacional</option>
+                <option value="navigation">Navegación / GPS</option>
+              </optgroup>
+
+            </select>
+          </div>
+        </div>
+
+        <!-- Estado activo (solo en edición) -->
+        <div class="form-group form-check-group" id="sActivoGroup" style="display:none">
+          <label class="form-check-label">
+            <input type="checkbox" name="activo" id="sActivo" class="form-check" checked />
+            <span>Servicio activo</span>
+          </label>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Servicios.cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary btn-full" id="sBtnGuardar">
+          <i data-lucide="save"></i> Nuevo Registro
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+const Servicios = (function () {
+
+  function abrirModal() {
+    document.getElementById('modalServicio').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalServicio').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function actualizarPreviewIcono() {
+    const icono = document.getElementById('sIcono').value;
+    const icon  = document.getElementById('sIconoPreviewIcon');
+    icon.setAttribute('data-lucide', icono);
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function abrirModalNuevo() {
+    document.getElementById('srvModalTitulo').textContent = 'Nuevo Registro';
+    document.getElementById('formServicio').action = '/servicios';
+    document.getElementById('formServicio').reset();
+    document.getElementById('sActivoGroup').style.display = 'none';
+    document.getElementById('sBtnGuardar').innerHTML = '<i data-lucide="save"></i> Nuevo Registro';
+    // Ícono por defecto
+    document.getElementById('sIcono').value = 'star';
+    actualizarPreviewIcono();
+    abrirModal();
+  }
+
+  function abrirModalEditar(data) {
+    document.getElementById('srvModalTitulo').textContent = 'Editar Servicio';
+    document.getElementById('formServicio').action = '/servicios/' + data.id + '/editar';
+    document.getElementById('sNombre').value      = data.nombre      || '';
+    document.getElementById('sDescripcion').value = data.descripcion || '';
+    document.getElementById('sCategoria').value   = data.categoria   || '';
+    document.getElementById('sIcono').value       = data.icono       || 'star';
+    document.getElementById('sActivo').checked    = !!data.activo;
+    document.getElementById('sActivoGroup').style.display = 'flex';
+    document.getElementById('sBtnGuardar').innerHTML = '<i data-lucide="save"></i> Guardar Cambios';
+    actualizarPreviewIcono();
+    abrirModal();
+  }
+
+  // Cierra modal al hacer clic en el fondo o presionar ESC
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('modalServicio').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') cerrarModal();
+    });
+  });
+
+  return { abrirModalNuevo, abrirModalEditar, cerrarModal, actualizarPreviewIcono };
+})();
+</script>

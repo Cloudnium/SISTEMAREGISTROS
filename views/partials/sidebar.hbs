@@ -49,6 +49,10 @@
       <i data-lucide="package"></i><span>Inventario</span>
     </a>
 
+    <a href="/servicios" class="sidebar-nav-item {{#if (eq currentPath '/servicios')}}active{{/if}}">
+      <i data-lucide="layout-grid"></i><span>Servicios</span>
+    </a>
+
     {{#if (eq user.rol 'admin')}}
     <div class="sidebar-section-label">Administración</div>
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">

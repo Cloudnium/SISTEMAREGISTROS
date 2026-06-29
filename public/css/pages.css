@@ -328,3 +328,150 @@
   .pers-stat-numero { font-size: 2rem; }
   .pers-stat-barra { width: 4px; height: auto; top: 0; left: 0; bottom: 0; right: auto; }
 }
+
+/* ══════════════════════════════════════════
+   MÓDULO SERVICIOS — Tipos de Servicio
+   Grid de cards + modal con selector de ícono
+══════════════════════════════════════════ */
+
+/* ── Grid de cards ── */
+.srv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+/* ── Card individual ── */
+.srv-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6) var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  position: relative;
+  transition: all var(--transition-base);
+  cursor: default;
+}
+.srv-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-accent);
+}
+.srv-card-inactivo { opacity: 0.45; }
+
+/* ── Ícono grande centrado ── */
+.srv-card-icon {
+  width: 56px; height: 56px;
+  background: var(--color-accent-light);
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
+}
+.srv-card-icon svg { width: 28px; height: 28px; }
+
+/* ── Nombre en mayúsculas negrita ── */
+.srv-card-nombre {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 800;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Descripción ── */
+.srv-card-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Badge/categoría ── */
+.srv-badge {
+  display: inline-block;
+  background: var(--text-primary);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-1);
+}
+
+/* ── Acciones (lápiz + basura) en esquina superior derecha ── */
+.srv-card-actions {
+  position: absolute;
+  top: var(--space-3); right: var(--space-3);
+  display: flex; gap: 4px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.srv-card:hover .srv-card-actions { opacity: 1; }
+
+/* ══ MODAL SERVICIOS ══ */
+.srv-modal { max-width: 480px; }
+
+.srv-modal-header {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.srv-modal-header-icon {
+  width: 30px; height: 30px;
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: white; flex-shrink: 0;
+}
+.srv-modal-header-icon svg { width: 16px; height: 16px; }
+.srv-modal-header h3 {
+  flex: 1;
+  font-size: var(--text-base); font-weight: 700;
+  color: var(--color-accent);
+}
+
+.srv-modal-body {
+  padding: var(--space-5);
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+
+/* Textarea de características */
+.srv-textarea {
+  resize: vertical; min-height: 90px;
+}
+
+/* ── Selector de ícono: preview + select ── */
+.srv-icon-selector {
+  display: flex; align-items: center; gap: var(--space-3);
+}
+.srv-icon-preview {
+  width: 48px; height: 48px; flex-shrink: 0;
+  background: var(--color-accent-light);
+  border: 2px solid rgba(99,102,241,0.2);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-accent);
+}
+.srv-icon-preview svg { width: 24px; height: 24px; }
+.srv-icon-selector .form-control { flex: 1; }
+
+/* ── Botón submit ocupa todo el ancho en el modal ── */
+.srv-modal .modal-footer { justify-content: stretch; flex-direction: column; gap: var(--space-2); }
+.srv-modal .modal-footer .btn-full { padding: var(--space-3); font-size: var(--text-base); }
+
+/* ── Responsive ── */
+@media (max-width: 639px) {
+  .srv-grid { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+  .srv-card { padding: var(--space-4) var(--space-3) var(--space-3); }
+  .srv-card-actions { opacity: 1; } /* siempre visible en móvil */
+}
+@media (max-width: 380px) {
+  .srv-grid { grid-template-columns: 1fr; }
+}
