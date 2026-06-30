@@ -19,5 +19,13 @@ CREATE INDEX IF NOT EXISTS idx_servicios_activo ON public.servicios(activo);
 
 ALTER TABLE public.servicios DISABLE ROW LEVEL SECURITY;
 
+-- Datos de ejemplo (puedes borrarlos)
+INSERT INTO public.servicios (nombre, descripcion, icono, categoria) VALUES
+  ('S_BLACK',    'Asientos 180°, catering premium, wifi.',      'gem',        'PREMIUM'),
+  ('SUITE',      'Cabinas privadas, pantallas 4K.',             'sofa',       'VIP'),
+  ('LUJO',       'Asientos semi-cama, aire climatizado.',       'star',       'ESTÁNDAR PLUS'),
+  ('ECONÓMICO',  'Servicio directo, asientos clásicos.',        'wallet',     'BÁSICO')
+ON CONFLICT DO NOTHING;
+
 SELECT column_name, data_type FROM information_schema.columns
 WHERE table_name = 'servicios' ORDER BY ordinal_position;

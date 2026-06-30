@@ -53,6 +53,10 @@
       <i data-lucide="layout-grid"></i><span>Servicios</span>
     </a>
 
+    <a href="/buses" class="sidebar-nav-item {{#if (eq currentPath '/buses')}}active{{/if}}">
+      <i data-lucide="bus"></i><span>Buses</span>
+    </a>
+
     {{#if (eq user.rol 'admin')}}
     <div class="sidebar-section-label">Administración</div>
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">

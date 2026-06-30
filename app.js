@@ -119,6 +119,7 @@ const combustibleRoutes = require('./routes/combustible');
 const personalRoutes = require('./routes/personal');
 const inventarioRoutes = require('./routes/inventario');
 const serviciosRoutes  = require('./routes/servicios');
+const busesRoutes      = require('./routes/buses');
 const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
@@ -128,6 +129,7 @@ app.use('/combustible', combustibleRoutes);
 app.use('/personal', personalRoutes);
 app.use('/inventario', inventarioRoutes);
 app.use('/servicios',  serviciosRoutes);
+app.use('/buses',      busesRoutes);
 app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────

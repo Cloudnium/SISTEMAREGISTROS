@@ -475,3 +475,148 @@
 @media (max-width: 380px) {
   .srv-grid { grid-template-columns: 1fr; }
 }
+
+/* ══════════════════════════════════════════
+   MÓDULO BUSES — Tabla y modal Consolidado General
+══════════════════════════════════════════ */
+
+/* ── Tabla ── */
+.bus-placa-cell { display: flex; flex-direction: column; gap: 2px; }
+.bus-placa { font-weight: 700; color: var(--text-primary); font-size: var(--text-sm); }
+.bus-marcamodelo { font-size: var(--text-xs); color: var(--text-muted); }
+
+/* Badge de servicio en tabla — fondo oscuro estilo imagen */
+.bus-srv-badge {
+  display: inline-block;
+  background: var(--text-primary);
+  color: white;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+
+/* Fechas con color según vigencia */
+.bus-fecha-ok     { color: var(--color-success) !important; font-weight: 600; }
+.bus-fecha-aviso  { color: var(--color-warning) !important; font-weight: 600; }
+.bus-fecha-vencida { color: var(--color-error)  !important; font-weight: 600; }
+
+/* Estado */
+.bus-estado { display: inline-flex; align-items: center; gap: 5px; font-size: var(--text-xs); font-weight: 600; }
+.bus-estado svg { width: 13px; height: 13px; }
+.bus-estado-ok      { color: var(--color-success); }
+.bus-estado-aviso   { color: var(--color-warning); }
+.bus-estado-error   { color: var(--color-error); }
+.bus-estado-neutral { color: var(--text-muted); }
+
+.bus-row-inactivo { opacity: 0.4; }
+
+/* ══ MODAL BUSES — Consolidado General ══ */
+.bus-modal {
+  max-width: 780px;
+  max-height: 88vh;
+  max-height: 88dvh;
+}
+
+.bus-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+}
+.bus-modal-header h3 {
+  font-size: var(--text-lg); font-weight: 700; color: var(--color-accent);
+}
+
+.bus-modal-body {
+  padding: var(--space-5);
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+
+/* ── Sección dentro del modal ── */
+.bus-seccion {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.bus-seccion-titulo {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-xs); font-weight: 700;
+  color: var(--color-accent);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.bus-seccion-titulo svg { width: 14px; height: 14px; }
+
+/* ── Grids de campos ── */
+.bus-fields-grid { display: grid; gap: var(--space-3); }
+.bus-grid-1 { grid-template-columns: 1fr; }
+.bus-grid-2 { grid-template-columns: 1fr 1fr; }
+.bus-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+.bus-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Campo individual */
+.bus-field { display: flex; flex-direction: column; gap: 4px; }
+.bus-field-row { display: flex; gap: var(--space-3); }
+.bus-field-row > div { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+
+.bus-label {
+  font-size: 0.67rem; font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.bus-input {
+  min-height: 36px !important;
+  padding: var(--space-2) var(--space-3) !important;
+  font-size: var(--text-xs) !important;
+}
+
+/* ── Selector de servicio: mini-cards con radio ── */
+.bus-srv-picker {
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+}
+.bus-srv-option { display: flex; cursor: pointer; }
+.bus-srv-option input[type="radio"] { display: none; }
+
+.bus-srv-mini {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface); border: 2px solid var(--color-border);
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: all var(--transition-fast); min-width: 72px; text-align: center;
+}
+.bus-srv-mini svg { width: 20px; height: 20px; color: var(--color-accent); }
+.bus-srv-mini-none svg { color: var(--text-muted); }
+.bus-srv-mini-nombre { font-size: 0.65rem; font-weight: 800; color: var(--text-primary); text-transform: uppercase; }
+.bus-srv-mini-badge {
+  font-size: 0.55rem; font-weight: 700;
+  background: var(--text-primary); color: white;
+  padding: 1px 6px; border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+/* Card seleccionada */
+.bus-srv-option input[type="radio"]:checked + .bus-srv-mini {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+.bus-srv-mini:hover { border-color: var(--color-accent); }
+
+.bus-no-srv { font-size: var(--text-sm); color: var(--text-muted); }
+.bus-no-srv a { color: var(--color-accent); }
+
+/* ── Responsive ── */
+@media (max-width: 1023px) {
+  .bus-modal { max-width: calc(100vw - 2rem); }
+}
+@media (max-width: 639px) {
+  .bus-grid-4 { grid-template-columns: 1fr 1fr; }
+  .bus-grid-3 { grid-template-columns: 1fr 1fr; }
+  .bus-grid-2 { grid-template-columns: 1fr; }
+  .bus-modal-body { padding: var(--space-3); }
+  .bus-field-row { flex-direction: column; }
+}

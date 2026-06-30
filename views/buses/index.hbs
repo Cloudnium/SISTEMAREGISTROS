@@ -1,0 +1,399 @@
+<!-- VIEW: buses/index.hbs — Módulo de Buses -->
+
+<div class="page-header">
+  <div></div>
+  <button class="btn btn-primary" onclick="Buses.abrirModalNuevo()">
+    <i data-lucide="plus"></i>
+    <span>Registrar Nuevo Bus</span>
+  </button>
+</div>
+
+<!-- ── Tabla de buses ── -->
+<div class="card">
+  <div class="table-wrapper">
+    {{#if buses.length}}
+    <table class="table buses-table">
+      <thead>
+        <tr>
+          <th>Placa / Bus</th>
+          <th>Servicio</th>
+          <th>SOAT Vigencia</th>
+          <th class="hide-sm">T.U.C Vigencia</th>
+          <th>Estado</th>
+          {{#if isAdmin}}<th>Acción</th>{{/if}}
+        </tr>
+      </thead>
+      <tbody>
+        {{#each buses}}
+        <tr class="{{#unless activo}}bus-row-inactivo{{/unless}}">
+
+          <!-- Placa + marca/modelo -->
+          <td>
+            <div class="bus-placa-cell">
+              <span class="bus-placa">{{placa}}</span>
+              {{#if marca}}<span class="bus-marcamodelo">{{marca}}{{#if modelo}} {{modelo}}{{/if}}</span>{{/if}}
+            </div>
+          </td>
+
+          <!-- Servicio badge -->
+          <td>
+            {{#if servicios}}
+              <span class="bus-srv-badge" style="background:{{servicios.categoria}}">
+                {{servicios.nombre}}
+              </span>
+            {{else}}
+              <span class="text-muted">—</span>
+            {{/if}}
+          </td>
+
+          <!-- SOAT Vigencia con color según días restantes -->
+          <td class="
+            {{#if soat_vigencia}}
+              {{#if (eq estado 'vencido')}}bus-fecha-vencida{{/if}}
+              {{#if (eq estado 'por-vencer')}}bus-fecha-aviso{{/if}}
+              {{#if (eq estado 'operativo')}}bus-fecha-ok{{/if}}
+            {{/if}}
+          ">
+            {{#if soat_vigencia}}{{soat_vigencia}}{{else}}<span class="text-muted">—</span>{{/if}}
+          </td>
+
+          <!-- TUC Vigencia -->
+          <td class="hide-sm {{#if tuc_vigencia}}bus-fecha-ok{{/if}}">
+            {{#if tuc_vigencia}}{{tuc_vigencia}}{{else}}<span class="text-muted">—</span>{{/if}}
+          </td>
+
+          <!-- Estado -->
+          <td>
+            {{#if (eq estado 'operativo')}}
+              <span class="bus-estado bus-estado-ok"><i data-lucide="check"></i> Operativo</span>
+            {{else if (eq estado 'por-vencer')}}
+              <span class="bus-estado bus-estado-aviso"><i data-lucide="alert-triangle"></i> Por vencer</span>
+            {{else if (eq estado 'vencido')}}
+              <span class="bus-estado bus-estado-error"><i data-lucide="x-circle"></i> Vencido</span>
+            {{else}}
+              <span class="bus-estado bus-estado-neutral"><i data-lucide="minus"></i> Sin datos</span>
+            {{/if}}
+          </td>
+
+          {{#if ../isAdmin}}
+          <td>
+            <div class="table-actions">
+              <button class="btn-icon btn-icon-edit" title="Editar"
+                      onclick="Buses.abrirModalEditar('{{id}}')">
+                <i data-lucide="pencil"></i>
+              </button>
+              <form method="POST" action="/buses/{{id}}/eliminar" style="display:inline"
+                    onsubmit="return confirm('Eliminar el bus {{placa}}?')">
+                <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+          {{/if}}
+
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="bus"></i>
+      <p>No hay buses registrados aún.</p>
+      <button class="btn btn-primary btn-sm" onclick="Buses.abrirModalNuevo()">
+        <i data-lucide="plus"></i> Registrar primer bus
+      </button>
+    </div>
+    {{/if}}
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODAL: Consolidado General — 4 secciones
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalBus" style="display:none">
+  <div class="modal bus-modal">
+
+    <div class="bus-modal-header">
+      <h3 id="busModalTitulo">Nuevo Registro: Consolidado General</h3>
+      <button type="button" class="modal-close" onclick="Buses.cerrarModal()">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+
+    <form id="formBus" method="POST" action="/buses">
+      <div class="bus-modal-body">
+
+        <!-- ═══ SECCIÓN 1: ESPECIFICACIONES TÉCNICAS ═══ -->
+        <div class="bus-seccion">
+          <div class="bus-seccion-titulo">
+            <i data-lucide="settings"></i> Especificaciones Técnicas
+          </div>
+          <div class="bus-fields-grid bus-grid-4">
+            <div class="bus-field">
+              <label class="bus-label">Placa *</label>
+              <input type="text" name="placa" id="bPlaca" class="form-control bus-input"
+                     placeholder="Ej: ABC-123"
+                     oninput="this.value=this.value.toUpperCase()" required />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Marca</label>
+              <input type="text" name="marca" id="bMarca" class="form-control bus-input"
+                     placeholder="Ej: Volvo" />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Modelo</label>
+              <input type="text" name="modelo" id="bModelo" class="form-control bus-input"
+                     placeholder="B430R" />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Año Fab.</label>
+              <input type="number" name="anio_fabricacion" id="bAnio" class="form-control bus-input"
+                     placeholder="2024" min="1980" max="2099" />
+            </div>
+          </div>
+          <div class="bus-fields-grid bus-grid-4">
+            <div class="bus-field">
+              <label class="bus-label">Nro Ejes</label>
+              <input type="number" name="nro_ejes" id="bEjes" class="form-control bus-input"
+                     placeholder="3" min="1" />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Nro Ruedas</label>
+              <input type="number" name="nro_ruedas" id="bRuedas" class="form-control bus-input"
+                     placeholder="8" min="1" />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Nro Motor</label>
+              <input type="text" name="nro_motor" id="bMotor" class="form-control bus-input"
+                     placeholder="D13C-420" />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Chasis (Serie)</label>
+              <input type="text" name="chasis" id="bChasis" class="form-control bus-input"
+                     placeholder="VIN#..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ SECCIÓN 2: DATOS DEL SOAT ═══ -->
+        <div class="bus-seccion">
+          <div class="bus-seccion-titulo">
+            <i data-lucide="shield-check"></i> Datos del SOAT
+          </div>
+          <div class="bus-fields-grid bus-grid-2">
+            <div class="bus-field">
+              <label class="bus-label">Nro de Póliza</label>
+              <input type="text" name="soat_poliza" id="bSoatPoliza" class="form-control bus-input"
+                     placeholder="P-00213..." />
+            </div>
+            <div class="bus-field bus-field-row">
+              <div style="flex:1">
+                <label class="bus-label">Asientos Aseg.</label>
+                <input type="number" name="soat_asientos" id="bSoatAsientos" class="form-control bus-input"
+                       placeholder="60" min="1" />
+              </div>
+              <div style="flex:1">
+                <label class="bus-label">Vigencia SOAT</label>
+                <input type="date" name="soat_vigencia" id="bSoatVig" class="form-control bus-input" />
+              </div>
+            </div>
+          </div>
+          <div class="bus-fields-grid bus-grid-2">
+            <div class="bus-field">
+              <label class="bus-label">Póliza Daño Material</label>
+              <input type="text" name="soat_poliza_dano" id="bSoatDano" class="form-control bus-input"
+                     placeholder="PDM-998..." />
+            </div>
+            <div class="bus-field bus-field-row">
+              <div style="flex:1">
+                <label class="bus-label">Vigencia D.M.</label>
+                <input type="date" name="soat_vigencia_dano" id="bSoatVigDano" class="form-control bus-input" />
+              </div>
+              <div style="flex:1">
+                <label class="bus-label">Monto Asegurado</label>
+                <input type="number" name="soat_monto_asegurado" id="bSoatMonto" class="form-control bus-input"
+                       placeholder="50000" step="0.01" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ SECCIÓN 3: T.U.C. Y OTROS ═══ -->
+        <div class="bus-seccion">
+          <div class="bus-seccion-titulo">
+            <i data-lucide="file-text"></i> T.U.C. y Otros
+          </div>
+          <div class="bus-fields-grid bus-grid-1">
+            <div class="bus-field">
+              <label class="bus-label">Tarjeta Única de Circulación</label>
+              <input type="text" name="tuc_numero" id="bTucNum" class="form-control bus-input"
+                     placeholder="Nro de Tarjeta" />
+            </div>
+          </div>
+          <div class="bus-fields-grid bus-grid-3">
+            <div class="bus-field">
+              <label class="bus-label">Vigencia T.U.C.</label>
+              <input type="date" name="tuc_vigencia" id="bTucVig" class="form-control bus-input" />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Vigencia Extintor</label>
+              <input type="date" name="extintor_vigencia" id="bExtVig" class="form-control bus-input" />
+            </div>
+            <div class="bus-field">
+              <label class="bus-label">Total Asientos</label>
+              <input type="number" name="total_asientos" id="bTotalAsientos" class="form-control bus-input"
+                     placeholder="60" min="1" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ SECCIÓN 4: TIPO DE SERVICIO ═══ -->
+        <div class="bus-seccion">
+          <div class="bus-seccion-titulo">
+            <i data-lucide="star"></i> Tipo de Servicio
+          </div>
+          <!-- Las mini-cards de servicio se cargan desde la tabla servicios -->
+          <div class="bus-srv-picker" id="busSrvPicker">
+            {{#if servicios.length}}
+              <!-- Opción "Ninguno" -->
+              <label class="bus-srv-option">
+                <input type="radio" name="servicio_id" value="" class="bus-srv-radio" />
+                <div class="bus-srv-mini bus-srv-mini-none">
+                  <i data-lucide="minus-circle"></i>
+                  <span>Ninguno</span>
+                </div>
+              </label>
+              {{#each servicios}}
+              <label class="bus-srv-option">
+                <input type="radio" name="servicio_id" value="{{id}}" class="bus-srv-radio" />
+                <div class="bus-srv-mini">
+                  <i data-lucide="{{icono}}"></i>
+                  <span class="bus-srv-mini-nombre">{{nombre}}</span>
+                  {{#if categoria}}<span class="bus-srv-mini-badge">{{categoria}}</span>{{/if}}
+                </div>
+              </label>
+              {{/each}}
+            {{else}}
+              <p class="bus-no-srv">
+                No hay tipos de servicio registrados.
+                <a href="/servicios">Crear servicios primero →</a>
+              </p>
+            {{/if}}
+          </div>
+        </div>
+
+        <!-- Estado activo (solo en edición) -->
+        <div class="form-group form-check-group" id="bActivoGroup" style="display:none">
+          <label class="form-check-label">
+            <input type="checkbox" name="activo" id="bActivo" class="form-check" checked />
+            <span>Bus activo</span>
+          </label>
+        </div>
+
+      </div><!-- fin bus-modal-body -->
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Buses.cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="bBtnGuardar">
+          <i data-lucide="save"></i> Registrar Bus
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<style>
+@media (max-width: 639px) { .hide-sm { display: none; } }
+</style>
+
+<script>
+const Buses = (function () {
+
+  function abrirModal() {
+    document.getElementById('modalBus').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    if (window.lucide) lucide.createIcons();
+  }
+  function cerrarModal() {
+    document.getElementById('modalBus').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  function abrirModalNuevo() {
+    document.getElementById('busModalTitulo').textContent = 'Nuevo Registro: Consolidado General';
+    document.getElementById('formBus').action = '/buses';
+    document.getElementById('formBus').reset();
+    document.getElementById('bActivoGroup').style.display = 'none';
+    document.getElementById('bBtnGuardar').innerHTML = '<i data-lucide="save"></i> Registrar Bus';
+    // Desmarca todos los radios de servicio
+    document.querySelectorAll('.bus-srv-radio').forEach(function(r) { r.checked = false; });
+    // Selecciona "Ninguno" por defecto
+    var ninguno = document.querySelector('.bus-srv-radio[value=""]');
+    if (ninguno) ninguno.checked = true;
+    abrirModal();
+  }
+
+  function abrirModalEditar(busId) {
+    // Pide el registro COMPLETO al servidor antes de abrir el formulario.
+    // El botón antes pasaba el objeto de la fila, que solo tiene los campos
+    // del select del listado (placa, marca, modelo, vigencias...) y por eso
+    // los demás campos salían vacíos aunque sí estaban guardados en la BD.
+    fetch('/buses/' + busId + '/json', { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        document.getElementById('busModalTitulo').textContent = 'Editar Bus: ' + data.placa;
+        document.getElementById('formBus').action = '/buses/' + data.id + '/editar';
+
+        // Especificaciones
+        document.getElementById('bPlaca').value   = data.placa              || '';
+        document.getElementById('bMarca').value   = data.marca              || '';
+        document.getElementById('bModelo').value  = data.modelo             || '';
+        document.getElementById('bAnio').value    = data.anio_fabricacion   || '';
+        document.getElementById('bEjes').value    = data.nro_ejes           || '';
+        document.getElementById('bRuedas').value  = data.nro_ruedas         || '';
+        document.getElementById('bMotor').value   = data.nro_motor          || '';
+        document.getElementById('bChasis').value  = data.chasis             || '';
+
+        // SOAT
+        document.getElementById('bSoatPoliza').value    = data.soat_poliza           || '';
+        document.getElementById('bSoatAsientos').value  = data.soat_asientos         || '';
+        document.getElementById('bSoatVig').value       = data.soat_vigencia         || '';
+        document.getElementById('bSoatDano').value      = data.soat_poliza_dano      || '';
+        document.getElementById('bSoatVigDano').value   = data.soat_vigencia_dano    || '';
+        document.getElementById('bSoatMonto').value     = data.soat_monto_asegurado  || '';
+
+        // TUC
+        document.getElementById('bTucNum').value        = data.tuc_numero          || '';
+        document.getElementById('bTucVig').value        = data.tuc_vigencia        || '';
+        document.getElementById('bExtVig').value        = data.extintor_vigencia   || '';
+        document.getElementById('bTotalAsientos').value = data.total_asientos      || '';
+
+        // Servicio — marca el radio correcto
+        document.querySelectorAll('.bus-srv-radio').forEach(function(r) {
+          r.checked = (r.value === (data.servicio_id || ''));
+        });
+
+        document.getElementById('bActivo').checked = !!data.activo;
+        document.getElementById('bActivoGroup').style.display = 'flex';
+        document.getElementById('bBtnGuardar').innerHTML = '<i data-lucide="save"></i> Guardar Cambios';
+        abrirModal();
+      })
+      .catch(function() {
+        alert('No se pudo cargar el registro. Intenta de nuevo.');
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('modalBus').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') cerrarModal();
+    });
+  });
+
+  return { abrirModalNuevo, abrirModalEditar, cerrarModal };
+})();
+</script>
