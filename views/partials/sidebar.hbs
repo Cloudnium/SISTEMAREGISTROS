@@ -61,6 +61,10 @@
       <i data-lucide="map-pin"></i><span>Ciudades / Agencias</span>
     </a>
 
+    <a href="/destinos" class="sidebar-nav-item {{#if (eq currentPath '/destinos')}}active{{/if}}">
+      <i data-lucide="route"></i><span>Destinos</span>
+    </a>
+
     {{#if (eq user.rol 'admin')}}
     <div class="sidebar-section-label">Administración</div>
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">

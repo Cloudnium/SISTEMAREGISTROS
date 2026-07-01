@@ -1,0 +1,151 @@
+<!-- VIEW: destinos/index.hbs — Gestión de Destinos -->
+
+<div class="ciu-layout">
+
+  <!-- ══ PANEL IZQUIERDO: Formulario ══ -->
+  <div class="ciu-panel">
+
+    <div class="ciu-panel-header">
+      <span class="ciu-panel-icon"><i data-lucide="git-branch"></i></span>
+      <h3 class="ciu-panel-titulo">Definir Par de Ruta</h3>
+    </div>
+
+    <form action="/destinos" method="POST" class="ciu-form" id="formDestino">
+
+      <!-- Ciudad Origen -->
+      <div class="form-group">
+        <label class="form-label-pers">Ciudad Origen</label>
+        <select name="ciudad_origen" id="dOrigen" class="form-control" required>
+          <option value="">Selecciona ciudad origen</option>
+          {{#each ciudades}}
+            <option value="{{id}}">{{nombre}}</option>
+          {{/each}}
+        </select>
+      </div>
+
+      <!-- Ciudad Destino -->
+      <div class="form-group">
+        <label class="form-label-pers">Ciudad Destino</label>
+        <select name="ciudad_destino" id="dDestino" class="form-control" required
+                onchange="Destinos.filtrarAgencias()">
+          <option value="">Selecciona ciudad destino</option>
+          {{#each ciudades}}
+            <option value="{{id}}">{{nombre}}</option>
+          {{/each}}
+        </select>
+      </div>
+
+      <!-- Agencia Destino — se filtra según ciudad destino -->
+      <div class="form-group">
+        <label class="form-label-pers">Agencia Destino (Terminal llegada principal)</label>
+        <select name="agencia_id" id="dAgencia" class="form-control" required>
+          <option value="">Primero selecciona ciudad destino</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full">
+        Registrar Destino
+      </button>
+
+    </form>
+
+    {{#unless ciudades.length}}
+    <div class="ciu-empty" style="padding: var(--space-4)">
+      <i data-lucide="alert-triangle"></i>
+      <span>Registra ciudades y agencias primero</span>
+    </div>
+    {{/unless}}
+
+  </div>
+
+  <!-- ══ PANEL DERECHO: Tabla de destinos ══ -->
+  <div class="ciu-panel">
+
+    <div class="table-wrapper">
+      {{#if destinos.length}}
+      <table class="ciu-table dest-table">
+        <thead>
+          <tr>
+            <th>Origen</th>
+            <th>Destino</th>
+            <th>Agencia Final</th>
+            {{#if isAdmin}}<th></th>{{/if}}
+          </tr>
+        </thead>
+        <tbody>
+          {{#each destinos}}
+          <tr>
+            <td class="dest-origen">
+              {{#if ciudades_origen}}{{ciudades_origen.nombre}}{{else}}—{{/if}}
+            </td>
+            <td class="dest-destino">
+              {{#if ciudades_destino}}{{ciudades_destino.nombre}}{{else}}—{{/if}}
+            </td>
+            <td class="dest-agencia">
+              {{#if agencias}}{{agencias.nombre}}{{else}}—{{/if}}
+            </td>
+            {{#if ../isAdmin}}
+            <td>
+              <form method="POST" action="/destinos/{{id}}/eliminar"
+                    onsubmit="return confirm('Eliminar este destino?')">
+                <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </form>
+            </td>
+            {{/if}}
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <div class="ciu-empty" style="height:200px">
+        <i data-lucide="route"></i>
+        <span>Sin destinos registrados aún</span>
+      </div>
+      {{/if}}
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// Todas las agencias vienen del servidor (ya filtradas por activo=true)
+// Se guardan aquí para filtrar en el cliente sin hacer una petición extra
+var TODAS_AGENCIAS = {{{agenciasJson}}};
+
+var Destinos = (function () {
+
+  // Filtra el combobox de agencia según la ciudad destino seleccionada
+  function filtrarAgencias() {
+    var ciudadId  = parseInt(document.getElementById('dDestino').value);
+    var selectAg  = document.getElementById('dAgencia');
+    selectAg.innerHTML = '';
+
+    if (!ciudadId) {
+      selectAg.innerHTML = '<option value="">Primero selecciona ciudad destino</option>';
+      return;
+    }
+
+    var filtradas = TODAS_AGENCIAS.filter(function(a) {
+      return parseInt(a.ciudad_id) === ciudadId;
+    });
+
+    if (filtradas.length === 0) {
+      selectAg.innerHTML = '<option value="">Sin agencias en esta ciudad</option>';
+      return;
+    }
+
+    selectAg.innerHTML = '<option value="">Selecciona agencia</option>';
+    filtradas.forEach(function(a) {
+      var opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = a.nombre;
+      selectAg.appendChild(opt);
+    });
+  }
+
+  return { filtrarAgencias: filtrarAgencias };
+})();
+</script>

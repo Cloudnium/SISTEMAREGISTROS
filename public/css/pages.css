@@ -731,3 +731,30 @@
 @media (max-width: 900px) {
   .ciu-layout { grid-template-columns: 1fr; }
 }
+
+/* ══════════════════════════════════════════
+   MÓDULO DESTINOS
+══════════════════════════════════════════ */
+
+/* Tabla de destinos — sin borde de card, solo la tabla */
+.dest-table { min-width: 0; }
+
+/* Origen en rojo/oscuro como en la imagen */
+.dest-origen {
+  font-weight: 700;
+  color: #e53e3e;
+  font-size: var(--text-sm);
+}
+
+/* Destino en azul/acento */
+.dest-destino {
+  font-weight: 700;
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+}
+
+/* Agencia en acento más suave */
+.dest-agencia {
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+}

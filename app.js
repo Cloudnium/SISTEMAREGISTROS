@@ -121,6 +121,7 @@ const inventarioRoutes = require('./routes/inventario');
 const serviciosRoutes  = require('./routes/servicios');
 const busesRoutes      = require('./routes/buses');
 const ciudadesRoutes   = require('./routes/ciudades');
+const destinosRoutes   = require('./routes/destinos');
 const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
@@ -132,6 +133,7 @@ app.use('/inventario', inventarioRoutes);
 app.use('/servicios',  serviciosRoutes);
 app.use('/buses',      busesRoutes);
 app.use('/ciudades',   ciudadesRoutes);
+app.use('/destinos',   destinosRoutes);
 app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────
