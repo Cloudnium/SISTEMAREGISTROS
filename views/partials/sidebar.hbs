@@ -57,6 +57,10 @@
       <i data-lucide="bus"></i><span>Buses</span>
     </a>
 
+    <a href="/ciudades" class="sidebar-nav-item {{#if (eq currentPath '/ciudades')}}active{{/if}}">
+      <i data-lucide="map-pin"></i><span>Ciudades / Agencias</span>
+    </a>
+
     {{#if (eq user.rol 'admin')}}
     <div class="sidebar-section-label">Administración</div>
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">

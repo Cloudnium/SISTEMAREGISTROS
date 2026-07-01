@@ -1,0 +1,158 @@
+<!-- VIEW: ciudades/index.hbs — Infraestructura Geográfica -->
+
+<!-- ── Dos paneles lado a lado ── -->
+<div class="ciu-layout">
+
+  <!-- ══ PANEL IZQUIERDO: Ciudades ══ -->
+  <div class="ciu-panel">
+
+    <!-- Header panel -->
+    <div class="ciu-panel-header">
+      <span class="ciu-panel-icon"><i data-lucide="map"></i></span>
+      <h3 class="ciu-panel-titulo">Registrar Ciudad</h3>
+    </div>
+
+    <!-- Formulario agregar ciudad -->
+    <form action="/ciudades/ciudad" method="POST" class="ciu-form">
+      <div class="form-group">
+        <label class="form-label-pers">Nombre de la Ciudad</label>
+        <input type="text" name="nombre" class="form-control"
+               placeholder="Ej: Lima, Sullana, Piura"
+               oninput="this.value=this.value.toUpperCase()"
+               required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">
+        Agregar Ciudad
+      </button>
+    </form>
+
+    <!-- Lista de ciudades registradas -->
+    {{#if ciudades.length}}
+    <div class="ciu-lista">
+      <table class="ciu-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Ciudad</th>
+            {{#if isAdmin}}<th></th>{{/if}}
+          </tr>
+        </thead>
+        <tbody>
+          {{#each ciudades}}
+          <tr>
+            <td class="ciu-id">{{id}}</td>
+            <td class="ciu-nombre-ciudad">{{nombre}}</td>
+            {{#if ../isAdmin}}
+            <td>
+              <form method="POST" action="/ciudades/ciudad/{{id}}/eliminar"
+                    onsubmit="return confirm('Eliminar ciudad {{nombre}}? Esto eliminará también sus agencias.')">
+                <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </form>
+            </td>
+            {{/if}}
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="ciu-empty">
+      <i data-lucide="map-pin"></i>
+      <span>Sin ciudades registradas</span>
+    </div>
+    {{/if}}
+
+  </div><!-- fin panel izquierdo -->
+
+  <!-- ══ PANEL DERECHO: Agencias ══ -->
+  <div class="ciu-panel">
+
+    <!-- Header panel -->
+    <div class="ciu-panel-header">
+      <span class="ciu-panel-icon"><i data-lucide="building-2"></i></span>
+      <h3 class="ciu-panel-titulo">Registrar Agencia</h3>
+    </div>
+
+    <!-- Formulario agregar agencia -->
+    <form action="/ciudades/agencia" method="POST" class="ciu-form">
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label-pers">Nombre Detalle</label>
+          <input type="text" name="nombre" class="form-control"
+                 placeholder="Ej: Agencia Plaza Norte" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Ciudad</label>
+          <!-- Combobox enlazado a la tabla de ciudades -->
+          <select name="ciudad_id" class="form-control" required>
+            <option value="">Selecciona ciudad</option>
+            {{#each ciudades}}
+              <option value="{{id}}">{{nombre}}</option>
+            {{/each}}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label-pers">Dirección</label>
+        <input type="text" name="direccion" class="form-control"
+               placeholder="Av. Alfredo Mendiola Nro. 140" />
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full">
+        Guardar Agencia
+      </button>
+    </form>
+
+    <!-- Lista de agencias registradas -->
+    {{#if agencias.length}}
+    <div class="ciu-lista">
+      <table class="ciu-table">
+        <thead>
+          <tr>
+            <th>Agencia</th>
+            <th>Ciudad</th>
+            <th class="hide-sm">Dirección</th>
+            {{#if isAdmin}}<th></th>{{/if}}
+          </tr>
+        </thead>
+        <tbody>
+          {{#each agencias}}
+          <tr>
+            <td class="ciu-nombre-ciudad">{{nombre}}</td>
+            <td>{{#if ciudades}}{{ciudades.nombre}}{{else}}—{{/if}}</td>
+            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
+              {{#if direccion}}{{direccion}}{{else}}—{{/if}}
+            </td>
+            {{#if ../isAdmin}}
+            <td>
+              <form method="POST" action="/ciudades/agencia/{{id}}/eliminar"
+                    onsubmit="return confirm('Eliminar agencia {{nombre}}?')">
+                <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </form>
+            </td>
+            {{/if}}
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="ciu-empty">
+      <i data-lucide="building-2"></i>
+      <span>Sin agencias registradas</span>
+    </div>
+    {{/if}}
+
+  </div><!-- fin panel derecho -->
+
+</div><!-- fin ciu-layout -->
+
+<style>
+@media (max-width: 639px) { .hide-sm { display: none; } }
+</style>
