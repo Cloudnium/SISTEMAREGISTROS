@@ -1,0 +1,178 @@
+<!-- VIEW: programacion/form.hbs — Nueva Programación de Salida -->
+
+<div class="prog-form-wrapper">
+<form action="/programacion" method="POST" id="formProg">
+
+  <!-- ═══════════════════════════════════════
+       SECCIÓN 1: Datos de Control e Itinerario
+  ═══════════════════════════════════════ -->
+  <div class="prog-seccion">
+    <div class="prog-seccion-titulo">
+      <i data-lucide="bus"></i>
+      <span>1. Datos de Control e Itinerario Base</span>
+    </div>
+    <div class="prog-grid-4">
+
+      <div class="prog-field">
+        <label class="prog-label">Fecha de Salida</label>
+        <input type="date" name="fecha_salida" class="form-control prog-input" required />
+      </div>
+
+      <div class="prog-field">
+        <label class="prog-label">Destino Comercial</label>
+        <select name="destino_id" class="form-control prog-input" required>
+          <option value="">Selecciona destino</option>
+          {{#each destinos}}
+          <option value="{{id}}">
+            {{ciudades_origen.nombre}} - {{ciudades_destino.nombre}}
+          </option>
+          {{/each}}
+        </select>
+      </div>
+
+      <div class="prog-field">
+        <label class="prog-label">Tipo Servicio</label>
+        <select name="servicio_id" class="form-control prog-input">
+          <option value="">Sin servicio</option>
+          {{#each servicios}}
+          <option value="{{id}}">{{nombre}}</option>
+          {{/each}}
+        </select>
+      </div>
+
+      <div class="prog-field">
+        <label class="prog-label">Asignar Bus (Placa)</label>
+        <select name="bus_id" class="form-control prog-input">
+          <option value="">Sin bus asignado</option>
+          {{#each buses}}
+          <option value="{{id}}">{{placa}}{{#if marca}} ({{marca}}){{/if}}</option>
+          {{/each}}
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SECCIÓN 2: Personal de Tripulación
+  ═══════════════════════════════════════ -->
+  <div class="prog-seccion">
+    <div class="prog-seccion-titulo">
+      <i data-lucide="users"></i>
+      <span>2. Personal de Tripulación Requerido</span>
+    </div>
+    <div class="prog-grid-4">
+
+      <div class="prog-field">
+        <label class="prog-label">Piloto (Conductor 1)</label>
+        <select name="piloto_id" class="form-control prog-input" required>
+          <option value="">Selecciona piloto</option>
+          {{#each choferes}}
+          <option value="{{id}}">
+            {{nombres}} {{apellidos}}{{#if licencia}} (Lic: {{licencia}}){{/if}}
+          </option>
+          {{/each}}
+        </select>
+      </div>
+
+      <div class="prog-field">
+        <label class="prog-label">Copiloto 1 (Conductor 2)</label>
+        <select name="copiloto1_id" class="form-control prog-input">
+          <option value="">Ninguno</option>
+          {{#each choferes}}
+          <option value="{{id}}">
+            {{nombres}} {{apellidos}}{{#if licencia}} (Lic: {{licencia}}){{/if}}
+          </option>
+          {{/each}}
+        </select>
+      </div>
+
+      <div class="prog-field">
+        <label class="prog-label">Copiloto 2 (Opcional)</label>
+        <select name="copiloto2_id" class="form-control prog-input">
+          <option value="">Ninguno</option>
+          {{#each choferes}}
+          <option value="{{id}}">
+            {{nombres}} {{apellidos}}{{#if licencia}} (Lic: {{licencia}}){{/if}}
+          </option>
+          {{/each}}
+        </select>
+      </div>
+
+      <div class="prog-field">
+        <label class="prog-label">Terramoza / Ayudante</label>
+        <select name="terramoza_id" class="form-control prog-input">
+          <option value="">Ninguno</option>
+          {{#each tripulacion}}
+          <option value="{{id}}">
+            {{nombres}} {{apellidos}} ({{tipo}})
+          </option>
+          {{/each}}
+        </select>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SECCIONES 3 y 4 en dos columnas
+  ═══════════════════════════════════════ -->
+  <div class="prog-bottom-row">
+
+    <!-- SECCIÓN 3: Escala y Ruta -->
+    <div class="prog-seccion prog-seccion-escalas">
+      <div class="prog-seccion-titulo">
+        <i data-lucide="map-pin"></i>
+        <span>3. Escala y Ruta de Agencias (Máx 6 puntos)</span>
+      </div>
+
+      {{!-- 6 filas de escala: agencia + hora --}}
+      {{#each (range 1 6)}}
+      <div class="prog-escala-row">
+        <span class="prog-escala-num">{{this}}° Pte:</span>
+        <select name="agencia_{{this}}" class="form-control prog-input prog-escala-select">
+          <option value="">-- Seleccionar Agencia Alterna --</option>
+          {{#each ../agencias}}
+          <option value="{{id}}">{{nombre}}</option>
+          {{/each}}
+        </select>
+        <input type="time" name="hora_{{this}}" class="form-control prog-input prog-escala-hora" />
+      </div>
+      {{/each}}
+
+    </div>
+
+    <!-- SECCIÓN 4: Tarifas -->
+    <div class="prog-seccion prog-seccion-tarifas">
+      <div class="prog-seccion-titulo">
+        <i data-lucide="tag"></i>
+        <span>4. Estructura tarifaria (S/.)</span>
+      </div>
+
+      <div class="prog-field">
+        <label class="prog-label">Precio 1er Piso</label>
+        <input type="number" name="precio_piso1" class="form-control prog-input prog-precio"
+               placeholder="150.00" step="0.01" min="0" />
+      </div>
+
+      <div class="prog-field" style="margin-top:var(--space-3)">
+        <label class="prog-label">Precio 2do Piso</label>
+        <input type="number" name="precio_piso2" class="form-control prog-input prog-precio"
+               placeholder="130.00" step="0.01" min="0" />
+      </div>
+    </div>
+
+  </div><!-- fin prog-bottom-row -->
+
+  <!-- Botones -->
+  <div class="prog-footer">
+    <a href="/programacion" class="btn btn-ghost prog-btn-descartar">
+      Descartar
+    </a>
+    <button type="submit" class="btn btn-primary prog-btn-publicar">
+      <i data-lucide="send"></i> Publicar e Iniciar Ventas
+    </button>
+  </div>
+
+</form>
+</div><!-- fin prog-form-wrapper -->

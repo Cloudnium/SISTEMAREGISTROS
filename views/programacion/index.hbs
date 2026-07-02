@@ -1,0 +1,88 @@
+<!-- VIEW: programacion/index.hbs — Lista de programaciones -->
+<div class="page-header">
+  <div></div>
+  <a href="/programacion/nueva" class="btn btn-primary">
+    <i data-lucide="plus"></i> Nueva Programación
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    {{#if programaciones.length}}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha Salida</th>
+          <th>Ruta</th>
+          <th class="hide-sm">Servicio</th>
+          <th class="hide-sm">Bus</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each programaciones}}
+        <tr>
+          <td style="font-weight:600;white-space:nowrap">{{fecha_salida}}</td>
+          <td>
+            {{#if destinos}}
+              <span style="color:#e53e3e;font-weight:700">
+                {{destinos.ciudades_origen.nombre}}
+              </span>
+              <span style="color:var(--text-muted)"> → </span>
+              <span style="color:var(--color-accent);font-weight:700">
+                {{destinos.ciudades_destino.nombre}}
+              </span>
+            {{else}}—{{/if}}
+          </td>
+          <td class="hide-sm">
+            {{#if servicios}}
+              <span class="badge badge-primary">{{servicios.nombre}}</span>
+            {{else}}<span class="text-muted">—</span>{{/if}}
+          </td>
+          <td class="hide-sm" style="font-weight:600">
+            {{#if buses}}{{buses.placa}}{{else}}<span class="text-muted">—</span>{{/if}}
+          </td>
+          <td>
+            {{#if (eq estado 'publicado')}}
+              <span class="status-dot status-active">Publicado</span>
+            {{else if (eq estado 'descartado')}}
+              <span class="status-dot status-inactive">Descartado</span>
+            {{else}}
+              <span class="badge badge-neutral">{{estado}}</span>
+            {{/if}}
+          </td>
+          <td>
+            <div class="table-actions">
+              {{#if (eq estado 'publicado')}}
+              <form method="POST" action="/programacion/{{id}}/descartar"
+                    onsubmit="return confirm('Descartar esta programación?')">
+                <button type="submit" class="btn btn-sm btn-ghost" title="Descartar">
+                  <i data-lucide="x"></i>
+                </button>
+              </form>
+              {{/if}}
+              <form method="POST" action="/programacion/{{id}}/eliminar"
+                    onsubmit="return confirm('Eliminar permanentemente?')">
+                <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="calendar-clock"></i>
+      <p>No hay programaciones registradas aún.</p>
+      <a href="/programacion/nueva" class="btn btn-primary btn-sm">
+        <i data-lucide="plus"></i> Nueva Programación
+      </a>
+    </div>
+    {{/if}}
+  </div>
+</div>
+<style>@media(max-width:639px){.hide-sm{display:none}}</style>

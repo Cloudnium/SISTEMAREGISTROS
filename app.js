@@ -54,7 +54,14 @@ app.engine('hbs', engine({
     json: (obj) => JSON.stringify(obj).replace(/'/g, '&apos;'),
     // Helper: formatea número con cero a la izquierda si es menor a 10
     // Ej: 8 → "08", 24 → "24" — para los indicadores del módulo Personal
-    padNum: (n) => String(n || 0).padStart(2, '0')
+    padNum: (n) => String(n || 0).padStart(2, '0'),
+    // Helper: genera array [from..to] para iterar N veces en HBS
+    // Usado en programacion/form.hbs para los 6 puntos de escala
+    range: (from, to) => {
+      const arr = [];
+      for (let i = from; i <= to; i++) arr.push(i);
+      return arr;
+    }
   }
 }));
 
@@ -120,8 +127,9 @@ const personalRoutes = require('./routes/personal');
 const inventarioRoutes = require('./routes/inventario');
 const serviciosRoutes  = require('./routes/servicios');
 const busesRoutes      = require('./routes/buses');
-const ciudadesRoutes   = require('./routes/ciudades');
-const destinosRoutes   = require('./routes/destinos');
+const ciudadesRoutes    = require('./routes/ciudades');
+const destinosRoutes    = require('./routes/destinos');
+const programacionRoutes = require('./routes/programacion');
 const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
@@ -132,8 +140,9 @@ app.use('/personal', personalRoutes);
 app.use('/inventario', inventarioRoutes);
 app.use('/servicios',  serviciosRoutes);
 app.use('/buses',      busesRoutes);
-app.use('/ciudades',   ciudadesRoutes);
-app.use('/destinos',   destinosRoutes);
+app.use('/ciudades',      ciudadesRoutes);
+app.use('/destinos',      destinosRoutes);
+app.use('/programacion',  programacionRoutes);
 app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────
