@@ -1,0 +1,147 @@
+<!-- VIEW: boletaje/index.hbs — Boletaje e Itinerarios -->
+
+<!-- ── Filtros de búsqueda ── -->
+<div class="bol-filtros card">
+  <form action="/boletaje" method="GET" class="bol-filtros-form">
+    <div class="bol-filtro-campo">
+      <label class="bol-label">Fecha de Salida</label>
+      <input type="date" name="fecha" class="form-control bol-input"
+             value="{{filtroFecha}}" required />
+    </div>
+    <div class="bol-filtro-campo">
+      <label class="bol-label">Destino / Ruta</label>
+      <select name="destino_id" class="form-control bol-input">
+        <option value="">Todos los destinos</option>
+        {{#each destinos}}
+        <option value="{{id}}" {{#if (eq id ../filtroDestino)}}selected{{/if}}>
+          {{ciudades_origen.nombre}} - {{ciudades_destino.nombre}}
+        </option>
+        {{/each}}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary bol-btn-buscar">
+      <i data-lucide="search"></i> Buscar Salidas
+    </button>
+  </form>
+</div>
+
+<!-- ── Resultados ── -->
+{{#if buscado}}
+  {{#if salidas.length}}
+  <div class="card">
+    <div class="table-wrapper">
+      <table class="table bol-table">
+        <thead>
+          <tr>
+            <th>Servicio</th>
+            <th>Ruta e Itinerario de Agencias</th>
+            <th>Precios</th>
+            <th class="hide-sm">Bus / Placa</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each salidas}}
+          <tr class="bol-row">
+
+            <!-- SERVICIO -->
+            <td>
+              {{#if servicios}}
+                <span class="bol-srv-badge">{{servicios.nombre}}</span>
+              {{else}}
+                <span class="text-muted">—</span>
+              {{/if}}
+            </td>
+
+            <!-- RUTA E ITINERARIO -->
+            <td class="bol-ruta-cell">
+              {{#if escalas.length}}
+                {{#each escalas}}
+                <div class="bol-escala-item">
+                  <span class="bol-pin"><i data-lucide="map-pin"></i></span>
+                  <span class="bol-escala-orden">{{ordinalEs orden}}:</span>
+                  <span class="bol-escala-nombre">
+                    {{#if agencias}}{{agencias.nombre}}{{else}}—{{/if}}
+                  </span>
+                  {{#if hora}}
+                  <span class="bol-escala-hora">({{hora}})</span>
+                  {{/if}}
+                </div>
+                {{/each}}
+              {{else}}
+                <span class="text-muted">Sin escalas registradas</span>
+              {{/if}}
+            </td>
+
+            <!-- PRECIOS -->
+            <td class="bol-precios-cell">
+              <div class="bol-precio-item">
+                <span class="bol-precio-label">1er Piso:</span>
+                <span class="bol-precio-val">
+                  {{#if precio_piso1}}S/. {{precio_piso1}}{{else}}—{{/if}}
+                </span>
+              </div>
+              <div class="bol-precio-item">
+                <span class="bol-precio-label">2do Piso:</span>
+                <span class="bol-precio-val">
+                  {{#if precio_piso2}}S/. {{precio_piso2}}{{else}}—{{/if}}
+                </span>
+              </div>
+            </td>
+
+            <!-- BUS / PLACA -->
+            <td class="hide-sm bol-bus-cell">
+              {{#if buses}}
+                <div><span class="bol-bus-label">Placa:</span> <strong>{{buses.placa}}</strong></div>
+                {{#if buses.total_asientos}}
+                <div style="margin-top:2px">
+                  <span class="bol-bus-label">Nro Bus:</span> {{buses.total_asientos}}
+                </div>
+                {{/if}}
+              {{else}}
+                <span class="text-muted">—</span>
+              {{/if}}
+            </td>
+
+            <!-- ACCIONES: Croquis y Manifiesto (sin función aún) -->
+            <td>
+              <div class="bol-acciones">
+                <button class="btn btn-sm bol-btn-croquis" title="Croquis (próximamente)">
+                  <i data-lucide="bus"></i> Croquis
+                </button>
+                <button class="btn btn-sm bol-btn-manifiesto" title="Manifiesto (próximamente)">
+                  <i data-lucide="file-text"></i> Manifiesto
+                </button>
+              </div>
+            </td>
+
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {{else}}
+  <!-- Sin resultados para esa fecha/destino -->
+  <div class="card">
+    <div class="empty-state">
+      <i data-lucide="calendar-x"></i>
+      <p>No hay salidas publicadas para los filtros seleccionados.</p>
+    </div>
+  </div>
+  {{/if}}
+
+{{else}}
+<!-- Estado inicial: aún no se ha buscado -->
+<div class="card">
+  <div class="empty-state">
+    <i data-lucide="search"></i>
+    <p>Selecciona una fecha y presiona <strong>Buscar Salidas</strong>.</p>
+  </div>
+</div>
+{{/if}}
+
+<style>
+@media (max-width: 639px) { .hide-sm { display: none; } }
+</style>

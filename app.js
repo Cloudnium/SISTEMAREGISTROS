@@ -61,6 +61,12 @@ app.engine('hbs', engine({
       const arr = [];
       for (let i = from; i <= to; i++) arr.push(i);
       return arr;
+    },
+    // Helper: convierte número de orden a ordinal en español
+    // 1→"1ra", 2→"2da", 3→"3ra", 4→"4ta", 5→"5ta", 6→"6ta"
+    ordinalEs: (n) => {
+      const map = { 1:'1ra', 2:'2da', 3:'3ra', 4:'4ta', 5:'5ta', 6:'6ta' };
+      return map[n] || (n + '°');
     }
   }
 }));
@@ -123,7 +129,8 @@ const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const usuariosRoutes = require('./routes/usuarios');
 const combustibleRoutes = require('./routes/combustible');
-const personalRoutes = require('./routes/personal');
+const personalRoutes     = require('./routes/personal');
+const boletajeRoutes     = require('./routes/boletaje');
 const inventarioRoutes = require('./routes/inventario');
 const serviciosRoutes  = require('./routes/servicios');
 const busesRoutes      = require('./routes/buses');
@@ -136,7 +143,8 @@ app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/usuarios', usuariosRoutes);
 app.use('/combustible', combustibleRoutes);
-app.use('/personal', personalRoutes);
+app.use('/personal',     personalRoutes);
+app.use('/boletaje',     boletajeRoutes);
 app.use('/inventario', inventarioRoutes);
 app.use('/servicios',  serviciosRoutes);
 app.use('/buses',      busesRoutes);
