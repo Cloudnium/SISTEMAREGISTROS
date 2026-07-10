@@ -1,0 +1,415 @@
+<!-- VIEW: mapa-asientos/index.hbs
+     Editor interactivo de distribución de asientos
+     Funciones: 1-2 pisos, filas/columnas configurables,
+     edición de números de asiento, guardar/cargar por bus
+-->
+
+<!-- ── Barra superior: Selector de bus + Guardar ── -->
+<div class="ma-topbar">
+  <div class="ma-bus-selector">
+    <label class="ma-label">Seleccionar Bus</label>
+    <div class="ma-bus-input-row">
+      <select id="maBusSelect" class="form-control ma-select"
+              onchange="MA.cargarBus()">
+        <option value="">-- Selecciona una placa --</option>
+        {{#each buses}}
+        <option value="{{id}}">Placa {{placa}}{{#if marca}} — {{marca}}{{#if modelo}} {{modelo}}{{/if}}{{/if}}</option>
+        {{/each}}
+      </select>
+    </div>
+  </div>
+
+  <button class="btn btn-primary ma-btn-guardar" onclick="MA.guardar()" id="maBtnGuardar" disabled>
+    <i data-lucide="save"></i> GUARDAR CAMBIOS
+  </button>
+</div>
+
+<!-- ── Panel de configuración ── -->
+<div class="ma-config-panel" id="maConfigPanel" style="display:none">
+  <div class="ma-config-inner">
+
+    <!-- Número de pisos -->
+    <div class="ma-config-grupo">
+      <label class="ma-label">Pisos del bus</label>
+      <div class="ma-radio-row">
+        <label class="ma-radio-opt">
+          <input type="radio" name="maPisos" value="1" checked onchange="MA.cambiarPisos(1)" />
+          <span>1 Piso</span>
+        </label>
+        <label class="ma-radio-opt">
+          <input type="radio" name="maPisos" value="2" onchange="MA.cambiarPisos(2)" />
+          <span>2 Pisos</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Config piso 1 -->
+    <div class="ma-config-grupo">
+      <label class="ma-label">Piso 1 — Filas</label>
+      <input type="number" id="maFilasP1" class="form-control ma-num-input"
+             value="4" min="1" max="15" onchange="MA.regenerar()" />
+    </div>
+    <div class="ma-config-grupo">
+      <label class="ma-label">Piso 1 — Columnas</label>
+      <input type="number" id="maColsP1" class="form-control ma-num-input"
+             value="4" min="1" max="8" onchange="MA.regenerar()" />
+    </div>
+
+    <!-- Config piso 2 (oculto si 1 piso) -->
+    <div class="ma-config-grupo" id="maConfigP2" style="display:none">
+      <label class="ma-label">Piso 2 — Filas</label>
+      <input type="number" id="maFilasP2" class="form-control ma-num-input"
+             value="4" min="1" max="15" onchange="MA.regenerar()" />
+    </div>
+    <div class="ma-config-grupo" id="maConfigP2b" style="display:none">
+      <label class="ma-label">Piso 2 — Columnas</label>
+      <input type="number" id="maColsP2" class="form-control ma-num-input"
+             value="4" min="1" max="8" onchange="MA.regenerar()" />
+    </div>
+
+    <!-- Botón renumerar automático -->
+    <div class="ma-config-grupo">
+      <label class="ma-label">Numeración auto</label>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="MA.autonumerar()"
+              title="Rellena los asientos vacíos con números consecutivos">
+        <i data-lucide="hash"></i> Auto-numerar
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Tabs de piso ── -->
+<div class="ma-tabs" id="maTabs" style="display:none">
+  <button class="ma-tab ma-tab-active" id="maTab1" onclick="MA.cambiarTab(1)">
+    Primer Piso Bus Cama 160°
+  </button>
+  <button class="ma-tab" id="maTab2" onclick="MA.cambiarTab(2)" style="display:none">
+    Segundo Piso Bus Cama 160°
+  </button>
+</div>
+
+<!-- ── Editor visual de asientos ── -->
+<div class="ma-editor" id="maEditor" style="display:none">
+
+  <!-- Vista Piso 1 -->
+  <div id="maVistaPiso1">
+    <div class="ma-bus-wrap">
+      <!-- Silueta lateral del bus (SVG inline) -->
+      <div class="ma-bus-svg">
+        {{> bus-svg}}
+      </div>
+      <!-- Grid de asientos piso 1 -->
+      <div class="ma-grid-wrap">
+        <div class="ma-grid" id="maGridP1"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista Piso 2 (oculta inicialmente) -->
+  <div id="maVistaPiso2" style="display:none">
+    <div class="ma-bus-wrap">
+      <div class="ma-bus-svg">
+        {{> bus-svg}}
+      </div>
+      <div class="ma-grid-wrap">
+        <div class="ma-grid" id="maGridP2"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Estado vacío inicial ── -->
+<div class="ma-empty" id="maEmpty">
+  <div class="card">
+    <div class="empty-state">
+      <i data-lucide="bus"></i>
+      <p>Selecciona un bus para ver o configurar su mapa de asientos.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast de notificación ── -->
+<div class="ma-toast" id="maToast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// MA — Módulo interactivo de Mapa de Asientos
+// Vanilla JS puro, sin frameworks
+// ═══════════════════════════════════════════════════
+var MA = (function () {
+
+  var busActual    = null;   // id del bus seleccionado
+  var pisoActivo   = 1;
+  var numPisos     = 1;
+  // Matrices de asientos: matrizes[piso][fila][col] = "numero"
+  var matriz       = { 1: [], 2: [] };
+
+  // ── Helpers ──────────────────────────────────────
+  function get(url) {
+    return fetch(url, { credentials: 'same-origin' }).then(function(r) { return r.json(); });
+  }
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(r) { return r.json(); });
+  }
+  function toast(msg, tipo) {
+    var el = document.getElementById('maToast');
+    el.textContent = msg;
+    el.className = 'ma-toast ma-toast-' + (tipo || 'ok') + ' ma-toast-visible';
+    setTimeout(function() { el.className = 'ma-toast'; }, 3000);
+  }
+
+  // ── Carga bus al seleccionar ──────────────────────
+  function cargarBus() {
+    busActual = document.getElementById('maBusSelect').value;
+    if (!busActual) {
+      document.getElementById('maEditor').style.display  = 'none';
+      document.getElementById('maEmpty').style.display   = '';
+      document.getElementById('maConfigPanel').style.display = 'none';
+      document.getElementById('maTabs').style.display    = 'none';
+      document.getElementById('maBtnGuardar').disabled   = true;
+      return;
+    }
+    get('/mapa-asientos/' + busActual + '/datos').then(function(data) {
+      aplicarConfig(data.config, data.asientos);
+      document.getElementById('maEditor').style.display     = '';
+      document.getElementById('maEmpty').style.display      = 'none';
+      document.getElementById('maConfigPanel').style.display = '';
+      document.getElementById('maTabs').style.display       = '';
+      document.getElementById('maBtnGuardar').disabled      = false;
+      if (window.lucide) lucide.createIcons();
+    }).catch(function() {
+      toast('Error al cargar los datos del bus.', 'error');
+    });
+  }
+
+  // ── Aplica configuración cargada del servidor ────
+  function aplicarConfig(cfg, asientos) {
+    var np    = cfg ? cfg.num_pisos   : 1;
+    var fp1   = cfg ? cfg.filas_p1    : 4;
+    var cp1   = cfg ? cfg.columnas_p1 : 4;
+    var fp2   = cfg ? cfg.filas_p2    : 4;
+    var cp2   = cfg ? cfg.columnas_p2 : 4;
+
+    // Aplica a los controles
+    document.querySelector('input[name="maPisos"][value="' + np + '"]').checked = true;
+    document.getElementById('maFilasP1').value = fp1;
+    document.getElementById('maColsP1').value  = cp1;
+    document.getElementById('maFilasP2').value = fp2 || 4;
+    document.getElementById('maColsP2').value  = cp2 || 4;
+    numPisos = np;
+
+    // Construye matrices vacías
+    iniciarMatriz(1, fp1, cp1);
+    iniciarMatriz(2, fp2 || 4, cp2 || 4);
+
+    // Rellena con asientos cargados
+    (asientos || []).forEach(function(a) {
+      if (matriz[a.piso] && matriz[a.piso][a.fila - 1]) {
+        matriz[a.piso][a.fila - 1][a.columna - 1] = a.numero_asiento;
+      }
+    });
+
+    // Actualiza UI
+    actualizarConfigUI(np);
+    renderGrid(1);
+    renderGrid(2);
+    cambiarTab(1);
+  }
+
+  // ── Inicia una matriz vacía ──────────────────────
+  function iniciarMatriz(piso, filas, cols) {
+    matriz[piso] = [];
+    for (var f = 0; f < filas; f++) {
+      var fila = [];
+      for (var c = 0; c < cols; c++) fila.push('');
+      matriz[piso].push(fila);
+    }
+  }
+
+  // ── Cambia número de pisos ───────────────────────
+  function cambiarPisos(n) {
+    numPisos = n;
+    actualizarConfigUI(n);
+    regenerar();
+  }
+
+  function actualizarConfigUI(n) {
+    var tab2  = document.getElementById('maTab2');
+    var cfgP2  = document.getElementById('maConfigP2');
+    var cfgP2b = document.getElementById('maConfigP2b');
+    if (n === 2 || n === '2') {
+      tab2.style.display  = '';
+      cfgP2.style.display = cfgP2b.style.display = '';
+    } else {
+      tab2.style.display  = 'none';
+      cfgP2.style.display = cfgP2b.style.display = 'none';
+      if (pisoActivo === 2) cambiarTab(1);
+    }
+  }
+
+  // ── Regenera las matrices (preserva números ya ingresados) ──
+  function regenerar() {
+    var fp1 = parseInt(document.getElementById('maFilasP1').value) || 4;
+    var cp1 = parseInt(document.getElementById('maColsP1').value)  || 4;
+    var fp2 = parseInt(document.getElementById('maFilasP2').value) || 4;
+    var cp2 = parseInt(document.getElementById('maColsP2').value)  || 4;
+
+    // Preserva los valores existentes
+    var oldP1 = matriz[1] || [];
+    var oldP2 = matriz[2] || [];
+
+    iniciarMatriz(1, fp1, cp1);
+    iniciarMatriz(2, fp2, cp2);
+
+    // Rellena con los valores previos que quepan
+    oldP1.forEach(function(fila, f) {
+      if (matriz[1][f]) fila.forEach(function(v, c) { if (matriz[1][f][c] !== undefined) matriz[1][f][c] = v || ''; });
+    });
+    oldP2.forEach(function(fila, f) {
+      if (matriz[2][f]) fila.forEach(function(v, c) { if (matriz[2][f][c] !== undefined) matriz[2][f][c] = v || ''; });
+    });
+
+    renderGrid(1);
+    renderGrid(2);
+  }
+
+  // ── Renderiza el grid de un piso ──────────────────
+  function renderGrid(piso) {
+    var grid = document.getElementById('maGridP' + piso);
+    if (!grid) return;
+    var mat  = matriz[piso];
+    if (!mat || mat.length === 0) { grid.innerHTML = ''; return; }
+    var cols = mat[0].length;
+    grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    grid.innerHTML = '';
+
+    mat.forEach(function(fila, f) {
+      fila.forEach(function(val, c) {
+        var celda = document.createElement('div');
+        celda.className = 'ma-asiento';
+
+        // Ícono de asiento SVG
+        var ico = document.createElement('div');
+        ico.className = 'ma-asiento-ico';
+        ico.innerHTML = '<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+          '<rect x="4" y="4" width="24" height="16" rx="4" fill="currentColor" opacity=".15" stroke="currentColor" stroke-width="1.5"/>' +
+          '<rect x="4" y="22" width="24" height="6" rx="2" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/>' +
+          '<rect x="4" y="18" width="6" height="12" rx="2" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/>' +
+          '<rect x="22" y="18" width="6" height="12" rx="2" fill="currentColor" opacity=".2" stroke="currentColor" stroke-width="1.5"/>' +
+          '</svg>';
+
+        // Input editable del número
+        var inp = document.createElement('input');
+        inp.type        = 'text';
+        inp.className   = 'ma-asiento-num';
+        inp.value       = val || '';
+        inp.maxLength   = 4;
+        inp.placeholder = '—';
+        inp.dataset.piso = piso;
+        inp.dataset.fila = f;
+        inp.dataset.col  = c;
+
+        inp.addEventListener('input', function() {
+          matriz[this.dataset.piso][this.dataset.fila][this.dataset.col] = this.value;
+        });
+        inp.addEventListener('focus', function() {
+          this.parentElement.classList.add('ma-asiento-active');
+        });
+        inp.addEventListener('blur', function() {
+          this.parentElement.classList.remove('ma-asiento-active');
+        });
+        // Enter mueve al siguiente
+        inp.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            var inputs = Array.from(document.querySelectorAll('#maGridP' + piso + ' .ma-asiento-num'));
+            var idx = inputs.indexOf(this);
+            if (idx + 1 < inputs.length) inputs[idx + 1].focus();
+          }
+        });
+
+        celda.appendChild(ico);
+        celda.appendChild(inp);
+        grid.appendChild(celda);
+      });
+    });
+  }
+
+  // ── Cambia tab de piso ────────────────────────────
+  function cambiarTab(piso) {
+    pisoActivo = piso;
+    document.getElementById('maVistaPiso1').style.display = piso === 1 ? '' : 'none';
+    document.getElementById('maVistaPiso2').style.display = piso === 2 ? '' : 'none';
+    document.getElementById('maTab1').className = 'ma-tab' + (piso === 1 ? ' ma-tab-active' : '');
+    document.getElementById('maTab2').className = 'ma-tab' + (piso === 2 ? ' ma-tab-active' : '');
+  }
+
+  // ── Auto-numeración consecutiva ───────────────────
+  function autonumerar() {
+    var cont = 1;
+    [1, 2].forEach(function(piso) {
+      if (piso === 2 && numPisos < 2) return;
+      (matriz[piso] || []).forEach(function(fila, f) {
+        fila.forEach(function(_, c) {
+          if (!matriz[piso][f][c]) {
+            matriz[piso][f][c] = String(cont);
+            cont++;
+          }
+        });
+      });
+    });
+    renderGrid(1);
+    if (numPisos >= 2) renderGrid(2);
+    toast('Numeración automática aplicada.', 'ok');
+  }
+
+  // ── Guardar en servidor ───────────────────────────
+  function guardar() {
+    if (!busActual) return;
+    var asientos = [];
+    [1, 2].forEach(function(piso) {
+      if (piso === 2 && numPisos < 2) return;
+      (matriz[piso] || []).forEach(function(fila, f) {
+        fila.forEach(function(val, c) {
+          if (val && val.trim() !== '') {
+            asientos.push({ piso: piso, fila: f + 1, columna: c + 1, numero_asiento: val.trim() });
+          }
+        });
+      });
+    });
+
+    var btn = document.getElementById('maBtnGuardar');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader-2"></i> Guardando...';
+    if (window.lucide) lucide.createIcons();
+
+    post('/mapa-asientos/' + busActual + '/guardar', {
+      num_pisos:   numPisos,
+      filas_p1:    parseInt(document.getElementById('maFilasP1').value) || 4,
+      columnas_p1: parseInt(document.getElementById('maColsP1').value)  || 4,
+      filas_p2:    parseInt(document.getElementById('maFilasP2').value) || 4,
+      columnas_p2: parseInt(document.getElementById('maColsP2').value)  || 4,
+      asientos:    asientos
+    }).then(function(r) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="save"></i> GUARDAR CAMBIOS';
+      if (window.lucide) lucide.createIcons();
+      if (r.ok) toast('Mapa guardado correctamente.', 'ok');
+      else      toast('Error al guardar: ' + (r.error || ''), 'error');
+    }).catch(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="save"></i> GUARDAR CAMBIOS';
+      if (window.lucide) lucide.createIcons();
+      toast('Error de conexión al guardar.', 'error');
+    });
+  }
+
+  return { cargarBus, cambiarPisos, cambiarTab, regenerar, autonumerar, guardar };
+})();
+</script>

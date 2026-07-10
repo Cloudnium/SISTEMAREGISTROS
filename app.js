@@ -136,7 +136,8 @@ const serviciosRoutes  = require('./routes/servicios');
 const busesRoutes      = require('./routes/buses');
 const ciudadesRoutes    = require('./routes/ciudades');
 const destinosRoutes    = require('./routes/destinos');
-const programacionRoutes = require('./routes/programacion');
+const programacionRoutes  = require('./routes/programacion');
+const mapaAsientosRoutes  = require('./routes/mapa-asientos');
 const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
@@ -150,7 +151,8 @@ app.use('/servicios',  serviciosRoutes);
 app.use('/buses',      busesRoutes);
 app.use('/ciudades',      ciudadesRoutes);
 app.use('/destinos',      destinosRoutes);
-app.use('/programacion',  programacionRoutes);
+app.use('/programacion',   programacionRoutes);
+app.use('/mapa-asientos',  mapaAsientosRoutes);
 app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────

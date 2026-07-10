@@ -1010,3 +1010,158 @@
   .bol-filtro-campo:nth-child(2) .bol-input { width: 100%; }
   .bol-btn-buscar { width: 100%; justify-content: center; }
 }
+
+/* ══════════════════════════════════════════
+   MÓDULO MAPA DE ASIENTOS
+   Editor interactivo de distribución de bus
+══════════════════════════════════════════ */
+
+/* ── Topbar: selector de bus + guardar ── */
+.ma-topbar {
+  display: flex; align-items: flex-end;
+  justify-content: space-between; gap: var(--space-4);
+  margin-bottom: var(--space-4); flex-wrap: wrap;
+}
+.ma-bus-selector { display: flex; flex-direction: column; gap: 5px; }
+.ma-bus-input-row { display: flex; align-items: center; gap: var(--space-2); }
+.ma-select { width: 280px; }
+.ma-btn-guardar {
+  letter-spacing: 0.05em; font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-6);
+}
+
+/* ── Panel de configuración ── */
+.ma-config-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+.ma-config-inner {
+  display: flex; align-items: flex-end;
+  gap: var(--space-5); flex-wrap: wrap;
+}
+.ma-config-grupo { display: flex; flex-direction: column; gap: 5px; }
+.ma-label {
+  font-size: 0.67rem; font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ma-num-input { width: 80px; text-align: center; }
+.ma-radio-row { display: flex; gap: var(--space-3); }
+.ma-radio-opt {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.ma-radio-opt input { accent-color: var(--color-accent); width: 15px; height: 15px; cursor: pointer; }
+
+/* ── Tabs de piso ── */
+.ma-tabs {
+  display: flex; gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.ma-tab {
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: white; color: var(--text-secondary);
+  font-size: var(--text-sm); font-weight: 600;
+  cursor: pointer; transition: all var(--transition-fast);
+  flex: 1; text-align: center;
+}
+.ma-tab:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.ma-tab-active {
+  background: var(--color-accent); color: white !important;
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-accent);
+}
+
+/* ── Editor: silueta + grid ── */
+.ma-editor {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+.ma-bus-wrap {
+  display: flex; align-items: flex-start;
+  gap: var(--space-5);
+}
+
+/* SVG del bus */
+.ma-bus-svg { flex-shrink: 0; }
+.ma-bus-silhouette { width: 90px; height: auto; }
+
+/* Grid de asientos */
+.ma-grid-wrap { flex: 1; overflow-x: auto; }
+.ma-grid {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-2);
+}
+
+/* Celda de asiento individual */
+.ma-asiento {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 4px;
+  background: var(--color-surface-2);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  transition: all var(--transition-fast);
+  cursor: text; min-width: 58px;
+  color: var(--color-accent);
+}
+.ma-asiento:hover { border-color: var(--color-accent); }
+.ma-asiento-active {
+  border-color: var(--color-accent) !important;
+  background: var(--color-accent-light) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+.ma-asiento-ico { width: 28px; height: 28px; color: var(--color-accent); }
+.ma-asiento-ico svg { width: 100%; height: 100%; }
+
+/* Input del número de asiento */
+.ma-asiento-num {
+  width: 100%; text-align: center;
+  border: none; background: transparent;
+  font-size: var(--text-sm); font-weight: 700;
+  color: var(--text-primary); outline: none;
+  cursor: text; padding: 0;
+}
+.ma-asiento-num::placeholder { color: var(--text-muted); font-weight: 400; }
+
+/* ── Toast de notificación ── */
+.ma-toast {
+  position: fixed; bottom: 80px; right: 24px;
+  background: #1a1d2e; color: white;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm); font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  z-index: 600;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+.ma-toast-visible { opacity: 1; transform: translateY(0); }
+.ma-toast-ok    { background: var(--color-success); }
+.ma-toast-error { background: var(--color-error); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .ma-select { width: 100%; }
+  .ma-topbar { flex-direction: column; align-items: stretch; }
+  .ma-btn-guardar { width: 100%; justify-content: center; }
+  .ma-tabs { flex-direction: column; }
+}
+@media (max-width: 639px) {
+  .ma-bus-wrap { flex-direction: column; }
+  .ma-bus-svg { display: none; }
+  .ma-config-inner { flex-direction: column; }
+  .ma-num-input { width: 100%; }
+}
