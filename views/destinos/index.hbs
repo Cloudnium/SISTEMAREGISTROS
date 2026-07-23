@@ -69,6 +69,7 @@
             <th>Origen</th>
             <th>Destino</th>
             <th>Agencia Final</th>
+            <th>Ciudades adicionales de llegada</th>
             {{#if isAdmin}}<th></th>{{/if}}
           </tr>
         </thead>
@@ -83,6 +84,28 @@
             </td>
             <td class="dest-agencia">
               {{#if agencias}}{{agencias.nombre}}{{else}}—{{/if}}
+            </td>
+            <td class="dest-adicionales">
+              <div class="dest-chips">
+                {{#each ciudadesAdicionales}}
+                <span class="dest-chip">
+                  {{ciudades.nombre}}
+                  <form method="POST" action="/destinos/{{../id}}/ciudad-adicional/{{ciudad_id}}/eliminar"
+                        onsubmit="return confirm('¿Quitar {{ciudades.nombre}} de esta ruta?')" style="display:inline">
+                    <button type="submit" title="Quitar">×</button>
+                  </form>
+                </span>
+                {{/each}}
+              </div>
+              <form method="POST" action="/destinos/{{id}}/ciudad-adicional" class="dest-add-form">
+                <select name="ciudad_id" class="form-control dest-add-select" required>
+                  <option value="">+ Agregar ciudad…</option>
+                  {{#each ../ciudades}}
+                  <option value="{{id}}">{{nombre}}</option>
+                  {{/each}}
+                </select>
+                <button type="submit" class="btn-icon" title="Agregar"><i data-lucide="plus"></i></button>
+              </form>
             </td>
             {{#if ../isAdmin}}
             <td>

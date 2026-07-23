@@ -72,6 +72,8 @@ const db = {
   update: (table, query, body) => rest('PATCH', table, query, body),
   // DELETE
   delete: (table, query) => rest('DELETE', table, query),
+  // RPC — llama a una función de Postgres. ej: db.rpc('siguiente_correlativo', { p_agencia_id: id })
+  rpc: (fn, params) => rest('POST', 'rpc/' + fn, null, params || {}),
 };
 
 module.exports = { supabase, supabaseAdmin, db };

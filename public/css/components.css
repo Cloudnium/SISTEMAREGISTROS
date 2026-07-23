@@ -132,6 +132,7 @@ input[type="date"].form-control { color-scheme: light; }
 .form-check-group { flex-direction: row; }
 .form-check-label { display: flex; align-items: center; gap: var(--space-3); cursor: pointer; font-size: var(--text-sm); color: var(--text-secondary); }
 .form-check { width: 16px; height: 16px; accent-color: var(--color-accent); cursor: pointer; }
+.form-permisos-row { display: flex; flex-wrap: wrap; gap: var(--space-5); margin-bottom: var(--space-2); }
 .form-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--color-border); flex-wrap: wrap; }
 
 .input-with-toggle { position: relative; }

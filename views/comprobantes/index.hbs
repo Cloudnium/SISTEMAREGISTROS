@@ -1,0 +1,199 @@
+<!-- VIEW: comprobantes/index.hbs — Gestión de comprobantes (boletos) -->
+
+<!-- ── Filtros de búsqueda ── -->
+<div class="bol-filtros card">
+  <form action="/comprobantes" method="GET" class="bol-filtros-form">
+    <div class="bol-filtro-campo">
+      <label class="bol-label">Fecha de viaje</label>
+      <input type="date" name="fecha" class="form-control bol-input" value="{{filtros.fecha}}" />
+    </div>
+    <div class="bol-filtro-campo">
+      <label class="bol-label">Destino / Ruta</label>
+      <select name="destino_id" class="form-control bol-input">
+        <option value="">Todos los destinos</option>
+        {{#each destinos}}
+        <option value="{{id}}" {{#if (eq id ../filtros.destino_id)}}selected{{/if}}>
+          {{ciudades_origen.nombre}} - {{ciudades_destino.nombre}}
+        </option>
+        {{/each}}
+      </select>
+    </div>
+    <div class="bol-filtro-campo">
+      <label class="bol-label">Estado</label>
+      <select name="estado" class="form-control bol-input">
+        <option value="">Todos</option>
+        <option value="vendido"    {{#if (eq filtros.estado 'vendido')}}selected{{/if}}>Vendido</option>
+        <option value="reservado"  {{#if (eq filtros.estado 'reservado')}}selected{{/if}}>Reservado</option>
+        <option value="postergado" {{#if (eq filtros.estado 'postergado')}}selected{{/if}}>Postergado</option>
+        <option value="anulado"    {{#if (eq filtros.estado 'anulado')}}selected{{/if}}>Anulado</option>
+      </select>
+    </div>
+    <div class="bol-filtro-campo" style="flex:2">
+      <label class="bol-label">Buscar (nombre, documento, RUC o N° de boleto)</label>
+      <input type="text" name="q" class="form-control bol-input" value="{{filtros.q}}" placeholder="Ej: Juan Pérez, 12345678, B001-00000006" />
+    </div>
+    <button type="submit" class="btn btn-primary bol-btn-buscar">
+      <i data-lucide="search"></i> Buscar
+    </button>
+    {{#if (or filtros.fecha filtros.destino_id filtros.estado filtros.q)}}
+    <a href="/comprobantes" class="btn btn-ghost">Limpiar</a>
+    {{/if}}
+  </form>
+</div>
+
+<!-- ── Resultados ── -->
+{{#if comprobantes.length}}
+<div class="card">
+  <div class="table-wrapper">
+    <table class="table cmp-table">
+      <thead>
+        <tr>
+          <th>N° Boleto</th>
+          <th>Pasajero</th>
+          <th class="hide-sm">Ruta</th>
+          <th class="hide-sm">Fecha</th>
+          <th>Asiento</th>
+          <th>Precio</th>
+          <th>Pago</th>
+          <th>Estado</th>
+          <th class="hide-sm">Vendedor</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each comprobantes}}
+        <tr id="cmpRow-{{id}}">
+          <td><code class="code-text">{{#if serie}}{{serie}}-{{pad8 correlativo}}{{else}}—{{/if}}</code></td>
+          <td>
+            <div class="cmp-pasajero">
+              <strong>{{#if nombre_completo}}{{nombre_completo}}{{else}}—{{/if}}</strong>
+              <span class="cmp-doc">{{#if numero_documento}}{{tipo_documento}} {{numero_documento}}{{/if}}</span>
+            </div>
+          </td>
+          <td class="hide-sm">
+            {{#if programaciones}}{{programaciones.destinos.ciudades_origen.nombre}} → {{programaciones.destinos.ciudades_destino.nombre}}{{else}}—{{/if}}
+          </td>
+          <td class="hide-sm">{{#if programaciones}}{{formatDate programaciones.fecha_salida}}{{else}}—{{/if}}</td>
+          <td>N° {{numero_asiento}} <span class="cmp-piso">(Piso {{piso}})</span></td>
+          <td>S/ {{toFixed2 precio}}</td>
+          <td>
+            <select class="form-control cmp-metodo-select" data-id="{{id}}"
+                    onchange="CMP.cambiarMetodoPago('{{id}}', this.value)"
+                    {{#if (eq estado 'anulado')}}disabled{{/if}}>
+              <option value="efectivo"     {{#if (eq metodo_pago 'efectivo')}}selected{{/if}}>Efectivo</option>
+              <option value="tarjeta"      {{#if (eq metodo_pago 'tarjeta')}}selected{{/if}}>Tarjeta</option>
+              <option value="yape"         {{#if (eq metodo_pago 'yape')}}selected{{/if}}>Yape</option>
+              <option value="plin"         {{#if (eq metodo_pago 'plin')}}selected{{/if}}>Plin</option>
+              <option value="transferencia"{{#if (eq metodo_pago 'transferencia')}}selected{{/if}}>Transferencia</option>
+            </select>
+          </td>
+          <td>
+            <span class="badge cmp-badge-{{estado}}" id="cmpEstado-{{id}}">{{estado}}</span>
+          </td>
+          <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-secondary)">
+            {{#if vendedor}}{{vendedor.nombre}}{{else}}—{{/if}}
+          </td>
+          <td>
+            <div class="cmp-acciones">
+              <button class="btn-icon" title="Reimprimir" onclick='CMP.reimprimir({{{json this}}})'>
+                <i data-lucide="printer"></i>
+              </button>
+              {{#if ../puedeAnular}}
+              <button class="btn-icon btn-icon-delete" title="Anular comprobante" id="cmpBtnAnular-{{id}}"
+                      onclick="CMP.anular('{{id}}')" {{#if (eq estado 'anulado')}}disabled{{/if}}>
+                <i data-lucide="x-circle"></i>
+              </button>
+              {{/if}}
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{else}}
+<div class="card">
+  <div class="empty-state">
+    <i data-lucide="receipt"></i>
+    <p>No se encontraron comprobantes con esos filtros.</p>
+  </div>
+</div>
+{{/if}}
+
+<div class="ma-toast" id="cmpToast"></div>
+
+<script src="/js/comprobante-print.js"></script>
+<script>
+var CMP = (function () {
+
+  function toast(msg, tipo) {
+    var el = document.getElementById('cmpToast');
+    el.textContent = msg;
+    el.className = 'ma-toast ma-toast-' + (tipo || 'ok') + ' ma-toast-visible';
+    setTimeout(function () { el.className = 'ma-toast'; }, 3000);
+  }
+
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    }).then(function (r) { return r.json(); });
+  }
+
+  function anular(id) {
+    if (!confirm('¿Anular este comprobante? El registro se conserva en el sistema, solo cambia su estado.')) return;
+    post('/comprobantes/' + id + '/anular').then(function (r) {
+      if (r.ok) {
+        toast('Comprobante anulado.', 'ok');
+        var badge = document.getElementById('cmpEstado-' + id);
+        badge.textContent = 'anulado';
+        badge.className = 'badge cmp-badge-anulado';
+        var btn = document.getElementById('cmpBtnAnular-' + id);
+        if (btn) btn.disabled = true;
+        var sel = document.querySelector('.cmp-metodo-select[data-id="' + id + '"]');
+        if (sel) sel.disabled = true;
+      } else {
+        toast('Error: ' + (r.error || ''), 'error');
+      }
+    }).catch(function () { toast('Error de conexión.', 'error'); });
+  }
+
+  function cambiarMetodoPago(id, metodo) {
+    post('/comprobantes/' + id + '/metodo-pago', { metodo_pago: metodo }).then(function (r) {
+      if (r.ok) toast('Método de pago actualizado.', 'ok');
+      else toast('Error: ' + (r.error || ''), 'error');
+    }).catch(function () { toast('Error de conexión.', 'error'); });
+  }
+
+  function reimprimir(c) {
+    var prog = c.programaciones || {};
+    var destinos = prog.destinos || {};
+    var primerParadero = (prog.programacion_escalas || []).find(function (e) { return e.orden === 1; }) || (prog.programacion_escalas || [])[0];
+
+    ComprobantePrint.imprimir({
+      serie: c.serie, correlativo: c.correlativo,
+      ruc: c.ruc, razonSocial: c.razon_social,
+      agenciaEmbarqueNombre: c.agencia_embarque ? c.agencia_embarque.nombre : null,
+      agenciaEmbarqueDireccion: c.agencia_embarque ? c.agencia_embarque.direccion : null,
+      fechaSalida: prog.fecha_salida,
+      horaSalida: primerParadero ? primerParadero.hora : null,
+      ciudadOrigen: destinos.ciudades_origen ? destinos.ciudades_origen.nombre : null,
+      ciudadDestino: destinos.ciudades_destino ? destinos.ciudades_destino.nombre : null,
+      servicio: prog.servicios ? prog.servicios.nombre : null,
+      precio: c.precio,
+      numeroAsiento: c.numero_asiento,
+      piso: c.piso,
+      pax: c.nombre_completo,
+      tipoDocumento: c.tipo_documento,
+      numeroDocumento: c.numero_documento,
+      usuario: c.vendedor ? (c.vendedor.username || c.vendedor.nombre) : null,
+      polizaBus: prog.buses ? prog.buses.soat_poliza : null,
+      anulado: c.estado === 'anulado'
+    });
+  }
+
+  return { anular, cambiarMetodoPago, reimprimir };
+})();
+</script>

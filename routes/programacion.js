@@ -5,7 +5,21 @@
 const express = require('express');
 const router  = express.Router();
 const { db }  = require('../config/supabase');
-const { requireAuth, requireAdmin, requireAdminToDelete } = require('../middleware/auth');
+const { requireAuth, requireAdminToDelete } = require('../middleware/auth');
+const { usuarioActualFresco } = require('../utils/permisos');
+
+// Solo admin o usuarios con el permiso puede_programar (consultado
+// fresco desde la BD, para que un cambio de permiso aplique de
+// inmediato sin necesitar volver a iniciar sesión).
+async function requireProgramacionAuth(req, res, next) {
+  const u = await usuarioActualFresco(req.session.user);
+  if (u.rol === 'admin' || u.puede_programar === true) {
+    req.usuarioActual = u;
+    return next();
+  }
+  req.flash('error', 'No tienes autorización para programar salidas de buses.');
+  res.redirect('/dashboard');
+}
 
 // ─── Helper: carga todos los combos del formulario ───
 async function cargarCombos() {
@@ -35,7 +49,7 @@ async function cargarCombos() {
 }
 
 // ─── GET / — Lista de programaciones ─────────
-router.get('/', requireAuth, requireAdmin, async (req, res) => {
+router.get('/', requireAuth, requireProgramacionAuth, async (req, res) => {
   const { data: programaciones } = await db.select('programaciones',
     'select=id,fecha_salida,estado,precio_piso1,precio_piso2,creado_en,' +
     'destinos(id,' +
@@ -54,7 +68,7 @@ router.get('/', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // ─── GET /nueva — Formulario de nueva programación ──
-router.get('/nueva', requireAuth, requireAdmin, async (req, res) => {
+router.get('/nueva', requireAuth, requireProgramacionAuth, async (req, res) => {
   const combos = await cargarCombos();
   res.render('programacion/form', {
     layout: 'main', title: 'Nueva Programación',
@@ -68,10 +82,10 @@ router.get('/nueva', requireAuth, requireAdmin, async (req, res) => {
   });
 });
 
-// ─── POST / — Crear programación ─────────────
-router.post('/', requireAuth, requireAdmin, async (req, res) => {
+// ─── POST / — Crear programación (única o masiva por rango de fechas) ──
+router.post('/', requireAuth, requireProgramacionAuth, async (req, res) => {
   const {
-    fecha_salida, destino_id, servicio_id, bus_id,
+    fecha_salida, fecha_hasta, destino_id, servicio_id, bus_id,
     piloto_id, copiloto1_id, copiloto2_id, terramoza_id,
     precio_piso1, precio_piso2,
     // Escalas: agencia_1..6 y hora_1..6
@@ -86,36 +100,47 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 
   const toNum = v => v && v !== '' ? parseFloat(v) : null;
   const toOpt = v => v && v !== '' ? v : null;
-
-  // Inserta la programación
-  const { data: nuevaProg, error } = await db.insert('programaciones', {
-    fecha_salida, destino_id,
-    servicio_id:  toOpt(servicio_id),
-    bus_id:       toOpt(bus_id),
-    piloto_id,
-    copiloto1_id: toOpt(copiloto1_id),
-    copiloto2_id: toOpt(copiloto2_id),
-    terramoza_id: toOpt(terramoza_id),
-    precio_piso1: toNum(precio_piso1),
-    precio_piso2: toNum(precio_piso2),
-    estado:       'publicado',
-    creado_en:    new Date().toISOString()
-  });
-
-  if (error) {
-    req.flash('error', 'Error al guardar: ' + error.message);
-    return res.redirect('/programacion/nueva');
-  }
-
-  // Inserta las escalas que tengan agencia seleccionada
-  const progId = Array.isArray(nuevaProg) ? nuevaProg[0].id : nuevaProg.id;
   const escalasPairs = [
     [agencia_1, hora_1], [agencia_2, hora_2], [agencia_3, hora_3],
     [agencia_4, hora_4], [agencia_5, hora_5], [agencia_6, hora_6]
-  ];
-  for (let i = 0; i < escalasPairs.length; i++) {
-    const [agId, hora] = escalasPairs[i];
-    if (agId && agId !== '') {
+  ].filter(([agId]) => agId && agId !== '');
+
+  // Arma la lista de fechas a programar: una sola, o cada día del rango
+  // (incluyendo ambos extremos) si se indicó "fecha_hasta".
+  const fechas = [fecha_salida];
+  if (fecha_hasta && fecha_hasta > fecha_salida) {
+    let cursor = new Date(fecha_salida + 'T00:00:00');
+    const fin  = new Date(fecha_hasta + 'T00:00:00');
+    fechas.length = 0;
+    while (cursor <= fin) {
+      fechas.push(cursor.toISOString().slice(0, 10));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  let creadas = 0;
+  const errores = [];
+
+  for (const fecha of fechas) {
+    const { data: nuevaProg, error } = await db.insert('programaciones', {
+      fecha_salida: fecha, destino_id,
+      servicio_id:  toOpt(servicio_id),
+      bus_id:       toOpt(bus_id),
+      piloto_id,
+      copiloto1_id: toOpt(copiloto1_id),
+      copiloto2_id: toOpt(copiloto2_id),
+      terramoza_id: toOpt(terramoza_id),
+      precio_piso1: toNum(precio_piso1),
+      precio_piso2: toNum(precio_piso2),
+      estado:       'publicado',
+      creado_en:    new Date().toISOString()
+    });
+
+    if (error) { errores.push(fecha + ': ' + error.message); continue; }
+
+    const progId = Array.isArray(nuevaProg) ? nuevaProg[0].id : nuevaProg.id;
+    for (let i = 0; i < escalasPairs.length; i++) {
+      const [agId, hora] = escalasPairs[i];
       await db.insert('programacion_escalas', {
         programacion_id: progId,
         orden:           i + 1,
@@ -123,14 +148,26 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         hora:            hora && hora !== '' ? hora : null
       });
     }
+    creadas++;
   }
 
-  req.flash('success', 'Programación publicada correctamente.');
+  if (creadas === 0) {
+    req.flash('error', 'No se pudo crear ninguna programación: ' + errores.join(' | '));
+    return res.redirect('/programacion/nueva');
+  }
+
+  if (fechas.length > 1) {
+    let msg = `Se programaron ${creadas} de ${fechas.length} salidas (del ${fecha_salida} al ${fecha_hasta}).`;
+    if (errores.length > 0) msg += ` Fallaron: ${errores.length}.`;
+    req.flash('success', msg);
+  } else {
+    req.flash('success', 'Programación publicada correctamente.');
+  }
   res.redirect('/programacion');
 });
 
 // ─── POST /:id/descartar — Marca como descartado ──
-router.post('/:id/descartar', requireAuth, requireAdmin, async (req, res) => {
+router.post('/:id/descartar', requireAuth, requireProgramacionAuth, async (req, res) => {
   const { error } = await db.update('programaciones', `id=eq.${req.params.id}`,
     { estado: 'descartado' });
   if (error) req.flash('error', 'Error: ' + error.message);

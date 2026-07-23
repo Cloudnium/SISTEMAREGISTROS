@@ -42,7 +42,7 @@
         </thead>
         <tbody>
           {{#each salidas}}
-          <tr class="bol-row">
+          <tr class="bol-row bol-row-clickable" onclick="BOL.abrirCroquis('{{id}}')" title="Ver croquis y vender asientos">
 
             <!-- SERVICIO -->
             <td>
@@ -103,15 +103,24 @@
               {{/if}}
             </td>
 
-            <!-- ACCIONES: Croquis y Manifiesto (sin función aún) -->
-            <td>
+            <!-- ACCIONES: Croquis y Manifiesto (no abren la venta; eso lo hace la fila) -->
+            <td onclick="event.stopPropagation()">
               <div class="bol-acciones">
-                <button class="btn btn-sm bol-btn-croquis" title="Croquis (próximamente)">
+                <button class="btn btn-sm bol-btn-croquis" title="Croquis (próximamente)"
+                        onclick="event.stopPropagation()">
                   <i data-lucide="bus"></i> Croquis
                 </button>
-                <button class="btn btn-sm bol-btn-manifiesto" title="Manifiesto (próximamente)">
+                <button class="btn btn-sm bol-btn-manifiesto" title="Manifiesto (próximamente)"
+                        onclick="event.stopPropagation()">
                   <i data-lucide="file-text"></i> Manifiesto
                 </button>
+                {{#if ../puedeEditarPrecios}}
+                <button class="btn btn-sm bol-btn-editar-precio"
+                        title="Editar precio / horario"
+                        onclick="event.stopPropagation();BOL.abrirEditarPrecio('{{id}}','{{precio_piso1}}','{{precio_piso2}}','{{#if escalas.[0]}}{{escalas.[0].hora}}{{/if}}')">
+                  <i data-lucide="pencil"></i> Editar precio
+                </button>
+                {{/if}}
               </div>
             </td>
 
@@ -145,3 +154,801 @@
 <style>
 @media (max-width: 639px) { .hide-sm { display: none; } }
 </style>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: Croquis / Venta de Asientos
+     ═══════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="bolModalCroquis" style="display:none">
+  <div class="modal bol-modal-venta">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="bus"></i> Venta de Asientos</div>
+      <button class="modal-close" onclick="BOL.cerrar()"><i data-lucide="x"></i></button>
+    </div>
+
+    <div class="modal-body bol-venta-body">
+
+      <div class="bol-venta-topbar">
+        <div class="bol-venta-warning" id="bolWarning" style="display:none">
+          <i data-lucide="alert-triangle"></i>
+          Los asientos panorámicos (segundo piso) no pueden ser ocupados por menores
+        </div>
+        <div class="bol-venta-usuario">
+          <i data-lucide="user"></i> <span id="bolUsuarioBadge">—</span>
+        </div>
+      </div>
+
+      <!-- Tabs de piso + leyenda de estados -->
+      <div class="bol-tabs-row">
+        <div class="ma-tabs" id="bolTabs" style="display:none">
+          <button class="ma-tab ma-tab-active" id="bolTab1" onclick="BOL.cambiarTab(1)">Primer Piso</button>
+          <button class="ma-tab" id="bolTab2" onclick="BOL.cambiarTab(2)" style="display:none">Segundo Piso</button>
+        </div>
+        <div class="bol-leyenda">
+          <span class="bol-leyenda-item"><i class="bol-dot bol-dot-libre"></i>Libre</span>
+          <span class="bol-leyenda-item"><i class="bol-dot bol-dot-vendido"></i>Vendido</span>
+          <span class="bol-leyenda-item"><i class="bol-dot bol-dot-reservado"></i>Reservado</span>
+          <span class="bol-leyenda-item"><i class="bol-dot bol-dot-postergado"></i>Postergado</span>
+        </div>
+      </div>
+      <div class="bol-leyenda bol-leyenda-agencias" id="bolLeyendaAgencias" style="display:none"></div>
+
+      <!-- Croquis del bus -->
+      <div id="bolVistaPiso1">
+        <div class="ma-bus-scroll">
+          <div class="ma-bus-frame" id="bolFrameP1">
+            <div class="ma-grid-wrap"><div class="ma-filas" id="bolFilasP1"></div></div>
+          </div>
+        </div>
+      </div>
+      <div id="bolVistaPiso2" style="display:none">
+        <div class="ma-bus-scroll">
+          <div class="ma-bus-frame" id="bolFrameP2">
+            <div class="ma-grid-wrap"><div class="ma-filas" id="bolFilasP2"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ruta / hora / fecha / selección -->
+      <div class="bol-seccion-titulo"><i data-lucide="route"></i> Ruta y horario</div>
+      <div class="bol-venta-ruta">
+        <div class="bol-venta-ruta-titulo">
+          <i data-lucide="route"></i>
+          <span id="bolRuta">—</span>
+        </div>
+        <div class="bol-venta-ruta-meta">
+          <div><label>Hora</label><span id="bolHora">—</span></div>
+          <div><label>Fecha</label><span id="bolFecha">—</span></div>
+        </div>
+        <div class="bol-venta-seleccion" id="bolSeleccionPanel" style="display:none">
+          <label>Asientos seleccionados</label>
+          <div class="bol-venta-seleccion-fila">
+            <strong id="bolAsientoSel">—</strong>
+            <span class="bol-venta-seleccion-precio" id="bolPrecioSel">S/ 0.00</span>
+          </div>
+          <div class="bol-venta-seleccion-piso" id="bolPisoSel">Piso 1</div>
+        </div>
+      </div>
+
+      <!-- Comprobante: SIEMPRE visible, muestra la serie/correlativo del
+           asiento actualmente seleccionado (o un estado vacío si no hay
+           ninguno seleccionado todavía). -->
+      <div class="bol-venta-serie-box" id="bolSerieBox">
+        <i data-lucide="receipt"></i>
+        <div class="bol-venta-serie-texto">
+          <span class="bol-venta-serie-label">Comprobante</span>
+          <span id="bolSerieSel">Selecciona un asiento para ver su número de boleto</span>
+        </div>
+      </div>
+
+      <!-- Origen / Destino (agencias) -->
+      <div class="bol-seccion-titulo"><i data-lucide="map-pin"></i> Agencias y tipo de venta</div>
+      <div class="bol-venta-row">
+        <div>
+          <label>Origen (agencia de embarque)</label>
+          <select class="form-control" id="bolAgenciaOrigen"><option value="">— Selecciona —</option></select>
+        </div>
+        <div>
+          <label>Destino (agencia de llegada)</label>
+          <select class="form-control" id="bolAgenciaDestino"><option value="">— Selecciona —</option></select>
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select class="form-control" id="bolTipoMov">
+            <option value="venta">Venta</option>
+            <option value="reserva">Reserva</option>
+          </select>
+        </div>
+        <div>
+          <label>Código de autorización</label>
+          <div class="bol-input-btn">
+            <input type="text" class="form-control" id="bolCodigo" placeholder="Código"
+                   oninput="this.value=this.value.toUpperCase()"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();BOL.validarCodigo();}" />
+            <button type="button" onclick="BOL.validarCodigo()">Validar</button>
+          </div>
+          <small class="bol-codigo-hint" id="bolCodigoHint"></small>
+        </div>
+        <div>
+          <label>Método de pago</label>
+          <select class="form-control" id="bolMetodoPago">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="yape">Yape</option>
+            <option value="plin">Plin</option>
+            <option value="transferencia">Transferencia</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Datos del cliente -->
+      <div class="bol-seccion-titulo"><i data-lucide="user-round"></i> Datos del pasajero</div>
+      <div class="bol-venta-row">
+        <div>
+          <label>Documento</label>
+          <select class="form-control" id="bolTipoDoc">
+            <option value="DNI">D.N.I.</option>
+            <option value="CE">Carné Ext.</option>
+            <option value="PASAPORTE">Pasaporte</option>
+          </select>
+        </div>
+        <div>
+          <label>Número</label>
+          <div class="bol-input-btn">
+            <button type="button" onclick="BOL.buscarDni()">Buscar Nro.</button>
+            <input type="text" class="form-control" id="bolNumDoc" placeholder="00000000" />
+          </div>
+        </div>
+        <div style="flex:2">
+          <label>Nombre completo</label>
+          <input type="text" class="form-control" id="bolNombre" placeholder="Nombre completo" />
+        </div>
+        <div>
+          <label>Edad</label>
+          <input type="number" class="form-control" id="bolEdad" placeholder="Edad" min="0" max="120" />
+        </div>
+      </div>
+      <div class="bol-venta-row">
+        <div>
+          <label>Teléfono</label>
+          <input type="text" class="form-control" id="bolTelefono" placeholder="999 999 999" />
+        </div>
+        <div>
+          <label>RUC</label>
+          <div class="bol-input-btn">
+            <button type="button" onclick="BOL.buscarRuc()">Buscar</button>
+            <input type="text" class="form-control" id="bolRuc" placeholder="RUC" />
+          </div>
+        </div>
+        <div style="flex:2">
+          <label>Razón social</label>
+          <input type="text" class="form-control" id="bolRazonSocial" placeholder="Razón social (opcional, para factura)" />
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="bol-venta-acciones">
+        <button class="bol-btn-guardar-asiento" onclick="BOL.guardar()"><i data-lucide="save"></i> Guardar</button>
+        <button class="bol-btn-anular-asiento" id="bolBtnAnular" onclick="BOL.accion('anular')"><i data-lucide="x-circle"></i> Anular</button>
+        <button id="bolBtnPostergar" onclick="BOL.accion('postergar')"><i data-lucide="calendar-clock"></i> Postergar</button>
+        <button class="bol-btn-habilitar-asiento" id="bolBtnHabilitar" onclick="BOL.abrirHabilitar()"><i data-lucide="power"></i> Habilitar</button>
+        <button class="bol-btn-reservar-asiento" id="bolBtnReservar" onclick="BOL.accion('reservar')"><i data-lucide="bookmark"></i> Reservar</button>
+        <button onclick="BOL.imprimir()"><i data-lucide="printer"></i> Imprimir</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: Habilitar con serie/correlativo manual
+     ═══════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="bolModalHabilitar" style="display:none">
+  <div class="modal bol-modal-habilitar">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="power"></i> Habilitar asiento</div>
+      <button class="modal-close" onclick="BOL.cerrarHabilitar()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="bol-habilitar-desc">
+        Ingresa la serie y el correlativo del boleto o factura (por ejemplo, uno emitido
+        fuera del sistema) para activarlo en el asiento seleccionado.
+      </p>
+      <div class="bol-venta-row">
+        <div>
+          <label>Serie</label>
+          <input type="text" class="form-control" id="bolHabSerie" placeholder="Ej: B001"
+                 maxlength="10" oninput="this.value=this.value.toUpperCase()" />
+        </div>
+        <div>
+          <label>Correlativo</label>
+          <input type="number" class="form-control" id="bolHabCorrelativo" placeholder="Ej: 128" min="1" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="BOL.cerrarHabilitar()">Cancelar</button>
+      <button class="btn btn-primary" onclick="BOL.confirmarHabilitar()">
+        <i data-lucide="power"></i> Activar asiento
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="ma-toast" id="bolToast"></div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: Editar precio / horario de una salida
+     ═══════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="bolModalPrecio" style="display:none">
+  <div class="modal bol-modal-habilitar">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="pencil"></i> Editar precio / horario</div>
+      <button class="modal-close" onclick="BOL.cerrarEditarPrecio()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="bol-venta-row">
+        <div>
+          <label>Precio 1er Piso (S/.)</label>
+          <input type="number" class="form-control" id="bolPrecioP1Edit" step="0.01" min="0" />
+        </div>
+        <div>
+          <label>Precio 2do Piso (S/.)</label>
+          <input type="number" class="form-control" id="bolPrecioP2Edit" step="0.01" min="0" />
+        </div>
+      </div>
+      <div class="bol-venta-row">
+        <div>
+          <label>Hora de salida (primer paradero)</label>
+          <input type="time" class="form-control" id="bolHoraEdit" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="BOL.cerrarEditarPrecio()">Cancelar</button>
+      <button class="btn btn-primary" onclick="BOL.guardarEditarPrecio()">
+        <i data-lucide="save"></i> Guardar cambios
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/comprobante-print.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+// BOL — Ventana de venta de asientos (Croquis)
+// Reutiliza la construcción visual del bus del Mapa de Asientos
+// ═══════════════════════════════════════════════════
+var BOL = (function () {
+
+  var progId       = null;
+  var pisoActivo   = 1;
+  var data         = null;               // respuesta completa de /croquis
+  var boletosPorAsiento = {};            // "piso-numero" -> boleto
+  var seleccion    = null;               // { piso, numero_asiento, precio }
+  var codigoValidado = null;             // { codigo, monto } cuando se valida un código
+
+  function toast(msg, tipo) {
+    var el = document.getElementById('bolToast');
+    el.textContent = msg;
+    el.className = 'ma-toast ma-toast-' + (tipo || 'ok') + ' ma-toast-visible';
+    setTimeout(function () { el.className = 'ma-toast'; }, 3000);
+  }
+
+  function get(url) { return fetch(url, { credentials: 'same-origin' }).then(function (r) { return r.json(); }); }
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); });
+  }
+
+  function iconoAsientoSVG() {
+    return '<img src="/images/mapa-asientos/seat-icon.png" alt="" draggable="false" />';
+  }
+
+  // Ícono de persona (asiento ocupado) — silueta simple, se colorea con
+  // currentColor para combinar con el color de la agencia que lo vendió.
+  function iconoPersonaSVG() {
+    return '<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="12" cy="7.2" r="4.2"/>' +
+      '<path d="M4 21c0-4.4 3.6-7.2 8-7.2s8 2.8 8 7.2v0.4a0.6 0.6 0 0 1-0.6 0.6H4.6a0.6 0.6 0 0 1-0.6-0.6V21Z"/>' +
+      '</svg>';
+  }
+
+  function abrirCroquis(id) {
+    progId = id;
+    seleccion = null;
+    get('/boletaje/' + id + '/croquis').then(function (res) {
+      if (res.error) { toast('Error: ' + res.error, 'error'); return; }
+      data = res;
+      boletosPorAsiento = {};
+      (data.boletos || []).forEach(function (b) {
+        boletosPorAsiento[b.piso + '-' + b.numero_asiento] = b;
+      });
+
+      document.getElementById('bolRuta').textContent =
+        (data.programacion.ciudad_origen || '—') + '  →  ' + (data.programacion.ciudad_destino || '—');
+      document.getElementById('bolHora').textContent  = data.programacion.hora_primer_paradero || '—';
+      document.getElementById('bolFecha').textContent = formatearFecha(data.programacion.fecha_salida);
+      document.getElementById('bolUsuarioBadge').textContent = data.usuarioActual.nombre;
+
+      llenarSelect('bolAgenciaOrigen',  data.agenciasOrigen);
+      llenarSelect('bolAgenciaDestino', data.agenciasDestino);
+
+      aplicarPermisos(data.permisos || {});
+
+      var np = data.config ? data.config.num_pisos : 1;
+      document.getElementById('bolTabs').style.display = '';
+      document.getElementById('bolTab2').style.display = np >= 2 ? '' : 'none';
+      document.getElementById('bolWarning').style.display = np >= 2 ? '' : 'none';
+
+      renderPiso(1);
+      renderPiso(2);
+      cambiarTab(1);
+      limpiarFormulario();
+
+      document.getElementById('bolModalCroquis').style.display = 'flex';
+      if (window.lucide) lucide.createIcons();
+    }).catch(function () { toast('Error de conexión al cargar el croquis.', 'error'); });
+  }
+
+  function llenarSelect(id, opciones) {
+    var sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— Selecciona —</option>';
+    (opciones || []).forEach(function (a) {
+      var o = document.createElement('option');
+      o.value = a.id; o.textContent = a.nombre;
+      sel.appendChild(o);
+    });
+  }
+
+  // ── Oculta/deshabilita los botones de acción según los permisos del usuario ──
+  function aplicarPermisos(permisos) {
+    var mapa = { bolBtnAnular: 'puede_anular', bolBtnPostergar: 'puede_postergar', bolBtnReservar: 'puede_reservar', bolBtnHabilitar: 'puede_habilitar' };
+    Object.keys(mapa).forEach(function (btnId) {
+      var btn = document.getElementById(btnId);
+      var permitido = permisos[mapa[btnId]] !== false;
+      btn.disabled = !permitido;
+      btn.classList.toggle('bol-btn-disabled', !permitido);
+      btn.title = permitido ? '' : 'No tienes permiso para realizar esta acción.';
+    });
+  }
+
+  function formatearFecha(iso) {
+    if (!iso) return '—';
+    var p = iso.split('-');
+    if (p.length !== 3) return iso;
+    return p[2] + '/' + p[1] + '/' + p[0];
+  }
+
+  // ── Dibuja un piso del bus con los estados de venta ──
+  function renderPiso(piso) {
+    var wrap = document.getElementById('bolFilasP' + piso);
+    var frame = document.getElementById('bolFrameP' + piso);
+    if (!wrap || !data || !data.config) return;
+
+    var filas   = piso === 1 ? data.config.filas_p1    : data.config.filas_p2;
+    var cols    = piso === 1 ? data.config.columnas_p1 : data.config.columnas_p2;
+    var pasillo = piso === 1 ? data.config.pasillo_p1  : data.config.pasillo_p2;
+    wrap.innerHTML = '';
+    if (!filas || !cols) { if (frame) frame.style.height = '0px'; return; }
+
+    // Matriz piso -> fila -> col -> asiento{numero,tipo}
+    var celdas = {};
+    (data.asientos || []).filter(function (a) { return a.piso === piso; }).forEach(function (a) {
+      celdas[a.fila + '-' + a.columna] = a;
+    });
+
+    for (var f = 1; f <= filas; f++) {
+      var filaEl = document.createElement('div');
+      filaEl.className = 'ma-fila-row';
+      var badge = document.createElement('span');
+      badge.className = 'ma-fila-badge'; badge.textContent = f;
+      filaEl.appendChild(badge);
+
+      for (var c = 1; c <= cols; c++) {
+        var asiento = celdas[f + '-' + c];
+        var celda = document.createElement('div');
+
+        if (!asiento) {
+          celda.className = 'ma-asiento bol-noclick';
+          celda.style.visibility = 'hidden';
+          filaEl.appendChild(celda);
+          continue;
+        }
+
+        if (asiento.tipo === 'escalera') {
+          celda.className = 'ma-asiento ma-asiento-escalera bol-noclick';
+          var img = document.createElement('img');
+          img.src = '/images/mapa-asientos/escalera.png'; img.className = 'ma-escalera-img'; img.alt = 'Escalera';
+          celda.appendChild(img);
+          filaEl.appendChild(celda);
+          continue;
+        }
+
+        var key = piso + '-' + asiento.numero_asiento;
+        var boleto = boletosPorAsiento[key];
+        var estado = boleto ? boleto.estado : 'libre';
+        var claseEstado = { libre: 'bol-libre', vendido: 'bol-vendido', reservado: 'bol-reservado', postergado: 'bol-postergado' }[estado] || 'bol-libre';
+
+        celda.className = 'ma-asiento ' + claseEstado;
+        if (seleccion && seleccion.piso === piso && seleccion.numero_asiento === asiento.numero_asiento) {
+          celda.className += ' bol-seleccionado';
+        }
+        celda.dataset.piso = piso; celda.dataset.numero = asiento.numero_asiento;
+
+        var agenciaVendedor = boleto && boleto.vendedor ? boleto.vendedor.agencia : null;
+        if (estado === 'vendido' && agenciaVendedor && agenciaVendedor.color) {
+          celda.style.setProperty('--bol-agencia-color', agenciaVendedor.color);
+          celda.classList.add('bol-color-agencia');
+        }
+
+        var tituloPartes = ['Asiento ' + asiento.numero_asiento];
+        if (boleto && boleto.nombre_completo) tituloPartes.push(boleto.nombre_completo);
+        if (boleto && boleto.vendedor) {
+          tituloPartes.push('Vendido por: ' + boleto.vendedor.nombre + (agenciaVendedor ? ' (' + agenciaVendedor.nombre + ')' : ''));
+        }
+        celda.title = tituloPartes.join(' — ');
+        celda.onclick = function () { seleccionarAsiento(this.dataset.piso, this.dataset.numero); };
+
+        var ico = document.createElement('div');
+        ico.className = 'ma-asiento-ico';
+        ico.innerHTML = estado === 'vendido' ? iconoPersonaSVG() : iconoAsientoSVG();
+        var num = document.createElement('div');
+        num.className = 'ma-asiento-num';
+        num.style.cursor = 'pointer';
+        num.textContent = asiento.numero_asiento;
+
+        celda.appendChild(ico);
+        celda.appendChild(num);
+        filaEl.appendChild(celda);
+      }
+      wrap.appendChild(filaEl);
+
+      if (pasillo && f === pasillo && f < filas) {
+        var pas = document.createElement('div');
+        pas.className = 'ma-pasillo';
+        pas.innerHTML = '<span>PASILLO</span>';
+        wrap.appendChild(pas);
+      }
+    }
+
+    // Reutiliza la misma fórmula de alto que el editor del Mapa de Asientos
+    var tienePasillo = pasillo && pasillo < filas;
+    var CELL_H = 38, ROW_GAP = 6, PASILLO_H = 22, PAD_V = 32;
+    var alto = filas * CELL_H + (filas - 1) * ROW_GAP + (tienePasillo ? (PASILLO_H + ROW_GAP) : 0) + PAD_V;
+    var NOSE_RATIO = 375 / 603, TAIL_RATIO = 548 / 603;
+    frame.style.height = alto + 'px';
+    frame.style.borderLeftWidth  = Math.round(alto * NOSE_RATIO) + 'px';
+    frame.style.borderRightWidth = Math.round(alto * TAIL_RATIO) + 'px';
+
+    actualizarLeyendaAgencias();
+  }
+
+  // ── Construye la leyenda de colores por agencia, según lo vendido en este viaje ──
+  function actualizarLeyendaAgencias() {
+    var cont = document.getElementById('bolLeyendaAgencias');
+    var vistas = {};
+    var items = [];
+    Object.keys(boletosPorAsiento).forEach(function (key) {
+      var b = boletosPorAsiento[key];
+      if (b.estado !== 'vendido' || !b.vendedor || !b.vendedor.agencia) return;
+      var ag = b.vendedor.agencia;
+      if (vistas[ag.id]) return;
+      vistas[ag.id] = true;
+      items.push(ag);
+    });
+    if (items.length === 0) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
+    cont.style.display = '';
+    cont.innerHTML = '<span class="bol-leyenda-titulo">Vendido por agencia:</span>' + items.map(function (ag) {
+      return '<span class="bol-leyenda-item"><i class="bol-dot" style="background:' + (ag.color || '#94a3b8') + '"></i>' + ag.nombre + '</span>';
+    }).join('');
+  }
+
+  function cambiarTab(piso) {
+    pisoActivo = piso;
+    document.getElementById('bolVistaPiso1').style.display = piso === 1 ? '' : 'none';
+    document.getElementById('bolVistaPiso2').style.display = piso === 2 ? '' : 'none';
+    document.getElementById('bolTab1').className = 'ma-tab' + (piso === 1 ? ' ma-tab-active' : '');
+    document.getElementById('bolTab2').className = 'ma-tab' + (piso === 2 ? ' ma-tab-active' : '');
+  }
+
+  // ── Selecciona un asiento: carga su boleto o deja el formulario libre ──
+  function seleccionarAsiento(piso, numero) {
+    piso = parseInt(piso);
+    seleccion = { piso: piso, numero_asiento: numero };
+    codigoValidado = null;
+    document.getElementById('bolCodigo').value = '';
+    document.getElementById('bolCodigoHint').textContent = '';
+    renderPiso(1); renderPiso(2);
+
+    var precio = piso === 1 ? data.programacion.precio_piso1 : data.programacion.precio_piso2;
+    document.getElementById('bolSeleccionPanel').style.display = '';
+    document.getElementById('bolAsientoSel').textContent = 'Asiento ' + numero;
+    document.getElementById('bolPrecioSel').textContent  = 'S/ ' + (precio != null ? Number(precio).toFixed(2) : '0.00');
+    document.getElementById('bolPisoSel').textContent    = 'Piso ' + piso;
+
+    var boleto = boletosPorAsiento[piso + '-' + numero];
+    var serieEl = document.getElementById('bolSerieSel');
+    var serieBox = document.getElementById('bolSerieBox');
+    if (boleto && boleto.serie && boleto.correlativo) {
+      serieEl.textContent = boleto.serie + '-' + String(boleto.correlativo).padStart(8, '0');
+      serieBox.classList.add('bol-serie-emitida');
+    } else {
+      serieEl.textContent = 'Sin emitir todavía — se generará al Guardar la venta';
+      serieBox.classList.remove('bol-serie-emitida');
+    }
+
+    if (boleto) {
+      document.getElementById('bolTipoDoc').value      = boleto.tipo_documento   || 'DNI';
+      document.getElementById('bolNumDoc').value       = boleto.numero_documento || '';
+      document.getElementById('bolNombre').value       = boleto.nombre_completo  || '';
+      document.getElementById('bolEdad').value         = boleto.edad != null ? boleto.edad : '';
+      document.getElementById('bolTelefono').value     = boleto.telefono || '';
+      document.getElementById('bolRuc').value          = boleto.ruc || '';
+      document.getElementById('bolRazonSocial').value  = boleto.razon_social || '';
+      document.getElementById('bolAgenciaOrigen').value  = boleto.agencia_embarque_id || '';
+      document.getElementById('bolAgenciaDestino').value = boleto.agencia_llegada_id  || '';
+      document.getElementById('bolTipoMov').value = boleto.estado === 'reservado' ? 'reserva' : 'venta';
+      document.getElementById('bolMetodoPago').value = boleto.metodo_pago || 'efectivo';
+      if (boleto.codigo_usado) {
+        document.getElementById('bolCodigo').value = boleto.codigo_usado;
+        document.getElementById('bolCodigoHint').textContent = 'Código aplicado en esta venta.';
+      }
+      if (boleto.precio != null) {
+        document.getElementById('bolPrecioSel').textContent = 'S/ ' + Number(boleto.precio).toFixed(2);
+      }
+      // El asiento está ocupado: el "usuario" muestra quién lo vendió (y su agencia)
+      var nombreVendedor = (boleto.vendedor && boleto.vendedor.nombre) ? boleto.vendedor.nombre : 'Desconocido';
+      var agenciaVendedorTxt = (boleto.vendedor && boleto.vendedor.agencia) ? ' — ' + boleto.vendedor.agencia.nombre : '';
+      document.getElementById('bolUsuarioBadge').textContent = nombreVendedor + agenciaVendedorTxt;
+    } else {
+      limpiarFormularioCliente();
+      // Asiento libre: el "usuario" vuelve a mostrar quién está haciendo la venta ahora
+      document.getElementById('bolUsuarioBadge').textContent = data.usuarioActual.nombre;
+    }
+  }
+
+  function limpiarFormularioCliente() {
+    ['bolNumDoc','bolNombre','bolEdad','bolTelefono','bolRuc','bolRazonSocial'].forEach(function (id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('bolTipoDoc').value = 'DNI';
+    document.getElementById('bolTipoMov').value = 'venta';
+    document.getElementById('bolMetodoPago').value = 'efectivo';
+  }
+
+  function limpiarFormulario() {
+    limpiarFormularioCliente();
+    document.getElementById('bolAgenciaOrigen').value  = '';
+    document.getElementById('bolAgenciaDestino').value = '';
+    document.getElementById('bolCodigo').value = '';
+    document.getElementById('bolSeleccionPanel').style.display = 'none';
+    document.getElementById('bolSerieSel').textContent = 'Selecciona un asiento para ver su número de boleto';
+    document.getElementById('bolSerieBox').classList.remove('bol-serie-emitida');
+  }
+
+  function datosFormulario() {
+    var precioBase = seleccion.piso === 1 ? data.programacion.precio_piso1 : data.programacion.precio_piso2;
+    var precio = codigoValidado ? codigoValidado.monto : precioBase;
+    return {
+      piso: seleccion.piso,
+      numero_asiento: seleccion.numero_asiento,
+      precio: precio,
+      tipo_documento:   document.getElementById('bolTipoDoc').value,
+      numero_documento: document.getElementById('bolNumDoc').value,
+      nombre_completo:  document.getElementById('bolNombre').value,
+      edad:             document.getElementById('bolEdad').value,
+      telefono:         document.getElementById('bolTelefono').value,
+      ruc:              document.getElementById('bolRuc').value,
+      razon_social:     document.getElementById('bolRazonSocial').value,
+      agencia_embarque_id: document.getElementById('bolAgenciaOrigen').value,
+      agencia_llegada_id:  document.getElementById('bolAgenciaDestino').value,
+      metodo_pago:          document.getElementById('bolMetodoPago').value,
+      codigo_usado:         codigoValidado ? codigoValidado.codigo : null
+    };
+  }
+
+  // ── Valida un código de autorización y, si es válido, cambia el precio ──
+  function validarCodigo() {
+    var input = document.getElementById('bolCodigo');
+    var hint  = document.getElementById('bolCodigoHint');
+    var codigo = input.value.trim();
+    if (!codigo) {
+      codigoValidado = null;
+      hint.textContent = '';
+      actualizarPrecioMostrado();
+      return;
+    }
+    get('/codigos/validar/' + encodeURIComponent(codigo)).then(function (r) {
+      if (r.ok) {
+        codigoValidado = { codigo: r.codigo, monto: r.monto };
+        hint.textContent = 'Código válido' + (r.descripcion ? ' — ' + r.descripcion : '') + '. Precio: S/ ' + Number(r.monto).toFixed(2);
+        hint.className = 'bol-codigo-hint bol-codigo-ok';
+        actualizarPrecioMostrado();
+        toast('Código aplicado. Nuevo precio: S/ ' + Number(r.monto).toFixed(2), 'ok');
+      } else {
+        codigoValidado = null;
+        hint.textContent = r.error || 'Código no válido.';
+        hint.className = 'bol-codigo-hint bol-codigo-error';
+        actualizarPrecioMostrado();
+      }
+    }).catch(function () {
+      hint.textContent = 'Error al validar el código.';
+      hint.className = 'bol-codigo-hint bol-codigo-error';
+    });
+  }
+
+  function actualizarPrecioMostrado() {
+    if (!seleccion) return;
+    var precioBase = seleccion.piso === 1 ? data.programacion.precio_piso1 : data.programacion.precio_piso2;
+    var precio = codigoValidado ? codigoValidado.monto : precioBase;
+    document.getElementById('bolPrecioSel').textContent = 'S/ ' + Number(precio || 0).toFixed(2);
+  }
+
+  function requiereSeleccion() {
+    if (!seleccion) { toast('Selecciona primero un asiento en el croquis.', 'error'); return false; }
+    return true;
+  }
+
+  function guardar() {
+    if (!requiereSeleccion()) return;
+    if (!confirm('¿Estás seguro de realizar esta venta?')) return;
+    var tipoMov = document.getElementById('bolTipoMov').value;
+    var body = datosFormulario();
+    body.accion = tipoMov === 'reserva' ? 'reservar' : 'guardar';
+    post('/boletaje/' + progId + '/asiento', body).then(function (r) {
+      if (r.ok) {
+        var msg = 'Asiento guardado correctamente.';
+        if (r.serie && r.correlativo) msg += ' Boleto N° ' + r.serie + '-' + String(r.correlativo).padStart(8, '0');
+        toast(msg, 'ok');
+        var esVentaReal = body.accion === 'guardar';
+        recargar().then(function () {
+          if (esVentaReal) imprimirComprobante(r.serie, r.correlativo, body.precio);
+        });
+      } else toast('Error: ' + (r.error || ''), 'error');
+    });
+  }
+
+  function accion(tipo) {
+    if (!requiereSeleccion()) return;
+    var mensajes = { anular: '¿Estás seguro de realizar esta anulación?', postergar: '¿Estás seguro de realizar esta postergación?' };
+    if (mensajes[tipo] && !confirm(mensajes[tipo])) return;
+    var body = datosFormulario();
+    body.accion = tipo;
+    post('/boletaje/' + progId + '/asiento', body).then(function (r) {
+      if (r.ok) {
+        var msgs = { anular: 'Asiento anulado.', postergar: 'Asiento postergado.', reservar: 'Asiento reservado.' };
+        toast(msgs[tipo] || 'Listo.', 'ok');
+        recargar();
+      } else toast('Error: ' + (r.error || ''), 'error');
+    });
+  }
+
+  // ── Habilitar con serie/correlativo manual ──
+  function abrirHabilitar() {
+    if (!requiereSeleccion()) return;
+    document.getElementById('bolHabSerie').value = '';
+    document.getElementById('bolHabCorrelativo').value = '';
+    document.getElementById('bolModalHabilitar').style.display = 'flex';
+  }
+  function cerrarHabilitar() {
+    document.getElementById('bolModalHabilitar').style.display = 'none';
+  }
+  function confirmarHabilitar() {
+    var serie = document.getElementById('bolHabSerie').value.trim();
+    var correlativo = document.getElementById('bolHabCorrelativo').value.trim();
+    if (!serie || !correlativo) { toast('Ingresa la serie y el correlativo.', 'error'); return; }
+    var body = datosFormulario();
+    body.accion = 'habilitar';
+    body.serie_manual = serie;
+    body.correlativo_manual = correlativo;
+    post('/boletaje/' + progId + '/asiento', body).then(function (r) {
+      if (r.ok) {
+        toast('Asiento habilitado con boleto ' + serie + '-' + String(correlativo).padStart(8, '0') + '.', 'ok');
+        cerrarHabilitar();
+        recargar();
+      } else toast('Error: ' + (r.error || ''), 'error');
+    });
+  }
+
+  function recargar() {
+    var sel = seleccion;
+    return get('/boletaje/' + progId + '/croquis').then(function (res) {
+      if (res.error) return;
+      data = res;
+      boletosPorAsiento = {};
+      (data.boletos || []).forEach(function (b) { boletosPorAsiento[b.piso + '-' + b.numero_asiento] = b; });
+      seleccion = sel;
+      renderPiso(1); renderPiso(2);
+      if (sel) seleccionarAsiento(sel.piso, sel.numero_asiento);
+    });
+  }
+
+  // ── Editar precio / horario de una salida (solo autorizados) ──
+  var progIdEditandoPrecio = null;
+  function abrirEditarPrecio(id, precio1, precio2, hora) {
+    progIdEditandoPrecio = id;
+    document.getElementById('bolPrecioP1Edit').value = precio1 || '';
+    document.getElementById('bolPrecioP2Edit').value = precio2 || '';
+    document.getElementById('bolHoraEdit').value = (hora || '').slice(0, 5);
+    document.getElementById('bolModalPrecio').style.display = 'flex';
+  }
+  function cerrarEditarPrecio() {
+    document.getElementById('bolModalPrecio').style.display = 'none';
+    progIdEditandoPrecio = null;
+  }
+  function guardarEditarPrecio() {
+    if (!progIdEditandoPrecio) return;
+    var body = {
+      precio_piso1: document.getElementById('bolPrecioP1Edit').value,
+      precio_piso2: document.getElementById('bolPrecioP2Edit').value,
+      hora:         document.getElementById('bolHoraEdit').value
+    };
+    post('/boletaje/' + progIdEditandoPrecio + '/editar-precio', body).then(function (r) {
+      if (r.ok) {
+        toast('Precio y horario actualizados. Recarga la página para verlos reflejados.', 'ok');
+        cerrarEditarPrecio();
+        setTimeout(function () { window.location.reload(); }, 900);
+      } else {
+        toast('Error: ' + (r.error || ''), 'error');
+      }
+    }).catch(function () { toast('Error de conexión.', 'error'); });
+  }
+
+  function buscarDni() { toast('Búsqueda por DNI aún no está configurada.', 'error'); }
+  function buscarRuc() { toast('Búsqueda por RUC aún no está configurada.', 'error'); }
+
+  // ── Imprime el comprobante usando el generador ÚNICO y compartido
+  // (public/js/comprobante-print.js) — el mismo que usa Comprobantes
+  // al reimprimir, así el diseño nunca se desincroniza entre pantallas. ──
+  function imprimirComprobante(serieForzada, correlativoForzado, precioForzado) {
+    if (!seleccion) { toast('Selecciona un asiento para imprimir su comprobante.', 'error'); return; }
+    var boleto = boletosPorAsiento[seleccion.piso + '-' + seleccion.numero_asiento] || {};
+    var serie       = serieForzada       || boleto.serie;
+    var correlativo = correlativoForzado || boleto.correlativo;
+    var precio = precioForzado != null ? precioForzado : (boleto.precio != null ? boleto.precio : (seleccion.piso === 1 ? data.programacion.precio_piso1 : data.programacion.precio_piso2));
+
+    var ruc = document.getElementById('bolRuc').value.trim();
+    var razonSocial = document.getElementById('bolRazonSocial').value.trim();
+    var agenciaId = document.getElementById('bolAgenciaOrigen').value;
+    var agencia = (data.agenciasOrigen || []).find(function (a) { return String(a.id) === String(agenciaId); });
+    var usuarioTxt = (boleto.vendedor && boleto.vendedor.username) ? boleto.vendedor.username : (data.usuarioActual.username || data.usuarioActual.nombre);
+
+    ComprobantePrint.imprimir({
+      serie: serie, correlativo: correlativo,
+      ruc: ruc, razonSocial: razonSocial,
+      agenciaEmbarqueNombre: agencia ? agencia.nombre : null,
+      agenciaEmbarqueDireccion: agencia ? agencia.direccion : null,
+      fechaSalida: data.programacion.fecha_salida,
+      horaSalida: data.programacion.hora_primer_paradero,
+      ciudadOrigen: data.programacion.ciudad_origen,
+      ciudadDestino: data.programacion.ciudad_destino,
+      servicio: data.programacion.servicio,
+      precio: precio,
+      numeroAsiento: seleccion.numero_asiento,
+      piso: seleccion.piso,
+      pax: document.getElementById('bolNombre').value || '—',
+      tipoDocumento: document.getElementById('bolTipoDoc').value,
+      numeroDocumento: document.getElementById('bolNumDoc').value,
+      usuario: usuarioTxt,
+      polizaBus: data.bus && data.bus.poliza,
+      anulado: false
+    });
+  }
+
+  function imprimir() { imprimirComprobante(); }
+
+  function cerrar() {
+    document.getElementById('bolModalCroquis').style.display = 'none';
+    seleccion = null;
+  }
+
+  return {
+    abrirCroquis, cambiarTab, guardar, accion, buscarDni, buscarRuc, imprimir, cerrar,
+    validarCodigo, abrirHabilitar, cerrarHabilitar, confirmarHabilitar,
+    abrirEditarPrecio, cerrarEditarPrecio, guardarEditarPrecio
+  };
+})();
+</script>

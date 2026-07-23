@@ -139,7 +139,13 @@ router.post('/login', redirectIfAuth, async (req, res) => {
       username: usuario.username,
       email:    usuario.email,
       rol:      usuario.rol,
-      avatar:   usuario.avatar || null
+      avatar:   usuario.avatar || null,
+      agencia_id:      usuario.agencia_id || null,
+      puede_anular:    usuario.puede_anular    !== false,
+      puede_postergar: usuario.puede_postergar !== false,
+      puede_reservar:  usuario.puede_reservar  !== false,
+      puede_habilitar: usuario.puede_habilitar !== false,
+      puede_crear_codigos: usuario.puede_crear_codigos === true
     };
 
     // Actualiza último acceso

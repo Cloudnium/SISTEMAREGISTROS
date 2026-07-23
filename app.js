@@ -67,7 +67,14 @@ app.engine('hbs', engine({
     ordinalEs: (n) => {
       const map = { 1:'1ra', 2:'2da', 3:'3ra', 4:'4ta', 5:'5ta', 6:'6ta' };
       return map[n] || (n + '°');
-    }
+    },
+    // Helper: formatea número con ceros a la izquierda hasta 8 dígitos
+    // Ej: 6 → "00000006" — usado para el correlativo de boletos/comprobantes
+    pad8: (n) => String(n || 0).padStart(8, '0'),
+    // Helper: formatea un número a 2 decimales de forma segura (nunca NaN)
+    toFixed2: (n) => (isNaN(parseFloat(n)) ? '0.00' : parseFloat(n).toFixed(2)),
+    // Helper: OR lógico entre varios valores, para condicionales {{#if (or a b c)}}
+    or: (...args) => args.slice(0, -1).some(Boolean)
   }
 }));
 
@@ -138,6 +145,8 @@ const ciudadesRoutes    = require('./routes/ciudades');
 const destinosRoutes    = require('./routes/destinos');
 const programacionRoutes  = require('./routes/programacion');
 const mapaAsientosRoutes  = require('./routes/mapa-asientos');
+const comprobantesRoutes  = require('./routes/comprobantes');
+const codigosRoutes       = require('./routes/codigos');
 const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
@@ -153,6 +162,8 @@ app.use('/ciudades',      ciudadesRoutes);
 app.use('/destinos',      destinosRoutes);
 app.use('/programacion',   programacionRoutes);
 app.use('/mapa-asientos',  mapaAsientosRoutes);
+app.use('/comprobantes',   comprobantesRoutes);
+app.use('/codigos',        codigosRoutes);
 app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────

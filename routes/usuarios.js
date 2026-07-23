@@ -12,7 +12,7 @@ router.use(requireAuth, requireAdmin);
 // ─── LIST ───
 router.get('/', async (req, res) => {
   const { data: usuarios, error } = await db.select('usuarios',
-    'select=id,nombre,username,email,rol,activo,creado_en,ultimo_acceso&order=creado_en.desc');
+    'select=id,nombre,username,email,rol,activo,creado_en,ultimo_acceso,agencia_id,agencias(nombre)&order=creado_en.desc');
   if (error) console.error('usuarios list:', error);
   res.render('usuarios/index', {
     layout: 'main', title: 'Usuarios',
@@ -22,17 +22,22 @@ router.get('/', async (req, res) => {
 });
 
 // ─── NEW FORM ───
-router.get('/nuevo', (req, res) => {
+router.get('/nuevo', async (req, res) => {
+  const { data: agencias } = await db.select('agencias', 'select=id,nombre,serie_boleto&activo=eq.true&order=nombre.asc');
   res.render('usuarios/form', {
     layout: 'main', title: 'Nuevo Usuario',
     pageTitle: 'Nuevo Usuario', pageSubtitle: 'Crea un nuevo acceso',
-    accion: 'crear'
+    accion: 'crear', agencias: agencias || []
   });
 });
 
 // ─── CREATE ───
 router.post('/', async (req, res) => {
-  const { nombre, username, email, password, confirmar_password, rol } = req.body;
+  const {
+    nombre, username, email, password, confirmar_password, rol, agencia_id,
+    puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_crear_codigos,
+    puede_editar_precios, puede_programar
+  } = req.body;
   if (!nombre || !username || !email || !password || !rol) {
     req.flash('error', 'Todos los campos son obligatorios.');
     return res.redirect('/usuarios/nuevo');
@@ -55,6 +60,14 @@ router.post('/', async (req, res) => {
     const password_hash = await bcrypt.hash(password, 10);
     const { error } = await db.insert('usuarios', {
       nombre, username: username.toLowerCase(), email, password_hash, rol,
+      agencia_id:      agencia_id || null,
+      puede_anular:    puede_anular    === 'on',
+      puede_postergar: puede_postergar === 'on',
+      puede_reservar:  puede_reservar  === 'on',
+      puede_habilitar: puede_habilitar === 'on',
+      puede_crear_codigos: puede_crear_codigos === 'on',
+      puede_editar_precios: puede_editar_precios === 'on',
+      puede_programar: puede_programar === 'on',
       activo: true, creado_en: new Date().toISOString()
     });
     if (error) throw new Error(error.message);
@@ -70,23 +83,44 @@ router.post('/', async (req, res) => {
 // ─── EDIT FORM ───
 router.get('/:id/editar', requireAdminToEdit, async (req, res) => {
   const { data, error } = await db.select('usuarios',
-    `select=id,nombre,username,email,rol,activo&id=eq.${req.params.id}&limit=1`);
-  if (error || !data || data.length === 0) {
+    `select=id,nombre,username,email,rol,activo,agencia_id,puede_anular,puede_postergar,puede_reservar,puede_habilitar,puede_crear_codigos,puede_editar_precios,puede_programar&id=eq.${req.params.id}&limit=1`);
+  if (error) {
+    console.error('editar usuario - error de BD:', error);
+    req.flash('error', 'Error al leer el usuario desde la base de datos: ' + error.message +
+      '. Es posible que falte ejecutar alguna migración SQL reciente (columnas nuevas en "usuarios").');
+    return res.redirect('/usuarios');
+  }
+  if (!data || data.length === 0) {
     req.flash('error', 'Usuario no encontrado.');
     return res.redirect('/usuarios');
   }
+  const { data: agencias } = await db.select('agencias', 'select=id,nombre,serie_boleto&activo=eq.true&order=nombre.asc');
   res.render('usuarios/form', {
     layout: 'main', title: 'Editar Usuario',
     pageTitle: 'Editar Usuario', pageSubtitle: 'Modifica los datos',
-    accion: 'editar', usuario: data[0]
+    accion: 'editar', usuario: data[0], agencias: agencias || []
   });
 });
 
 // ─── UPDATE ───
 router.post('/:id/editar', requireAdminToEdit, async (req, res) => {
-  const { nombre, username, email, password, confirmar_password, rol, activo } = req.body;
+  const {
+    nombre, username, email, password, confirmar_password, rol, activo, agencia_id,
+    puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_crear_codigos,
+    puede_editar_precios, puede_programar
+  } = req.body;
   try {
-    const updates = { nombre, username: username.toLowerCase(), email, rol, activo: activo === 'on' };
+    const updates = {
+      nombre, username: username.toLowerCase(), email, rol, activo: activo === 'on',
+      agencia_id:      agencia_id || null,
+      puede_anular:    puede_anular    === 'on',
+      puede_postergar: puede_postergar === 'on',
+      puede_reservar:  puede_reservar  === 'on',
+      puede_habilitar: puede_habilitar === 'on',
+      puede_crear_codigos: puede_crear_codigos === 'on',
+      puede_editar_precios: puede_editar_precios === 'on',
+      puede_programar: puede_programar === 'on'
+    };
     if (password && password.trim() !== '') {
       if (password !== confirmar_password) {
         req.flash('error', 'Las contrasenas no coinciden.');

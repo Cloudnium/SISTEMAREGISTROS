@@ -15,8 +15,25 @@
 
       <div class="prog-field">
         <label class="prog-label">Fecha de Salida</label>
-        <input type="date" name="fecha_salida" class="form-control prog-input" required />
+        <input type="date" name="fecha_salida" id="progFechaSalida" class="form-control prog-input" required />
       </div>
+
+      <div class="prog-field">
+        <label class="prog-label prog-check-inline">
+          <input type="checkbox" id="progRangoToggle" onchange="toggleRangoFechas(this.checked)" />
+          Repetir todos los días hasta…
+        </label>
+        <input type="date" name="fecha_hasta" id="progFechaHasta" class="form-control prog-input" disabled />
+        <small class="form-hint">Crea una programación idéntica para cada día entre ambas fechas.</small>
+      </div>
+
+      <script>
+        function toggleRangoFechas(activo) {
+          var input = document.getElementById('progFechaHasta');
+          input.disabled = !activo;
+          if (!activo) input.value = '';
+        }
+      </script>
 
       <div class="prog-field">
         <label class="prog-label">Destino Comercial</label>

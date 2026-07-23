@@ -56,8 +56,8 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/:id/json', requireAuth, async (req, res) => {
   const { data, error } = await db.select('buses',
     `select=*&id=eq.${req.params.id}&limit=1`);
-  if (error || !data || data.length === 0)
-    return res.status(404).json({ error: 'No encontrado' });
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data || data.length === 0) return res.status(404).json({ error: 'No encontrado' });
   res.json(data[0]);
 });
 
@@ -66,6 +66,7 @@ router.post('/', requireAuth, async (req, res) => {
   const {
     placa, marca, modelo, anio_fabricacion,
     nro_ejes, nro_ruedas, nro_motor, chasis,
+    empresa_razon_social, empresa_ruc,
     soat_poliza, soat_asientos, soat_vigencia,
     soat_poliza_dano, soat_vigencia_dano, soat_monto_asegurado,
     tuc_numero, tuc_vigencia, extintor_vigencia, total_asientos,
@@ -88,6 +89,8 @@ router.post('/', requireAuth, async (req, res) => {
     anio_fabricacion:     toInt(anio_fabricacion),
     nro_ejes:             toInt(nro_ejes), nro_ruedas: toInt(nro_ruedas),
     nro_motor:            toTxt(nro_motor), chasis: toTxt(chasis),
+    empresa_razon_social: toTxt(empresa_razon_social),
+    empresa_ruc:          toTxt(empresa_ruc),
     soat_poliza:          toTxt(soat_poliza),
     soat_asientos:        toInt(soat_asientos),
     soat_vigencia:        toDate(soat_vigencia),
@@ -112,6 +115,7 @@ router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => 
   const {
     placa, marca, modelo, anio_fabricacion,
     nro_ejes, nro_ruedas, nro_motor, chasis,
+    empresa_razon_social, empresa_ruc,
     soat_poliza, soat_asientos, soat_vigencia,
     soat_poliza_dano, soat_vigencia_dano, soat_monto_asegurado,
     tuc_numero, tuc_vigencia, extintor_vigencia, total_asientos,
@@ -134,6 +138,8 @@ router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => 
     anio_fabricacion:     toInt(anio_fabricacion),
     nro_ejes:             toInt(nro_ejes), nro_ruedas: toInt(nro_ruedas),
     nro_motor:            toTxt(nro_motor), chasis: toTxt(chasis),
+    empresa_razon_social: toTxt(empresa_razon_social),
+    empresa_ruc:          toTxt(empresa_ruc),
     soat_poliza:          toTxt(soat_poliza),
     soat_asientos:        toInt(soat_asientos),
     soat_vigencia:        toDate(soat_vigencia),

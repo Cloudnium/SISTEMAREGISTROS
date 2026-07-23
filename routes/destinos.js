@@ -22,6 +22,17 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: agencias } = await db.select('agencias',
     'select=id,nombre,ciudad_id&activo=eq.true&order=nombre.asc');
 
+  const { data: adicionales } = await db.select('destino_ciudades_adicionales',
+    'select=id,destino_id,ciudad_id,ciudades(nombre)&order=creado_en.asc');
+
+  // Agrupa las ciudades adicionales por destino, para pintarlas junto a cada ruta
+  const adicionalesPorDestino = {};
+  (adicionales || []).forEach(a => {
+    if (!adicionalesPorDestino[a.destino_id]) adicionalesPorDestino[a.destino_id] = [];
+    adicionalesPorDestino[a.destino_id].push(a);
+  });
+  (destinos || []).forEach(d => { d.ciudadesAdicionales = adicionalesPorDestino[d.id] || []; });
+
   res.render('destinos/index', {
     layout: 'main', title: 'Destinos',
     pageTitle: 'Gestión de Destinos comerciales',
@@ -32,6 +43,36 @@ router.get('/', requireAuth, async (req, res) => {
     // JSON serializado para el filtro dinámico en el cliente
     agenciasJson: JSON.stringify(agencias || [])
   });
+});
+
+// ─── POST /:id/ciudad-adicional — Agrega una ciudad adicional de llegada ──
+// (ej: además de SULLANA, ofrecer también agencias de PIURA en esa misma ruta)
+router.post('/:id/ciudad-adicional', requireAuth, async (req, res) => {
+  const { ciudad_id } = req.body;
+  if (!ciudad_id) {
+    req.flash('error', 'Selecciona una ciudad para agregar.');
+    return res.redirect('/destinos');
+  }
+  const { error } = await db.insert('destino_ciudades_adicionales', {
+    destino_id: req.params.id,
+    ciudad_id: parseInt(ciudad_id),
+    creado_en: new Date().toISOString()
+  });
+  if (error) {
+    req.flash('error', error.message.includes('duplicate') ? 'Esa ciudad ya está agregada a esta ruta.' : ('Error: ' + error.message));
+  } else {
+    req.flash('success', 'Ciudad adicional agregada a la ruta.');
+  }
+  res.redirect('/destinos');
+});
+
+// ─── POST /:id/ciudad-adicional/:ciudadId/eliminar ──
+router.post('/:id/ciudad-adicional/:ciudadId/eliminar', requireAuth, async (req, res) => {
+  const { error } = await db.delete('destino_ciudades_adicionales',
+    `destino_id=eq.${req.params.id}&ciudad_id=eq.${req.params.ciudadId}`);
+  if (error) req.flash('error', 'Error al quitar: ' + error.message);
+  else req.flash('success', 'Ciudad adicional removida de la ruta.');
+  res.redirect('/destinos');
 });
 
 // ─── GET /agencias-por-ciudad/:ciudadId — AJAX ──

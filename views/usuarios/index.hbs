@@ -27,6 +27,7 @@
           <th class="hide-sm">Correo</th>
           <th class="hide-xs">Usuario</th>
           <th>Rol</th>
+          <th class="hide-sm">Agencia</th>
           <th>Estado</th>
           <th class="hide-sm">Ultimo acceso</th>
           {{#if isAdmin}}<th>Acciones</th>{{/if}}
@@ -47,6 +48,9 @@
             <span class="badge {{#if (eq rol 'admin')}}badge-primary{{else}}badge-neutral{{/if}}">
               {{rol}}
             </span>
+          </td>
+          <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-secondary)">
+            {{#if agencias}}{{agencias.nombre}}{{else}}—{{/if}}
           </td>
           <td>
             <span class="status-dot {{#if activo}}status-active{{else}}status-inactive{{/if}}">

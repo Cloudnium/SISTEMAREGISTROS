@@ -69,13 +69,21 @@
       <i data-lucide="route"></i><span>Destinos</span>
     </a>
 
-    {{#if (eq user.rol 'admin')}}
     <div class="sidebar-section-label">Administración</div>
-    <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">
-      <i data-lucide="shield-check"></i><span>Usuarios</span>
+    <a href="/comprobantes" class="sidebar-nav-item {{#if (eq currentPath '/comprobantes')}}active{{/if}}">
+      <i data-lucide="receipt"></i><span>Comprobantes</span>
     </a>
+    <a href="/codigos" class="sidebar-nav-item {{#if (eq currentPath '/codigos')}}active{{/if}}">
+      <i data-lucide="key-round"></i><span>Códigos de Autorización</span>
+    </a>
+    {{#if (or (eq user.rol 'admin') user.puede_programar)}}
     <a href="/programacion" class="sidebar-nav-item {{#if (eq currentPath '/programacion')}}active{{/if}}">
       <i data-lucide="calendar-clock"></i><span>Programación</span>
+    </a>
+    {{/if}}
+    {{#if (eq user.rol 'admin')}}
+    <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">
+      <i data-lucide="shield-check"></i><span>Usuarios</span>
     </a>
     <a href="/mapa-asientos" class="sidebar-nav-item {{#if (eq currentPath '/mapa-asientos')}}active{{/if}}">
       <i data-lucide="layout-dashboard"></i><span>Mapa de Asientos</span>

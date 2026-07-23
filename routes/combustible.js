@@ -62,8 +62,8 @@ router.get('/descargar', requireAuth, async (req, res) => {
 router.get('/:id/json', requireAuth, async (req, res) => {
   const { data, error } = await db.select('combustible_registros',
     `select=id,vale,fecha,estacion_id,placa_id,galones,precio&id=eq.${req.params.id}&limit=1`);
-  if (error || !data || data.length === 0)
-    return res.status(404).json({ error: 'No encontrado' });
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data || data.length === 0) return res.status(404).json({ error: 'No encontrado' });
   res.json(data[0]);
 });
 

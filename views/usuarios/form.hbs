@@ -49,6 +49,62 @@
       </div>
     </div>
 
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Agencia asignada</label>
+        <select name="agencia_id" class="form-control">
+          <option value="">— Sin agencia —</option>
+          {{#each agencias}}
+          <option value="{{id}}" {{#if (eq ../usuario.agencia_id id)}}selected{{/if}}>
+            {{nombre}}{{#if serie_boleto}} (Serie {{serie_boleto}}){{/if}}
+          </option>
+          {{/each}}
+        </select>
+        <small class="form-hint">Los boletos que venda este usuario usarán la serie de esta agencia.</small>
+      </div>
+    </div>
+
+    <div class="form-section-label">Permisos sobre boletos vendidos</div>
+    <div class="form-row form-permisos-row">
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_anular" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_anular}}checked{{/if}}{{else}}checked{{/if}} />
+        <span>Puede anular</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_postergar" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_postergar}}checked{{/if}}{{else}}checked{{/if}} />
+        <span>Puede postergar</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_reservar" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_reservar}}checked{{/if}}{{else}}checked{{/if}} />
+        <span>Puede reservar</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_habilitar" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_habilitar}}checked{{/if}}{{else}}checked{{/if}} />
+        <span>Puede habilitar</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_crear_codigos" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_crear_codigos}}checked{{/if}}{{/if}} />
+        <span>Puede crear códigos de autorización</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_editar_precios" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_editar_precios}}checked{{/if}}{{/if}} />
+        <span>Puede editar precios/horarios en Boletaje</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_programar" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_programar}}checked{{/if}}{{/if}} />
+        <span>Puede programar salidas de buses</span>
+      </label>
+    </div>
+    <small class="form-hint">Los administradores siempre pueden realizar todas las acciones, sin importar estos permisos.</small>
+
+
     <div class="form-section-label">
       {{#if (eq accion 'editar')}}Cambiar contraseña (dejar vacío para mantener){{else}}Contraseña *{{/if}}
     </div>

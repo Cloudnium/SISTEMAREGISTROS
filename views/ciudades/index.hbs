@@ -96,10 +96,33 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label-pers">Dirección</label>
-        <input type="text" name="direccion" class="form-control"
-               placeholder="Av. Alfredo Mendiola Nro. 140" />
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label-pers">Dirección</label>
+          <input type="text" name="direccion" class="form-control"
+                 placeholder="Av. Alfredo Mendiola Nro. 140" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Serie de boletos</label>
+          <input type="text" name="serie_boleto" class="form-control"
+                 placeholder="Ej: B001" maxlength="10"
+                 oninput="this.value=this.value.toUpperCase()" />
+          <small class="form-hint">Los usuarios asignados a esta agencia emitirán boletos con esta serie.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Serie de facturas</label>
+          <input type="text" name="serie_factura" class="form-control"
+                 placeholder="Ej: F001" maxlength="10"
+                 oninput="this.value=this.value.toUpperCase()" />
+          <small class="form-hint">Serie independiente para facturas (cuando la venta lleva RUC).</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Color identificador</label>
+          <div class="ciu-color-row">
+            <input type="color" name="color" class="ciu-color-input" value="#6366f1" />
+            <small class="form-hint">Se usará para marcar en el mapa de asientos qué agencia vendió cada asiento.</small>
+          </div>
+        </div>
       </div>
 
       <button type="submit" class="btn btn-primary btn-full">
@@ -116,25 +139,42 @@
             <th>Agencia</th>
             <th>Ciudad</th>
             <th class="hide-sm">Dirección</th>
+            <th class="hide-sm">Serie Boleta</th>
+            <th class="hide-sm">Serie Factura</th>
             {{#if isAdmin}}<th></th>{{/if}}
           </tr>
         </thead>
         <tbody>
           {{#each agencias}}
           <tr>
-            <td class="ciu-nombre-ciudad">{{nombre}}</td>
+            <td class="ciu-nombre-ciudad">
+              <span class="ciu-color-swatch" style="background:{{#if color}}{{color}}{{else}}#94a3b8{{/if}}"></span>
+              {{nombre}}
+            </td>
             <td>{{#if ciudades}}{{ciudades.nombre}}{{else}}—{{/if}}</td>
             <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
               {{#if direccion}}{{direccion}}{{else}}—{{/if}}
             </td>
+            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
+              {{#if serie_boleto}}<code class="code-text">{{serie_boleto}}-{{correlativo_actual}}</code>{{else}}—{{/if}}
+            </td>
+            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
+              {{#if serie_factura}}<code class="code-text">{{serie_factura}}-{{correlativo_factura}}</code>{{else}}—{{/if}}
+            </td>
             {{#if ../isAdmin}}
             <td>
-              <form method="POST" action="/ciudades/agencia/{{id}}/eliminar"
-                    onsubmit="return confirm('Eliminar agencia {{nombre}}?')">
-                <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
-                  <i data-lucide="trash-2"></i>
+              <div class="ciu-row-acciones">
+                <button type="button" class="btn-icon" title="Editar agencia"
+                        onclick='Agencias.editar({{{json this}}})'>
+                  <i data-lucide="pencil"></i>
                 </button>
-              </form>
+                <form method="POST" action="/ciudades/agencia/{{id}}/eliminar"
+                      onsubmit="return confirm('Eliminar agencia {{nombre}}?')">
+                  <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                    <i data-lucide="trash-2"></i>
+                  </button>
+                </form>
+              </div>
             </td>
             {{/if}}
           </tr>
@@ -156,3 +196,78 @@
 <style>
 @media (max-width: 639px) { .hide-sm { display: none; } }
 </style>
+
+{{#if isAdmin}}
+<!-- ═══════════════════════════════════════════════
+     MODAL: Editar Agencia (solo administradores)
+     ═══════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalEditarAgencia" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="pencil"></i> Editar Agencia</div>
+      <button class="modal-close" onclick="Agencias.cerrar()"><i data-lucide="x"></i></button>
+    </div>
+    <form id="formEditarAgencia" method="POST" action="/ciudades/agencia/editar">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label-pers">Nombre</label>
+          <input type="text" name="nombre" id="eaNombre" class="form-control" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Ciudad</label>
+          <select name="ciudad_id" id="eaCiudad" class="form-control" required>
+            {{#each ciudades}}
+            <option value="{{id}}">{{nombre}}</option>
+            {{/each}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Dirección</label>
+          <input type="text" name="direccion" id="eaDireccion" class="form-control" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label-pers">Serie de boletos</label>
+            <input type="text" name="serie_boleto" id="eaSerieBoleto" class="form-control"
+                   maxlength="10" oninput="this.value=this.value.toUpperCase()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label-pers">Serie de facturas</label>
+            <input type="text" name="serie_factura" id="eaSerieFactura" class="form-control"
+                   maxlength="10" oninput="this.value=this.value.toUpperCase()" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Color identificador</label>
+          <div class="ciu-color-row">
+            <input type="color" name="color" id="eaColor" class="ciu-color-input" value="#6366f1" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Agencias.cerrar()">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+var Agencias = (function () {
+  function editar(agencia) {
+    document.getElementById('formEditarAgencia').action = '/ciudades/agencia/' + agencia.id + '/editar';
+    document.getElementById('eaNombre').value       = agencia.nombre || '';
+    document.getElementById('eaCiudad').value        = agencia.ciudad_id || '';
+    document.getElementById('eaDireccion').value     = agencia.direccion || '';
+    document.getElementById('eaSerieBoleto').value   = agencia.serie_boleto || '';
+    document.getElementById('eaSerieFactura').value  = agencia.serie_factura || '';
+    document.getElementById('eaColor').value         = agencia.color || '#6366f1';
+    document.getElementById('modalEditarAgencia').style.display = 'flex';
+  }
+  function cerrar() {
+    document.getElementById('modalEditarAgencia').style.display = 'none';
+  }
+  return { editar, cerrar };
+})();
+</script>
+{{/if}}

@@ -1,0 +1,90 @@
+<!-- VIEW: codigos/index.hbs — Códigos de Autorización -->
+
+<div class="ciu-layout">
+
+  {{#if puedeCrear}}
+  <div class="ciu-panel">
+    <div class="ciu-panel-header">
+      <span class="ciu-panel-icon"><i data-lucide="key-round"></i></span>
+      <h3 class="ciu-panel-titulo">Nuevo Código</h3>
+    </div>
+    <form action="/codigos" method="POST" class="ciu-form">
+      <div class="form-group">
+        <label class="form-label-pers">Código</label>
+        <input type="text" name="codigo" class="form-control" placeholder="Ej: DESC50"
+               maxlength="20" required oninput="this.value=this.value.toUpperCase()" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Monto (S/.)</label>
+        <input type="number" name="monto" class="form-control" placeholder="50.00"
+               step="0.01" min="0" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Descripción (opcional)</label>
+        <input type="text" name="descripcion" class="form-control" placeholder="Ej: Descuento adulto mayor" />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%">
+        <i data-lucide="plus"></i> Guardar Código
+      </button>
+    </form>
+  </div>
+  {{/if}}
+
+  <div class="ciu-panel {{#unless puedeCrear}}ciu-panel-full{{/unless}}">
+    <div class="ciu-panel-header">
+      <span class="ciu-panel-icon"><i data-lucide="list"></i></span>
+      <h3 class="ciu-panel-titulo">Códigos registrados</h3>
+    </div>
+    {{#if codigos.length}}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Monto</th>
+            <th class="hide-sm">Descripción</th>
+            <th class="hide-sm">Creado por</th>
+            <th>Estado</th>
+            {{#if ../puedeCrear}}<th></th>{{/if}}
+          </tr>
+        </thead>
+        <tbody>
+          {{#each codigos}}
+          <tr>
+            <td><code class="code-text">{{codigo}}</code></td>
+            <td>S/ {{toFixed2 monto}}</td>
+            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
+              {{#if descripcion}}{{descripcion}}{{else}}—{{/if}}
+            </td>
+            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
+              {{#if creador}}{{creador.nombre}}{{else}}—{{/if}}
+            </td>
+            <td>
+              <span class="badge {{#if activo}}badge-success{{else}}badge-neutral{{/if}}">
+                {{#if activo}}Activo{{else}}Inactivo{{/if}}
+              </span>
+            </td>
+            {{#if ../puedeCrear}}
+            <td>
+              <form method="POST" action="/codigos/{{id}}/activo" style="display:inline">
+                <input type="hidden" name="activo" value="{{#if activo}}false{{else}}true{{/if}}" />
+                <button type="submit" class="btn-icon" title="{{#if activo}}Desactivar{{else}}Activar{{/if}}">
+                  <i data-lucide="{{#if activo}}toggle-right{{else}}toggle-left{{/if}}"></i>
+                </button>
+              </form>
+            </td>
+            {{/if}}
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="key-round"></i>
+      <span>Sin códigos registrados</span>
+    </div>
+    {{/if}}
+  </div>
+
+</div>

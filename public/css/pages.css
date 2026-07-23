@@ -632,6 +632,7 @@
   gap: var(--space-5);
   align-items: start;
 }
+.ciu-panel-full { grid-column: 1 / -1; }
 
 /* ── Panel contenedor ── */
 .ciu-panel {
@@ -800,6 +801,8 @@
 
 /* ── Campo individual ── */
 .prog-field { display: flex; flex-direction: column; gap: 5px; }
+.prog-check-inline { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.prog-check-inline input { width: 14px; height: 14px; accent-color: var(--color-accent); cursor: pointer; }
 .prog-label {
   font-size: 0.67rem; font-weight: 700;
   color: var(--text-muted);
@@ -918,6 +921,8 @@
 /* ── Tabla de salidas ── */
 .bol-table { min-width: 640px; }
 .bol-row:hover td { background: var(--color-surface-2); }
+.bol-row-clickable { cursor: pointer; }
+.bol-row-clickable:hover td { background: var(--color-accent-light); }
 
 /* Servicio badge — fondo oscuro como en la imagen */
 .bol-srv-badge {
@@ -974,24 +979,6 @@
 .bol-bus-label { color: var(--text-muted); }
 .bol-bus-cell strong { color: var(--text-primary); font-size: var(--text-sm); }
 
-/* Botones Croquis y Manifiesto */
-.bol-acciones {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 110px;
-}
-.bol-btn-croquis {
-  background: var(--color-accent-light);
-  color: var(--color-accent);
-  border: 1px solid rgba(99,102,241,0.2);
-  display: flex; align-items: center; gap: 5px;
-  font-size: var(--text-xs); font-weight: 600;
-  justify-content: center;
-}
-.bol-btn-croquis:hover { background: var(--color-accent); color: white; }
-.bol-btn-croquis svg { width: 13px; height: 13px; }
-
 .bol-btn-manifiesto {
   background: var(--color-surface-2);
   color: var(--text-secondary);
@@ -1013,10 +1000,10 @@
 
 /* ══════════════════════════════════════════
    MÓDULO MAPA DE ASIENTOS
-   Editor interactivo de distribución de bus
+   Editor interactivo de distribución de bus (vista de planta)
 ══════════════════════════════════════════ */
 
-/* ── Topbar: selector de bus + guardar ── */
+/* ── Topbar: selector de bus + estado + guardar ── */
 .ma-topbar {
   display: flex; align-items: flex-end;
   justify-content: space-between; gap: var(--space-4);
@@ -1028,6 +1015,24 @@
 .ma-btn-guardar {
   letter-spacing: 0.05em; font-size: var(--text-sm);
   padding: var(--space-3) var(--space-6);
+}
+
+/* Pastilla de estado (informativa) */
+.ma-estado-box { display: flex; flex-direction: column; gap: 5px; }
+.ma-estado-pill {
+  display: inline-flex; align-items: center;
+  padding: 7px var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  border: 1.5px solid var(--color-border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm); font-weight: 700;
+  white-space: nowrap;
+}
+.ma-estado-pill.ma-estado-ok {
+  background: var(--color-success-light);
+  border-color: var(--color-success);
+  color: var(--color-success);
 }
 
 /* ── Panel de configuración ── */
@@ -1050,6 +1055,7 @@
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .ma-num-input { width: 80px; text-align: center; }
+.ma-pasillo-select { width: 190px; text-align: left; }
 .ma-radio-row { display: flex; gap: var(--space-3); }
 .ma-radio-opt {
   display: flex; align-items: center; gap: 6px;
@@ -1079,7 +1085,7 @@
   box-shadow: var(--shadow-accent);
 }
 
-/* ── Editor: silueta + grid ── */
+/* ── Editor ── */
 .ma-editor {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1087,53 +1093,140 @@
   box-shadow: var(--shadow-sm);
   padding: var(--space-5);
 }
-.ma-bus-wrap {
-  display: flex; align-items: flex-start;
-  gap: var(--space-5);
+
+/* ── Silueta del bus en planta (marco horizontal) ──
+   TODO el bus (morro + pared + cola) es UNA sola imagen real
+   (bus-frame.png, recorte íntegro de BUS.png) aplicada como
+   border-image: el navegador compone morro/pared/cola de forma
+   nativa a partir del mismo archivo, así el bus se ve siempre como
+   una sola pieza continua (sin costuras). El marco NO se estira al
+   ancho de la tarjeta: se dimensiona según su propio contenido
+   (cantidad de columnas × tamaño fijo de asiento), igual que un
+   bus real no cambia el tamaño de sus asientos según la pantalla.
+   Si el bus completo no entra, se desplaza horizontalmente ENTERO
+   (morro incluido) dentro de .ma-bus-scroll — nunca se recorta ni
+   se esconden asientos. ── */
+.ma-bus-scroll {
+  overflow-x: auto; overflow-y: hidden;
+  text-align: center; /* centra el bus cuando entra sin necesidad de scroll */
+  padding-bottom: 2px;
+}
+.ma-bus-frame {
+  position: relative;
+  display: inline-block; text-align: left; vertical-align: top;
+  box-sizing: border-box;
+  height: 260px; /* se recalcula por JS según filas/pasillo */
+  border-style: solid;
+  border-top-width: 0; border-bottom-width: 0;
+  border-left-width: 96px; border-right-width: 140px; /* fallback, JS las ajusta */
+  border-color: var(--color-accent); /* respaldo si la imagen no carga */
+  border-image-source: url('/images/mapa-asientos/bus-frame.png');
+  border-image-slice: 0 548 0 375 fill;
+  border-image-repeat: stretch;
+  background: var(--color-surface);
+  margin: 26px 0;
+  transition: height 0.2s ease, border-width 0.2s ease;
 }
 
-/* SVG del bus */
-.ma-bus-svg { flex-shrink: 0; }
-.ma-bus-silhouette { width: 90px; height: auto; }
-
-/* Grid de asientos */
-.ma-grid-wrap { flex: 1; overflow-x: auto; }
-.ma-grid {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-2);
+/* Área de asientos: tamaño de asiento FIJO siempre (no crece con
+   pocas columnas ni se achica con muchas), para que el bus se vea
+   igual sin importar cuántas columnas tenga. El contenedor mide
+   exactamente lo que necesita su contenido (ancho intrínseco). */
+.ma-grid-wrap { display: block; height: 100%; }
+.ma-filas {
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 6px;
+  width: max-content; height: 100%;
+  padding: 16px 22px;
+  box-sizing: border-box;
+}
+.ma-fila-row {
+  display: flex; align-items: center;
+  gap: 6px;
+  width: max-content;
+}
+.ma-fila-badge {
+  flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: var(--radius-full);
+  background: var(--color-accent-light); color: var(--color-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-xs); font-weight: 800;
+  box-shadow: 0 0 0 4px var(--color-surface);
 }
 
-/* Celda de asiento individual */
+/* Espacio de pasillo entre filas */
+.ma-pasillo {
+  display: flex; align-items: center; justify-content: center;
+  width: max-content; min-width: 100%;
+  height: 22px; margin-left: 28px;
+  border-top: 1.5px dashed rgba(255,255,255,0.85);
+  border-bottom: 1.5px dashed rgba(255,255,255,0.85);
+}
+.ma-pasillo span {
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.16em;
+  color: var(--text-primary); background: rgba(255,255,255,0.92);
+  padding: 0 var(--space-2); border-radius: var(--radius-sm);
+}
+
+/* Celda de asiento individual (usa la imagen real de ASIENTOS.png).
+   Tamaño FIJO — no depende de la cantidad de columnas. */
 .ma-asiento {
+  position: relative;
   display: flex; flex-direction: column;
-  align-items: center; gap: 4px;
-  background: var(--color-surface-2);
-  border: 2px solid var(--color-border);
+  align-items: center; justify-content: center; gap: 1px;
+  background: rgba(255,255,255,0.9);
+  border: 2px solid transparent;
   border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-2) var(--space-1);
-  transition: all var(--transition-fast);
-  cursor: text; min-width: 58px;
-  color: var(--color-accent);
+  padding: 3px 2px 2px;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  cursor: text;
+  flex: 0 0 auto; width: 42px; height: 38px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
 }
 .ma-asiento:hover { border-color: var(--color-accent); }
+.ma-asiento:hover .ma-toggle-escalera { opacity: 1; }
 .ma-asiento-active {
   border-color: var(--color-accent) !important;
   background: var(--color-accent-light) !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
 }
-.ma-asiento-ico { width: 28px; height: 28px; color: var(--color-accent); }
-.ma-asiento-ico svg { width: 100%; height: 100%; }
+.ma-asiento-ico { width: 19px; height: 18px; flex-shrink: 0; }
+.ma-asiento-ico img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 /* Input del número de asiento */
 .ma-asiento-num {
   width: 100%; text-align: center;
   border: none; background: transparent;
-  font-size: var(--text-sm); font-weight: 700;
+  font-size: var(--text-xs); font-weight: 700;
   color: var(--text-primary); outline: none;
   cursor: text; padding: 0;
+
 }
 .ma-asiento-num::placeholder { color: var(--text-muted); font-weight: 400; }
+
+/* Botón para alternar una celda entre asiento y escalera */
+.ma-toggle-escalera {
+  position: absolute; top: -6px; right: -6px; z-index: 2;
+  width: 17px; height: 17px; border-radius: var(--radius-full);
+  background: white; border: 1.5px solid var(--color-border);
+  padding: 2px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity var(--transition-fast), border-color var(--transition-fast);
+}
+.ma-toggle-escalera:hover { border-color: var(--color-accent); opacity: 1 !important; }
+.ma-toggle-escalera img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ma-asiento-escalera .ma-toggle-escalera { opacity: 1; background: var(--color-accent); border-color: var(--color-accent); }
+.ma-asiento-escalera .ma-toggle-escalera img { filter: brightness(0) invert(1); }
+
+/* Celda marcada como escalera */
+.ma-asiento-escalera {
+  cursor: pointer; background: var(--color-surface-2);
+  border: 2px dashed var(--color-accent);
+}
+.ma-escalera-img {
+  width: 62%; max-width: 30px; object-fit: contain;
+  display: block; pointer-events: none;
+}
 
 /* ── Toast de notificación ── */
 .ma-toast {
@@ -1160,8 +1253,268 @@
   .ma-tabs { flex-direction: column; }
 }
 @media (max-width: 639px) {
-  .ma-bus-wrap { flex-direction: column; }
-  .ma-bus-svg { display: none; }
-  .ma-config-inner { flex-direction: column; }
-  .ma-num-input { width: 100%; }
+  .ma-config-inner { flex-direction: column; align-items: stretch; }
+  .ma-num-input, .ma-pasillo-select { width: 100%; }
+}
+
+/* ══════════════════════════════════════════
+   MÓDULO BOLETAJE — Ventana de venta de asientos (Croquis)
+   Reutiliza las clases .ma-* del mapa de asientos para dibujar
+   el bus (misma silueta real); agrega solo los estados de venta
+   y los paneles de datos del cliente.
+══════════════════════════════════════════ */
+
+.bol-btn-croquis, .bol-btn-manifiesto, .bol-btn-editar-precio {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%;
+  border: 1px solid var(--color-border); background: white;
+  color: var(--text-secondary); font-weight: 600;
+}
+.bol-btn-croquis:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.bol-btn-editar-precio { color: var(--color-warning); border-color: rgba(245,158,11,0.35); }
+.bol-btn-editar-precio:hover { background: var(--color-warning-light); }
+.bol-acciones { display: flex; flex-direction: column; gap: 6px; min-width: 130px; }
+
+/* ── Modal de venta ── */
+.bol-modal-venta { max-width: 980px; width: 96vw; }
+.bol-venta-body { gap: var(--space-4); }
+
+.bol-venta-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); flex-wrap: wrap;
+}
+.bol-venta-warning {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--color-warning-light); color: #92660b;
+  border: 1px solid rgba(245,158,11,0.35);
+  border-radius: var(--radius-md); padding: 8px 14px;
+  font-size: var(--text-sm); font-weight: 600; flex: 1;
+}
+.bol-venta-warning svg { width: 16px; height: 16px; flex-shrink: 0; }
+.bol-venta-usuario {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+  border-radius: var(--radius-full); padding: 6px 14px;
+  font-size: var(--text-sm); font-weight: 700; color: var(--text-primary);
+  white-space: nowrap;
+}
+.bol-venta-usuario svg { width: 15px; height: 15px; color: var(--color-accent); }
+
+/* Estados de asiento en modo VENTA (sobre la base .ma-asiento) */
+.ma-asiento.bol-libre        { cursor: pointer; }
+.ma-asiento.bol-libre:hover  { border-color: var(--color-accent); }
+.ma-asiento.bol-vendido       { cursor: pointer; background: var(--color-error-light); border-color: var(--color-error); color: var(--color-error); }
+/* Cuando se conoce la agencia que vendió el asiento, su color propio
+   reemplaza el rojo genérico de "vendido" (icono + número + borde). */
+.ma-asiento.bol-color-agencia {
+  background: white; /* respaldo si el navegador no soporta color-mix() */
+  background: color-mix(in srgb, var(--bol-agencia-color) 14%, white);
+  border-color: var(--bol-agencia-color);
+  color: var(--bol-agencia-color);
+}
+.ma-asiento.bol-reservado     { cursor: pointer; background: var(--color-warning-light); border-color: var(--color-warning); color: #92660b; }
+.ma-asiento.bol-postergado    { cursor: pointer; background: var(--color-surface-2); border-color: var(--text-muted); color: var(--text-muted); opacity: 0.75; }
+.ma-asiento.bol-seleccionado  { border-color: var(--color-accent) !important; background: var(--color-accent-light) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.22); }
+.ma-asiento.bol-noclick { cursor: default; }
+
+.bol-venta-ruta {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-4);
+  padding: var(--space-4); background: var(--color-surface-2);
+  border-radius: var(--radius-lg); border: 1px solid var(--color-border);
+}
+.bol-venta-ruta-titulo { font-family: var(--font-display); font-size: 1.4rem; font-weight: 800; color: var(--text-primary); display:flex; align-items:center; gap:10px; }
+.bol-venta-ruta-titulo svg { width: 20px; height: 20px; color: var(--color-accent); }
+.bol-venta-ruta-meta { display: flex; gap: var(--space-6); }
+.bol-venta-ruta-meta > div { display: flex; flex-direction: column; gap: 3px; }
+.bol-venta-ruta-meta label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.bol-venta-ruta-meta span { font-weight: 700; color: var(--text-primary); }
+
+.bol-venta-seleccion {
+  min-width: 220px; background: var(--color-accent-light);
+  border: 1px solid rgba(99,102,241,0.3); border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+.bol-venta-seleccion label { font-size: 0.65rem; font-weight: 700; color: var(--color-accent); text-transform: uppercase; letter-spacing: .06em; }
+.bol-venta-seleccion-fila { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.bol-venta-seleccion-fila strong { font-size: var(--text-base); color: var(--text-primary); }
+.bol-venta-seleccion-precio { font-weight: 800; color: var(--color-accent); }
+.bol-venta-seleccion-piso { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+
+.bol-venta-row { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+.bol-venta-row > div { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 5px; }
+.bol-venta-row label { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.bol-input-btn { display: flex; gap: 6px; }
+.bol-input-btn button {
+  flex-shrink: 0; background: var(--color-error); color: white; border: none;
+  border-radius: var(--radius-md); padding: 0 12px; font-size: var(--text-xs); font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.bol-input-btn button:hover { opacity: 0.9; }
+
+.bol-venta-acciones {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-2);
+}
+.bol-venta-acciones button {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; border-radius: var(--radius-md); border: 1px solid var(--color-border);
+  background: white; font-size: var(--text-xs); font-weight: 700; color: var(--text-secondary);
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.bol-venta-acciones button svg { width: 17px; height: 17px; }
+.bol-venta-acciones button:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.bol-btn-guardar-asiento    { color: var(--color-success) !important; border-color: var(--color-success) !important; }
+.bol-btn-anular-asiento     { color: var(--color-error) !important; border-color: var(--color-error) !important; }
+.bol-btn-reservar-asiento   { color: var(--color-warning) !important; border-color: var(--color-warning) !important; }
+.bol-btn-habilitar-asiento  { color: var(--color-accent) !important; border-color: var(--color-accent) !important; }
+
+@media (max-width: 720px) {
+  .bol-venta-acciones { grid-template-columns: repeat(3, 1fr); }
+  .bol-venta-ruta { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── Pulido visual ── */
+.bol-modal-venta .modal-header {
+  background: linear-gradient(135deg, var(--color-accent) 0%, #4f46e5 100%);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.bol-modal-venta .modal-header .modal-title,
+.bol-modal-venta .modal-header .modal-close { color: white; }
+.bol-modal-venta .modal-close:hover { background: rgba(255,255,255,0.15); }
+
+.bol-tabs-row {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--space-3);
+}
+.bol-leyenda { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+.bol-leyenda-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--text-xs); color: var(--text-muted); font-weight: 600;
+}
+.bol-dot { width: 10px; height: 10px; border-radius: var(--radius-full); display: inline-block; }
+.bol-dot-libre      { background: white; border: 2px solid var(--color-border); }
+.bol-dot-vendido    { background: var(--color-error); }
+.bol-dot-reservado  { background: var(--color-warning); }
+.bol-dot-postergado { background: var(--text-muted); }
+.bol-leyenda-agencias { margin-top: -6px; align-items: center; }
+.bol-leyenda-titulo { font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); margin-right: 2px; }
+
+/* Ícono de persona en asientos vendidos: usa el mismo color que el resto de la celda */
+.ma-asiento-ico svg { width: 100%; height: 100%; }
+
+.bol-venta-ruta {
+  background: linear-gradient(135deg, var(--color-accent-light) 0%, rgba(99,102,241,0.03) 100%);
+  border: 1px solid rgba(99,102,241,0.2);
+}
+.bol-venta-serie-box {
+  padding: 10px 14px; margin: -6px 0 2px;
+  border: 1px dashed rgba(99,102,241,0.35); border-radius: var(--radius-md);
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(99,102,241,0.04);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.bol-venta-serie-box svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--color-accent); }
+.bol-venta-serie-texto { display: flex; flex-direction: column; gap: 1px; line-height: 1.3; }
+.bol-venta-serie-label {
+  font-size: 0.62rem; font-weight: 800; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.bol-venta-serie-box #bolSerieSel { font-size: var(--text-sm); font-weight: 700; color: var(--text-secondary); }
+.bol-venta-serie-box.bol-serie-emitida {
+  border-color: rgba(16,185,129,0.4); background: var(--color-success-light);
+}
+.bol-venta-serie-box.bol-serie-emitida svg { color: var(--color-success); }
+.bol-venta-serie-box.bol-serie-emitida #bolSerieSel { color: var(--color-success); }
+
+.bol-codigo-hint { display: block; margin-top: 4px; font-size: 0.68rem; font-weight: 600; min-height: 14px; }
+.bol-codigo-ok    { color: var(--color-success); }
+.bol-codigo-error { color: var(--color-error); }
+
+.bol-modal-habilitar { max-width: 440px; }
+.bol-habilitar-desc { font-size: var(--text-sm); color: var(--text-secondary); margin: 0 0 var(--space-4); line-height: 1.5; }
+
+.bol-btn-disabled { opacity: 0.4; cursor: not-allowed !important; pointer-events: none; }
+
+.bol-venta-row + .bol-venta-row { margin-top: -6px; }
+.bol-venta-acciones button { position: relative; overflow: hidden; }
+.bol-venta-acciones button:active { transform: translateY(0) scale(0.97); }
+
+.bol-venta-usuario { transition: background var(--transition-fast); }
+
+/* ══════════════════════════════════════════
+   MÓDULO COMPROBANTES
+══════════════════════════════════════════ */
+.cmp-pasajero { display: flex; flex-direction: column; gap: 2px; }
+.cmp-pasajero strong { font-size: var(--text-sm); color: var(--text-primary); }
+.cmp-doc { font-size: var(--text-xs); color: var(--text-muted); }
+.cmp-piso { color: var(--text-muted); font-size: var(--text-xs); }
+.cmp-acciones { display: flex; gap: 4px; }
+.cmp-metodo-select { min-width: 130px; font-size: var(--text-xs); padding: 6px 8px; }
+.cmp-metodo-select:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.cmp-badge-vendido    { background: var(--color-success-light); color: var(--color-success); border: 1px solid rgba(16,185,129,0.2); }
+.cmp-badge-reservado  { background: var(--color-warning-light); color: var(--color-warning); border: 1px solid rgba(245,158,11,0.2); }
+.cmp-badge-postergado { background: var(--color-surface-2);     color: var(--text-secondary); border: 1px solid var(--color-border); }
+.cmp-badge-anulado    { background: var(--color-error-light);   color: var(--color-error);   border: 1px solid rgba(239,68,68,0.2); text-decoration: line-through; }
+.cmp-badge-vendido, .cmp-badge-reservado, .cmp-badge-postergado, .cmp-badge-anulado {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: var(--radius-full); font-size: var(--text-xs);
+  font-weight: 600; text-transform: capitalize;
+}
+
+@media (max-width: 900px) {
+  .bol-filtros-form { flex-direction: column; align-items: stretch; }
+}
+
+/* ── Pulido visual adicional: títulos de sección y jerarquía ── */
+.bol-seccion-titulo {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.7rem; font-weight: 800; color: var(--color-accent);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  margin: var(--space-2) 0 -6px;
+}
+.bol-seccion-titulo svg { width: 14px; height: 14px; }
+
+.bol-venta-body { padding: var(--space-5) var(--space-6); }
+.bol-venta-row .form-control {
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.bol-venta-row .form-control:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+.bol-modal-venta { border-radius: var(--radius-xl, 16px); overflow: hidden; }
+.bol-modal-venta .modal-body { max-height: 78vh; overflow-y: auto; }
+
+/* ══════════════════════════════════════════
+   MÓDULO DESTINOS — Ciudades adicionales de llegada
+══════════════════════════════════════════ */
+.dest-adicionales { min-width: 220px; }
+.dest-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.dest-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--color-accent-light); color: var(--color-accent);
+  border-radius: var(--radius-full); padding: 2px 4px 2px 10px;
+  font-size: var(--text-xs); font-weight: 600;
+}
+.dest-chip form { display: inline-flex; }
+.dest-chip button {
+  border: none; background: transparent; color: var(--color-accent);
+  cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 6px;
+  border-radius: var(--radius-full); font-weight: 800;
+}
+.dest-chip button:hover { background: rgba(99,102,241,0.18); }
+.dest-add-form { display: flex; gap: 4px; }
+.dest-add-select { font-size: var(--text-xs); padding: 5px 8px; max-width: 170px; }
+
+/* ── Color identificador de agencia ── */
+.ciu-color-row { display: flex; align-items: center; gap: 10px; }
+.ciu-row-acciones { display: flex; align-items: center; gap: 4px; }
+.ciu-color-input {
+  width: 44px; height: 38px; padding: 2px; border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); cursor: pointer; background: none; flex-shrink: 0;
+}
+.ciu-color-swatch {
+  display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-full);
+  margin-right: 7px; vertical-align: middle; box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
 }
