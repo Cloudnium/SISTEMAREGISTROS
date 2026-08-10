@@ -1,0 +1,208 @@
+<!-- VIEW: empresas/index.hbs — Empresas propietarias de buses -->
+
+<div class="ciu-layout">
+
+  <!-- ══ PANEL IZQUIERDO: Registrar ══ -->
+  <div class="ciu-panel">
+    <div class="ciu-panel-header">
+      <span class="ciu-panel-icon"><i data-lucide="building-2"></i></span>
+      <h3 class="ciu-panel-titulo">Registrar Empresa</h3>
+    </div>
+
+    <form action="/empresas" method="POST" class="ciu-form" id="formNuevaEmpresa">
+      <div class="form-group">
+        <label class="form-label-pers">RUC</label>
+        <input type="text" name="ruc" class="form-control" placeholder="20602508448" maxlength="11" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Razón Social</label>
+        <input type="text" name="razon_social" class="form-control"
+               placeholder="Ej: LINEA PERUANA COMPANY S.A.C."
+               oninput="this.value=this.value.toUpperCase()" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Domicilio Fiscal</label>
+        <input type="text" name="domicilio_fiscal" class="form-control"
+               placeholder="Av. Ejemplo 123, Distrito - Ciudad" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Logo (para boletas y facturas)</label>
+        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
+               class="form-control" onchange="Empresas.leerLogo(this, 'nuevaEmpresaLogoPreview', 'nuevaEmpresaLogoInput')" />
+        <input type="hidden" name="logo_data_url" id="nuevaEmpresaLogoInput" />
+        <img id="nuevaEmpresaLogoPreview" style="display:none;max-height:60px;margin-top:8px;border-radius:6px" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">
+        <i data-lucide="plus"></i> Guardar Empresa
+      </button>
+    </form>
+  </div>
+
+  <!-- ══ PANEL DERECHO: Lista ══ -->
+  <div class="ciu-panel">
+    <div class="ciu-panel-header">
+      <span class="ciu-panel-icon"><i data-lucide="list"></i></span>
+      <h3 class="ciu-panel-titulo">Empresas registradas</h3>
+    </div>
+
+    {{#if empresas.length}}
+    <div class="ciu-lista">
+      <table class="ciu-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>RUC</th>
+            <th>Razón Social</th>
+            <th class="hide-sm">Domicilio Fiscal</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each empresas}}
+          <tr>
+            <td>
+              {{#if logo_data_url}}
+              <img src="{{logo_data_url}}" style="max-height:32px;max-width:60px;border-radius:4px" />
+              {{else}}
+              <span style="color:var(--text-muted);font-size:var(--text-xs)">Sin logo</span>
+              {{/if}}
+            </td>
+            <td><code class="code-text">{{ruc}}</code></td>
+            <td class="ciu-nombre-ciudad">{{razon_social}}</td>
+            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
+              {{#if domicilio_fiscal}}{{domicilio_fiscal}}{{else}}—{{/if}}
+            </td>
+            <td>
+              <div class="ciu-row-acciones">
+                <button type="button" class="btn-icon" title="Editar"
+                        onclick='Empresas.editar({{{json this}}})'>
+                  <i data-lucide="pencil"></i>
+                </button>
+                <form method="POST" action="/empresas/{{id}}/eliminar"
+                      onsubmit="return confirm('Eliminar la empresa {{razon_social}}?')">
+                  <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar">
+                    <i data-lucide="trash-2"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}
+    <div class="ciu-empty">
+      <i data-lucide="building-2"></i>
+      <span>Sin empresas registradas</span>
+    </div>
+    {{/if}}
+  </div>
+
+</div>
+
+<style>
+@media (max-width: 639px) { .hide-sm { display: none; } }
+</style>
+
+<!-- ═══ MODAL: Editar Empresa ═══ -->
+<div class="modal-backdrop" id="modalEditarEmpresa" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="pencil"></i> Editar Empresa</div>
+      <button class="modal-close" onclick="Empresas.cerrar()"><i data-lucide="x"></i></button>
+    </div>
+    <form id="formEditarEmpresa" method="POST" action="/empresas/editar">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label-pers">RUC</label>
+          <input type="text" name="ruc" id="eeRuc" class="form-control" maxlength="11" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Razón Social</label>
+          <input type="text" name="razon_social" id="eeRazonSocial" class="form-control"
+                 oninput="this.value=this.value.toUpperCase()" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Domicilio Fiscal</label>
+          <input type="text" name="domicilio_fiscal" id="eeDomicilio" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Logo (para boletas y facturas)</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <img id="eeLogoActual" style="display:none;max-height:50px;max-width:90px;border-radius:6px" />
+            <span id="eeLogoVacio" style="color:var(--text-muted);font-size:var(--text-xs)">Sin logo</span>
+            <button type="button" class="btn-icon btn-icon-delete" id="eeBtnQuitarLogo" title="Quitar logo" style="display:none" onclick="Empresas.quitarLogo()">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                 class="form-control" onchange="Empresas.leerLogo(this, 'eeLogoActual', 'eeLogoInput', true)" />
+          <input type="hidden" name="logo_data_url" id="eeLogoInput" />
+          <input type="hidden" name="quitar_logo" id="eeQuitarLogo" value="0" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Empresas.cerrar()">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+var Empresas = (function () {
+  function leerLogo(input, imgId, hiddenId, esEdicion) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert('La imagen es muy pesada (máx. ~500 KB). Elige una más liviana.');
+      input.value = '';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      document.getElementById(hiddenId).value = e.target.result;
+      var img = document.getElementById(imgId);
+      img.src = e.target.result;
+      img.style.display = '';
+      if (esEdicion) {
+        document.getElementById('eeLogoVacio').style.display = 'none';
+        document.getElementById('eeBtnQuitarLogo').style.display = '';
+        document.getElementById('eeQuitarLogo').value = '0';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+  function quitarLogo() {
+    document.getElementById('eeLogoInput').value = '';
+    document.getElementById('eeQuitarLogo').value = '1';
+    document.getElementById('eeLogoActual').style.display = 'none';
+    document.getElementById('eeLogoVacio').style.display = '';
+    document.getElementById('eeBtnQuitarLogo').style.display = 'none';
+  }
+  function editar(e) {
+    document.getElementById('formEditarEmpresa').action = '/empresas/' + e.id + '/editar';
+    document.getElementById('eeRuc').value          = e.ruc || '';
+    document.getElementById('eeRazonSocial').value  = e.razon_social || '';
+    document.getElementById('eeDomicilio').value    = e.domicilio_fiscal || '';
+    document.getElementById('eeLogoInput').value    = '';
+    document.getElementById('eeQuitarLogo').value   = '0';
+    if (e.logo_data_url) {
+      document.getElementById('eeLogoActual').src = e.logo_data_url;
+      document.getElementById('eeLogoActual').style.display = '';
+      document.getElementById('eeLogoVacio').style.display = 'none';
+      document.getElementById('eeBtnQuitarLogo').style.display = '';
+    } else {
+      document.getElementById('eeLogoActual').style.display = 'none';
+      document.getElementById('eeLogoVacio').style.display = '';
+      document.getElementById('eeBtnQuitarLogo').style.display = 'none';
+    }
+    document.getElementById('modalEditarEmpresa').style.display = 'flex';
+  }
+  function cerrar() {
+    document.getElementById('modalEditarEmpresa').style.display = 'none';
+  }
+  return { editar, cerrar, leerLogo, quitarLogo };
+})();
+</script>

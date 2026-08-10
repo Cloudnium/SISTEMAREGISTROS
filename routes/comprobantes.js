@@ -22,7 +22,8 @@ router.get('/', async (req, res) => {
   const { data: boletosRaw, error } = await db.select('boletos',
     'select=id,piso,numero_asiento,estado,precio,serie,correlativo,metodo_pago,' +
     'tipo_documento,numero_documento,nombre_completo,edad,telefono,ruc,razon_social,' +
-    'creado_en,anulado_en,' +
+    'creado_en,anulado_en,transferido_otra_empresa,activado_desde_boleto_id,' +
+    'empresa:empresas!empresa_id(ruc,razon_social,domicilio_fiscal,logo_data_url),' +
     'programacion_id,programaciones(fecha_salida,destino_id,' +
       'servicios(nombre),' +
       'buses(soat_poliza),' +
@@ -32,10 +33,30 @@ router.get('/', async (req, res) => {
     'agencia_llegada:agencias!agencia_llegada_id(nombre),' +
     'vendedor:usuarios!vendido_por(nombre,username),' +
     'anulador:usuarios!anulado_por(nombre)' +
+    // Solo boletos REALMENTE emitidos (tienen serie/correlativo). Una
+    // reserva que nunca llegó a venderse (o se anuló siendo reserva)
+    // nunca tuvo un comprobante real, así que no debe aparecer aquí.
+    '&serie=not.is.null&correlativo=not.is.null' +
     '&order=creado_en.desc&limit=500');
   if (error) console.error('comprobantes list:', error);
 
   let comprobantes = boletosRaw || [];
+
+  // Para los boletos "usados" (transferidos a otro boleto al
+  // Habilitar), buscamos con qué comprobante nuevo quedaron
+  // vinculados, para poder mostrarlo ("usado en B002-00000045").
+  const idsUsados = comprobantes.filter(b => b.estado === 'usado').map(b => b.id);
+  if (idsUsados.length > 0) {
+    const { data: vinculados } = await db.select('boletos',
+      `select=serie,correlativo,activado_desde_boleto_id&activado_desde_boleto_id=in.(${idsUsados.join(',')})`);
+    const mapaVinculo = {};
+    (vinculados || []).forEach(v => { mapaVinculo[v.activado_desde_boleto_id] = v; });
+    comprobantes.forEach(b => {
+      if (b.estado === 'usado' && mapaVinculo[b.id]) {
+        b.usado_en = mapaVinculo[b.id];
+      }
+    });
+  }
 
   // Filtros (se aplican en memoria: el volumen de comprobantes es manejable
   // y varios filtros recaen sobre datos de tablas anidadas)
@@ -74,6 +95,12 @@ router.post('/:id/anular', async (req, res) => {
   const esAdmin = u.rol === 'admin';
   if (!esAdmin && u.puede_anular === false) {
     return res.status(403).json({ error: 'No tienes permiso para anular comprobantes.' });
+  }
+  const { data: rows } = await db.select('boletos', `select=id,estado&id=eq.${req.params.id}&limit=1`);
+  const boleto = rows && rows[0];
+  if (!boleto) return res.status(404).json({ error: 'Comprobante no encontrado.' });
+  if (!['vendido', 'reservado', 'postergado', 'reintegro'].includes(boleto.estado)) {
+    return res.status(400).json({ error: 'Este comprobante ya está ' + boleto.estado + ' y no se puede anular.' });
   }
   const { error } = await db.update('boletos', `id=eq.${req.params.id}`, {
     estado: 'anulado',

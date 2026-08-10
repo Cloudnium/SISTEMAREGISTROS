@@ -12,7 +12,8 @@
       <h3 class="ciu-panel-titulo">Registrar Ciudad</h3>
     </div>
 
-    <!-- Formulario agregar ciudad -->
+    <!-- Formulario agregar ciudad — SOLO admin -->
+    {{#if isAdmin}}
     <form action="/ciudades/ciudad" method="POST" class="ciu-form">
       <div class="form-group">
         <label class="form-label-pers">Nombre de la Ciudad</label>
@@ -25,6 +26,7 @@
         Agregar Ciudad
       </button>
     </form>
+    {{/if}}
 
     <!-- Lista de ciudades registradas -->
     {{#if ciudades.length}}
@@ -75,7 +77,8 @@
       <h3 class="ciu-panel-titulo">Registrar Agencia</h3>
     </div>
 
-    <!-- Formulario agregar agencia -->
+    <!-- Formulario agregar agencia — SOLO admin -->
+    {{#if isAdmin}}
     <form action="/ciudades/agencia" method="POST" class="ciu-form">
 
       <div class="form-row">
@@ -103,20 +106,6 @@
                  placeholder="Av. Alfredo Mendiola Nro. 140" />
         </div>
         <div class="form-group">
-          <label class="form-label-pers">Serie de boletos</label>
-          <input type="text" name="serie_boleto" class="form-control"
-                 placeholder="Ej: B001" maxlength="10"
-                 oninput="this.value=this.value.toUpperCase()" />
-          <small class="form-hint">Los usuarios asignados a esta agencia emitirán boletos con esta serie.</small>
-        </div>
-        <div class="form-group">
-          <label class="form-label-pers">Serie de facturas</label>
-          <input type="text" name="serie_factura" class="form-control"
-                 placeholder="Ej: F001" maxlength="10"
-                 oninput="this.value=this.value.toUpperCase()" />
-          <small class="form-hint">Serie independiente para facturas (cuando la venta lleva RUC).</small>
-        </div>
-        <div class="form-group">
           <label class="form-label-pers">Color identificador</label>
           <div class="ciu-color-row">
             <input type="color" name="color" class="ciu-color-input" value="#6366f1" />
@@ -124,11 +113,14 @@
           </div>
         </div>
       </div>
+      <small class="form-hint">Las series de boletos/facturas se configuran después, por empresa, con el botón "Series" de cada agencia (cada empresa dueña de buses tiene su propia numeración).</small>
+      <br/>
 
       <button type="submit" class="btn btn-primary btn-full">
         Guardar Agencia
       </button>
     </form>
+    {{/if}}
 
     <!-- Lista de agencias registradas -->
     {{#if agencias.length}}
@@ -139,8 +131,7 @@
             <th>Agencia</th>
             <th>Ciudad</th>
             <th class="hide-sm">Dirección</th>
-            <th class="hide-sm">Serie Boleta</th>
-            <th class="hide-sm">Serie Factura</th>
+            <th></th>
             {{#if isAdmin}}<th></th>{{/if}}
           </tr>
         </thead>
@@ -155,11 +146,12 @@
             <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
               {{#if direccion}}{{direccion}}{{else}}—{{/if}}
             </td>
-            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
-              {{#if serie_boleto}}<code class="code-text">{{serie_boleto}}-{{correlativo_actual}}</code>{{else}}—{{/if}}
-            </td>
-            <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-muted)">
-              {{#if serie_factura}}<code class="code-text">{{serie_factura}}-{{correlativo_factura}}</code>{{else}}—{{/if}}
+            <td>
+              {{#if ../isAdmin}}
+              <button type="button" class="btn btn-ghost btn-sm" onclick="Series.abrir('{{id}}', '{{nombre}}')">
+                <i data-lucide="hash"></i> Series
+              </button>
+              {{/if}}
             </td>
             {{#if ../isAdmin}}
             <td>
@@ -225,18 +217,6 @@
           <label class="form-label-pers">Dirección</label>
           <input type="text" name="direccion" id="eaDireccion" class="form-control" />
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label-pers">Serie de boletos</label>
-            <input type="text" name="serie_boleto" id="eaSerieBoleto" class="form-control"
-                   maxlength="10" oninput="this.value=this.value.toUpperCase()" />
-          </div>
-          <div class="form-group">
-            <label class="form-label-pers">Serie de facturas</label>
-            <input type="text" name="serie_factura" id="eaSerieFactura" class="form-control"
-                   maxlength="10" oninput="this.value=this.value.toUpperCase()" />
-          </div>
-        </div>
         <div class="form-group">
           <label class="form-label-pers">Color identificador</label>
           <div class="ciu-color-row">
@@ -252,6 +232,134 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════
+     MODAL: Series de boletos/facturas por EMPRESA
+     (cada empresa dueña de buses numera aparte)
+     ═══════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="modalSeries" style="display:none">
+  <div class="modal" style="max-width:920px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="hash"></i> Series — <span id="seAgenciaNombre"></span></div>
+      <button class="modal-close" onclick="Series.cerrar()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="form-hint" style="margin-top:0">
+        Cada empresa dueña de buses tiene su propia numeración de boletos y facturas
+        para esta agencia. Puedes tener dos series de boletos configuradas (por ejemplo,
+        dos talonarios distintos) y elegir con cuál se está emitiendo actualmente con
+        "Activa". La factura siempre usa su misma serie. Deja una serie en blanco si esta
+        agencia todavía no vende para esa empresa (o no usa una segunda serie de boletos).
+      </p>
+      <div class="table-wrapper">
+        <table class="table" id="seTabla">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Activa</th>
+              <th>Serie Boleto 1</th>
+              <th>Correlativo</th>
+              <th>Serie Boleto 2</th>
+              <th>Correlativo</th>
+              <th>Serie Factura</th>
+              <th>Correlativo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="seTbody">
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="Series.cerrar()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var Series = (function () {
+  var agenciaIdActual = null;
+
+  function abrir(agenciaId, nombre) {
+    agenciaIdActual = agenciaId;
+    document.getElementById('seAgenciaNombre').textContent = nombre;
+    document.getElementById('seTbody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">Cargando…</td></tr>';
+    document.getElementById('modalSeries').style.display = 'flex';
+
+    fetch('/ciudades/agencia/' + agenciaId + '/series')
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderFilas(data.filas || []); })
+      .catch(function () {
+        document.getElementById('seTbody').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--color-error)">Error al cargar.</td></tr>';
+      });
+  }
+
+  function renderFilas(filas) {
+    var tbody = document.getElementById('seTbody');
+    if (!filas.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">No hay empresas activas registradas.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filas.map(function (f, i) {
+      var nombreRadio = 'se-activa-' + f.empresa_id;
+      return '<tr data-empresa="' + f.empresa_id + '">' +
+        '<td><b>' + f.razon_social + '</b><br/><span style="font-size:var(--text-xs);color:var(--text-muted)">' + f.ruc + '</span></td>' +
+        '<td style="white-space:nowrap">' +
+          '<label style="display:flex;align-items:center;gap:4px;font-size:var(--text-xs)"><input type="radio" name="' + nombreRadio + '" class="se-activa" value="1" ' + (f.serie_boleto_activa === 1 ? 'checked' : '') + '/> Bol. 1</label>' +
+          '<label style="display:flex;align-items:center;gap:4px;font-size:var(--text-xs)"><input type="radio" name="' + nombreRadio + '" class="se-activa" value="2" ' + (f.serie_boleto_activa === 2 ? 'checked' : '') + '/> Bol. 2</label>' +
+        '</td>' +
+        '<td><input type="text" class="form-control se-serie-boleto" style="width:90px" value="' + (f.serie_boleto || '') + '" placeholder="B001" maxlength="10"/></td>' +
+        '<td><input type="number" class="form-control se-corr-boleto" style="width:80px" value="' + (f.correlativo_actual || 0) + '" min="0"/></td>' +
+        '<td><input type="text" class="form-control se-serie-boleto-2" style="width:90px" value="' + (f.serie_boleto_2 || '') + '" placeholder="B002" maxlength="10"/></td>' +
+        '<td><input type="number" class="form-control se-corr-boleto-2" style="width:80px" value="' + (f.correlativo_boleto_2 || 0) + '" min="0"/></td>' +
+        '<td><input type="text" class="form-control se-serie-factura" style="width:90px" value="' + (f.serie_factura || '') + '" placeholder="F001" maxlength="10"/></td>' +
+        '<td><input type="number" class="form-control se-corr-factura" style="width:80px" value="' + (f.correlativo_factura || 0) + '" min="0"/></td>' +
+        '<td><button type="button" class="btn btn-primary btn-sm" onclick="Series.guardarFila(this)">Guardar</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function guardarFila(btn) {
+    var tr = btn.closest('tr');
+    var empresaId = tr.dataset.empresa;
+    var activaInput = tr.querySelector('.se-activa:checked');
+    var body = {
+      empresa_id: empresaId,
+      serie_boleto: tr.querySelector('.se-serie-boleto').value,
+      correlativo_actual: tr.querySelector('.se-corr-boleto').value,
+      serie_boleto_2: tr.querySelector('.se-serie-boleto-2').value,
+      correlativo_boleto_2: tr.querySelector('.se-corr-boleto-2').value,
+      serie_boleto_activa: activaInput ? activaInput.value : '1',
+      serie_factura: tr.querySelector('.se-serie-factura').value,
+      correlativo_factura: tr.querySelector('.se-corr-factura').value
+    };
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    fetch('/ciudades/agencia/' + agenciaIdActual + '/series', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      btn.disabled = false;
+      btn.textContent = r.ok ? '✓ Guardado' : 'Error';
+      if (r.ok) setTimeout(function () { btn.textContent = 'Guardar'; }, 1500);
+      else alert('Error al guardar: ' + (r.error || ''));
+    }).catch(function () {
+      btn.disabled = false;
+      btn.textContent = 'Guardar';
+      alert('Error de conexión al guardar.');
+    });
+  }
+
+  function cerrar() {
+    document.getElementById('modalSeries').style.display = 'none';
+  }
+
+  return { abrir, cerrar, guardarFila };
+})();
+</script>
+
 <script>
 var Agencias = (function () {
   function editar(agencia) {
@@ -259,8 +367,6 @@ var Agencias = (function () {
     document.getElementById('eaNombre').value       = agencia.nombre || '';
     document.getElementById('eaCiudad').value        = agencia.ciudad_id || '';
     document.getElementById('eaDireccion').value     = agencia.direccion || '';
-    document.getElementById('eaSerieBoleto').value   = agencia.serie_boleto || '';
-    document.getElementById('eaSerieFactura').value  = agencia.serie_factura || '';
     document.getElementById('eaColor').value         = agencia.color || '#6366f1';
     document.getElementById('modalEditarAgencia').style.display = 'flex';
   }

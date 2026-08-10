@@ -28,6 +28,15 @@ function requireAdminToEdit(req, res, next) {
   res.redirect('back');
 }
 
+// Solo admin puede CREAR catálogos maestros (Servicios, Buses,
+// Ciudades/Agencias, Destinos). La venta de boletos y demás
+// operaciones diarias NO pasan por aquí.
+function requireAdminToCreate(req, res, next) {
+  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  req.flash('error', 'Solo el administrador puede crear nuevos registros en esta sección.');
+  res.redirect('back');
+}
+
 // Solo admin puede ELIMINAR (POST eliminar)
 function requireAdminToDelete(req, res, next) {
   if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
@@ -54,6 +63,7 @@ module.exports = {
   requireAuth,
   requireAdmin,
   requireAdminToEdit,
+  requireAdminToCreate,
   requireAdminToDelete,
   redirectIfAuth,
   exposeUserRole

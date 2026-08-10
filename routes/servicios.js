@@ -2,14 +2,14 @@
 // routes/servicios.js — Tipos de Servicio
 // GET /             → lista todos
 // GET /:id/json     → datos para editar
-// POST /            → crear (todos)
+// POST /            → crear   → SOLO admin
 // POST /:id/editar  → SOLO admin
 // POST /:id/eliminar → SOLO admin
 // =============================================
 const express = require('express');
 const router  = express.Router();
 const { db }  = require('../config/supabase');
-const { requireAuth, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
+const { requireAuth, requireAdminToCreate, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
 
 // ─── LIST ─────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
@@ -32,8 +32,8 @@ router.get('/:id/json', requireAuth, async (req, res) => {
   res.json(data[0]);
 });
 
-// ─── CREATE ───────────────────────────────────
-router.post('/', requireAuth, async (req, res) => {
+// ─── CREATE — SOLO admin ──────────────────────
+router.post('/', requireAuth, requireAdminToCreate, async (req, res) => {
   const { nombre, descripcion, icono, categoria } = req.body;
   if (!nombre || !nombre.trim()) {
     req.flash('error', 'El nombre del servicio es obligatorio.');

@@ -74,7 +74,9 @@ app.engine('hbs', engine({
     // Helper: formatea un número a 2 decimales de forma segura (nunca NaN)
     toFixed2: (n) => (isNaN(parseFloat(n)) ? '0.00' : parseFloat(n).toFixed(2)),
     // Helper: OR lógico entre varios valores, para condicionales {{#if (or a b c)}}
-    or: (...args) => args.slice(0, -1).some(Boolean)
+    or: (...args) => args.slice(0, -1).some(Boolean),
+    // Helper: comparación "mayor que", para {{#if (gt a b)}}
+    gt: (a, b) => a > b
   }
 }));
 
@@ -89,8 +91,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Parsea cuerpos JSON y URL-encoded (formularios)
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // ─────────────────────────────────────────────
 // SESIONES — 100% sin estado en el servidor
@@ -126,6 +128,14 @@ app.use((req, res, next) => {
   res.locals.error       = req.flash('error');
   // Expone rol a todas las vistas para mostrar/ocultar botones
   res.locals.isAdmin     = req.session.user && req.session.user.rol === 'admin';
+  // Expone si puede ver/crear Códigos de Autorización, para ocultar
+  // ese ítem del sidebar a quien no tenga el permiso. Se basa en el
+  // valor cacheado en la sesión (se refresca al volver a iniciar
+  // sesión); el acceso real a la ruta /codigos se re-valida siempre
+  // contra la base de datos (ver utils/permisos.js).
+  res.locals.puedeCrearCodigos = !!(req.session.user && (
+    req.session.user.rol === 'admin' || req.session.user.puede_crear_codigos === true
+  ));
   next();
 });
 
@@ -147,6 +157,8 @@ const programacionRoutes  = require('./routes/programacion');
 const mapaAsientosRoutes  = require('./routes/mapa-asientos');
 const comprobantesRoutes  = require('./routes/comprobantes');
 const codigosRoutes       = require('./routes/codigos');
+const empresasRoutes      = require('./routes/empresas');
+const consultaDocumentosRoutes = require('./routes/consulta-documentos');
 const chatRoutes = require('./routes/chat');
 
 app.use('/', authRoutes);
@@ -164,6 +176,8 @@ app.use('/programacion',   programacionRoutes);
 app.use('/mapa-asientos',  mapaAsientosRoutes);
 app.use('/comprobantes',   comprobantesRoutes);
 app.use('/codigos',        codigosRoutes);
+app.use('/empresas',       empresasRoutes);
+app.use('/consulta-documentos', consultaDocumentosRoutes);
 app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────

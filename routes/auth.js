@@ -145,6 +145,7 @@ router.post('/login', redirectIfAuth, async (req, res) => {
       puede_postergar: usuario.puede_postergar !== false,
       puede_reservar:  usuario.puede_reservar  !== false,
       puede_habilitar: usuario.puede_habilitar !== false,
+      puede_reintegro: usuario.puede_reintegro !== false,
       puede_crear_codigos: usuario.puede_crear_codigos === true
     };
 

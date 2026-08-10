@@ -6,10 +6,12 @@
 <!-- ── Header ── -->
 <div class="page-header">
   <div></div>
+  {{#if isAdmin}}
   <button class="btn btn-primary" onclick="Servicios.abrirModalNuevo()">
     <i data-lucide="plus"></i>
     <span>Crear Nuevo Servicio</span>
   </button>
+  {{/if}}
 </div>
 
 <!-- ── Grid de cards ── -->
@@ -60,9 +62,11 @@
   <div class="empty-state">
     <i data-lucide="layout-grid"></i>
     <p>No hay servicios registrados aún.</p>
+    {{#if isAdmin}}
     <button class="btn btn-primary btn-sm" onclick="Servicios.abrirModalNuevo()">
       <i data-lucide="plus"></i> Crear primer servicio
     </button>
+    {{/if}}
   </div>
 </div>
 {{/if}}

@@ -1,0 +1,403 @@
+<!-- VIEW: consulta-documentos/index.hbs — Consulta de Documentos -->
+
+<div class="cd-card cd-card-busqueda">
+  <div class="cd-card-header">
+    <i data-lucide="search" class="cd-card-icon"></i>
+    <div>
+      <h3>Buscar documento</h3>
+      <p>Ubica un boleto o factura por empresa y número, o por el D.N.I. del pasajero</p>
+    </div>
+  </div>
+
+  <div class="cd-buscador">
+    <div class="form-group cd-empresa-group">
+      <label class="form-label-pers">Empresa</label>
+      <select id="cdEmpresa" class="form-control">
+        <option value="">— Todas —</option>
+        {{#each empresas}}
+        <option value="{{id}}">{{razon_social}}</option>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="cd-tipo-toggle">
+      <button type="button" class="cd-tipo-btn active" id="cdTipoBtnBoleto" onclick="ConsultaDocs.cambiarTipo('boleto')">
+        <i data-lucide="ticket"></i> Boleto de Viaje
+      </button>
+      <button type="button" class="cd-tipo-btn" id="cdTipoBtnDni" onclick="ConsultaDocs.cambiarTipo('dni')">
+        <i data-lucide="user-round-search"></i> Por D.N.I.
+      </button>
+    </div>
+
+    <div class="cd-serie-inputs" id="cdSerieInputs">
+      <div class="form-group">
+        <label class="form-label-pers">Serie</label>
+        <input type="text" id="cdSerie" class="form-control" placeholder="B771" maxlength="10" oninput="this.value=this.value.toUpperCase()" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Correlativo</label>
+        <input type="text" id="cdCorrelativo" class="form-control" placeholder="0126573" maxlength="10" />
+      </div>
+      <button type="button" class="btn btn-primary" id="cdBtnConsultar" onclick="ConsultaDocs.consultarBoleto()">
+        <i data-lucide="search"></i> Consultar
+      </button>
+    </div>
+  </div>
+
+  <div class="cd-movimientos-box">
+    <div class="cd-movimientos-label"><i data-lucide="history"></i> Movimientos del documento</div>
+    <div class="cd-movimientos-texto" id="cdMovimientos">
+      <span class="cd-placeholder">Busca un documento para ver su historial completo: venta, reservas, postergaciones, habilitaciones y anulaciones.</span>
+    </div>
+  </div>
+</div>
+
+<div class="cd-card" id="cdDetalleCard">
+  <div class="cd-card-header">
+    <i data-lucide="file-text" class="cd-card-icon"></i>
+    <div>
+      <h3>Detalle del documento y pasajero</h3>
+      <p id="cdDetalleSubtitulo">Selecciona un documento para ver su información completa</p>
+    </div>
+    <span class="cd-estado-pill" id="cdEstadoPill" style="display:none"></span>
+  </div>
+
+  <div class="cd-seccion">
+    <div class="cd-seccion-titulo"><i data-lucide="user"></i> Pasajero</div>
+    <div class="cd-grid">
+      <div class="cd-field cd-field-lg"><label>Nombres y Apellidos</label><div class="cd-value" id="cdNombre">—</div></div>
+      <div class="cd-field"><label>Edad</label><div class="cd-value" id="cdEdad">—</div></div>
+      <div class="cd-field"><label>Documento</label><div class="cd-value" id="cdDocumento">—</div></div>
+    </div>
+  </div>
+
+  <div class="cd-seccion">
+    <div class="cd-seccion-titulo"><i data-lucide="receipt"></i> Facturación</div>
+    <div class="cd-grid">
+      <div class="cd-field"><label>RUC</label><div class="cd-value" id="cdRuc">—</div></div>
+      <div class="cd-field cd-field-lg"><label>Razón Social</label><div class="cd-value" id="cdRazonSocial">—</div></div>
+      <div class="cd-field"><label>Fecha de Emisión</label><div class="cd-value" id="cdFechaEmision">—</div></div>
+    </div>
+  </div>
+
+  <div class="cd-seccion">
+    <div class="cd-seccion-titulo"><i data-lucide="bus"></i> Viaje</div>
+    <div class="cd-grid">
+      <div class="cd-field cd-field-lg"><label>Ruta</label><div class="cd-value" id="cdDestino">—</div></div>
+      <div class="cd-field"><label>Asiento</label><div class="cd-value" id="cdAsiento">—</div></div>
+      <div class="cd-field"><label>Fecha de Viaje</label><div class="cd-value" id="cdFechaViaje">—</div></div>
+      <div class="cd-field"><label>Hora</label><div class="cd-value" id="cdHora">—</div></div>
+      <div class="cd-field"><label>Placa</label><div class="cd-value" id="cdPlaca">—</div></div>
+      <div class="cd-field"><label>Precio Vta.</label><div class="cd-value" id="cdPrecio">—</div></div>
+    </div>
+  </div>
+
+  <div class="cd-seccion">
+    <div class="cd-seccion-titulo"><i data-lucide="shield-check"></i> Administrativo</div>
+    <div class="cd-grid">
+      <div class="cd-field"><label>Usuario</label><div class="cd-value" id="cdUsuario">—</div></div>
+      <div class="cd-field"><label>Agencia</label><div class="cd-value" id="cdAgencia">—</div></div>
+      <div class="cd-field"><label>Empresa</label><div class="cd-value" id="cdEmpresaNombre">—</div></div>
+    </div>
+  </div>
+</div>
+
+<style>
+.cd-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 22px 24px; margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.cd-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.cd-card-icon {
+  width: 38px; height: 38px; padding: 8px; border-radius: var(--radius-md);
+  background: var(--color-accent-light); color: var(--color-accent); flex-shrink: 0;
+}
+.cd-card-header h3 { margin: 0 0 2px; font-size: var(--text-md); }
+.cd-card-header p { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+.cd-estado-pill {
+  margin-left: auto; align-self: center; padding: 4px 12px; border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+}
+
+.cd-buscador { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.cd-empresa-group { min-width: 240px; }
+.cd-tipo-toggle {
+  display: flex; background: var(--color-surface-2); border-radius: var(--radius-md);
+  padding: 3px; gap: 3px;
+}
+.cd-tipo-btn {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px; border: none;
+  background: transparent; border-radius: var(--radius-sm); font-size: var(--text-sm);
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap; transition: all .15s;
+}
+.cd-tipo-btn.active { background: var(--color-surface); color: var(--color-accent); font-weight: 600; box-shadow: var(--shadow-sm); }
+.cd-tipo-btn i { width: 15px; height: 15px; }
+.cd-serie-inputs { display: flex; align-items: flex-end; gap: 10px; }
+.cd-serie-inputs .form-group { margin: 0; }
+.cd-serie-inputs #cdSerie { width: 90px; }
+.cd-serie-inputs #cdCorrelativo { width: 110px; }
+
+.cd-movimientos-box { margin-top: 20px; }
+.cd-movimientos-label {
+  display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px;
+}
+.cd-movimientos-label i { width: 14px; height: 14px; }
+.cd-movimientos-texto {
+  background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  padding: 14px 16px; font-size: var(--text-sm); line-height: 1.9; color: var(--text-primary);
+  max-height: 140px; overflow-y: auto;
+}
+.cd-placeholder { color: var(--text-muted); font-style: italic; }
+.cd-mov-item { display: inline-block; padding: 2px 10px 2px 0; }
+.cd-mov-item:not(:last-child)::after { content: '/'; color: var(--text-muted); margin-left: 10px; }
+.cd-mov-tipo { font-weight: 700; }
+.cd-mov-tipo-venta { color: var(--color-success); }
+.cd-mov-tipo-reservado { color: var(--color-warning); }
+.cd-mov-tipo-postergado { color: var(--text-muted); }
+.cd-mov-tipo-anulado { color: var(--color-error); }
+.cd-mov-tipo-habilitado, .cd-mov-tipo-activado { color: var(--color-accent); }
+.cd-mov-tipo-reintegro { color: #9333ea; }
+
+.cd-seccion { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+.cd-seccion:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+.cd-seccion-titulo {
+  display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 700;
+  color: var(--color-accent); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 12px;
+}
+.cd-seccion-titulo i { width: 14px; height: 14px; }
+.cd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px 18px; }
+.cd-field label { display: block; font-size: var(--text-xs); color: var(--text-muted); margin-bottom: 4px; }
+.cd-field-lg { grid-column: span 2; }
+.cd-value {
+  font-size: var(--text-sm); color: var(--text-primary); font-weight: 500;
+  padding: 8px 10px; background: var(--color-surface-2); border-radius: var(--radius-sm);
+  min-height: 36px; display: flex; align-items: center;
+}
+
+@media (max-width: 640px) {
+  .cd-buscador { flex-direction: column; align-items: stretch; }
+  .cd-serie-inputs { flex-wrap: wrap; }
+  .cd-field-lg { grid-column: span 1; }
+}
+</style>
+
+<!-- ═══ MODAL: Consulta por D.N.I. ═══ -->
+<div class="modal-backdrop" id="modalCdDni" style="display:none">
+  <div class="modal" style="max-width:780px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="user-round-search"></i> Buscar por D.N.I.</div>
+      <button class="modal-close" onclick="ConsultaDocs.cerrarModalDni()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row" style="flex-wrap:wrap;gap:16px">
+        <div class="form-group" style="flex:2;min-width:220px">
+          <label class="form-label-pers">Nombre Pasajero</label>
+          <input type="text" id="cdDniNombre" class="form-control" readonly placeholder="Se completa al buscar" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">D.N.I.</label>
+          <input type="text" id="cdDniValor" class="form-control" placeholder="73090892" maxlength="15" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Fecha de Viaje — Desde</label>
+          <input type="date" id="cdDniDesde" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Fecha de Viaje — Hasta</label>
+          <input type="date" id="cdDniHasta" class="form-control" />
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:16px">
+        <button type="button" class="btn btn-ghost" onclick="ConsultaDocs.cerrarModalDni()">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="ConsultaDocs.buscarPorDni()"><i data-lucide="search"></i> Buscar</button>
+      </div>
+
+      <div class="cd-seccion-titulo" style="margin-top:0"><i data-lucide="list"></i> Resultados</div>
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nombre Pasajero</th>
+              <th>Fecha Viaje</th>
+              <th>Horario</th>
+              <th>Asiento</th>
+              <th>N° Bol./Fact.</th>
+              <th>Ruta</th>
+            </tr>
+          </thead>
+          <tbody id="cdDniTbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Ingresa un D.N.I. y presiona Buscar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ma-toast" id="cdToast"></div>
+
+<script>
+var ConsultaDocs = (function () {
+
+  var ESTADO_LABEL = { vendido: 'Vendido', reservado: 'Reservado', postergado: 'Postergado', anulado: 'Anulado', usado: 'Usado (transferido)', reintegro: 'Reintegro' };
+  var MOV_CLASE = {
+    venta: 'cd-mov-tipo-venta', reserva: 'cd-mov-tipo-reservado', postergacion: 'cd-mov-tipo-postergado',
+    anulacion: 'cd-mov-tipo-anulado', habilitacion: 'cd-mov-tipo-habilitado', activacion_transferida: 'cd-mov-tipo-activado',
+    reintegro: 'cd-mov-tipo-reintegro'
+  };
+
+  function toast(msg, tipo) {
+    var el = document.getElementById('cdToast');
+    el.textContent = msg;
+    el.className = 'ma-toast ma-toast-' + (tipo || 'ok') + ' ma-toast-visible';
+    setTimeout(function () { el.className = 'ma-toast'; }, 3000);
+  }
+
+  function cambiarTipo(tipo) {
+    var esBoleto = tipo === 'boleto';
+    document.getElementById('cdTipoBtnBoleto').classList.toggle('active', esBoleto);
+    document.getElementById('cdTipoBtnDni').classList.toggle('active', !esBoleto);
+    document.getElementById('cdSerieInputs').style.display = esBoleto ? '' : 'none';
+    if (!esBoleto) abrirModalDni();
+  }
+
+  function consultarBoleto() {
+    var empresaId = document.getElementById('cdEmpresa').value;
+    var serie = document.getElementById('cdSerie').value.trim();
+    var correlativo = document.getElementById('cdCorrelativo').value.trim();
+    if (!serie || !correlativo) { toast('Ingresa la serie y el correlativo.', 'error'); return; }
+    var url = '/consulta-documentos/boleto?serie=' + encodeURIComponent(serie) + '&correlativo=' + encodeURIComponent(correlativo);
+    if (empresaId) url += '&empresa_id=' + encodeURIComponent(empresaId);
+    fetch(url).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.error) { toast(d.error, 'error'); return; }
+      pintarDetalle(d);
+    }).catch(function () { toast('Error de conexión al consultar.', 'error'); });
+  }
+
+  function consultarPorId(id) {
+    fetch('/consulta-documentos/boleto/' + id).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.error) { toast(d.error, 'error'); return; }
+      document.getElementById('cdSerie').value = d.serie || '';
+      document.getElementById('cdCorrelativo').value = d.correlativo || '';
+      if (d.empresaId) document.getElementById('cdEmpresa').value = d.empresaId;
+      pintarDetalle(d);
+      cerrarModalDni();
+    }).catch(function () { toast('Error de conexión al consultar.', 'error'); });
+  }
+
+  function pintarDetalle(d) {
+    document.getElementById('cdDetalleSubtitulo').textContent = (d.serie || '') + '-' + pad8(d.correlativo) + (d.esFactura ? ' · Factura' : ' · Boleta');
+    var pill = document.getElementById('cdEstadoPill');
+    pill.style.display = '';
+    pill.textContent = ESTADO_LABEL[d.estado] || d.estado;
+    pill.className = 'cd-estado-pill cmp-badge-' + d.estado;
+
+    document.getElementById('cdDestino').textContent  = (d.origen || '?') + ' → ' + (d.destino || '?') + (d.servicio ? ' (' + d.servicio + ')' : '');
+    document.getElementById('cdAsiento').textContent   = d.numeroAsiento != null ? ('N° ' + d.numeroAsiento + ' (Piso ' + (d.piso || 1) + ')') : '—';
+    document.getElementById('cdNombre').textContent    = d.nombreCompleto || '—';
+    document.getElementById('cdEdad').textContent      = d.edad != null ? d.edad : '—';
+    document.getElementById('cdDocumento').textContent = (d.tipoDocumento || 'DNI') + ': ' + (d.numeroDocumento || '—');
+    document.getElementById('cdFechaEmision').textContent = formatearFecha(d.creadoEn);
+    document.getElementById('cdRuc').textContent        = d.ruc || '—';
+    document.getElementById('cdRazonSocial').textContent = d.razonSocial || '—';
+    document.getElementById('cdFechaViaje').textContent = formatearFecha(d.fechaSalida);
+    document.getElementById('cdHora').textContent       = formatearHora(d.fechaSalida);
+    document.getElementById('cdPlaca').textContent      = d.placa || '—';
+    document.getElementById('cdPrecio').textContent     = d.precio != null ? ('S/ ' + Number(d.precio).toFixed(2)) : '—';
+    document.getElementById('cdUsuario').textContent    = d.usuario || '—';
+    document.getElementById('cdAgencia').textContent    = d.agenciaEmbarque || d.agenciaVendedor || '—';
+    document.getElementById('cdEmpresaNombre').textContent = d.empresaNombre || '—';
+
+    var mov = document.getElementById('cdMovimientos');
+    if (!d.movimientosTexto || d.movimientosTexto === 'Sin movimientos registrados.') {
+      mov.innerHTML = '<span class="cd-placeholder">Sin movimientos registrados.</span>';
+    } else {
+      mov.innerHTML = d.movimientosTexto.split(' / ').map(function (linea) {
+        var partes = linea.trim().split(' ');
+        var tipoTexto = partes[0];
+        var clase = 'cd-mov-tipo';
+        Object.keys(MOV_CLASE).forEach(function (k) {
+          if (tipoTexto.toUpperCase().indexOf(k.slice(0, 4).toUpperCase()) === 0) clase += ' ' + MOV_CLASE[k];
+        });
+        return '<span class="cd-mov-item"><span class="' + clase + '">' + partes[0] + (partes[1] === '(otra' ? ' ' + partes[1] + ' ' + partes[2] : '') + '</span> ' +
+          linea.substring(linea.indexOf(' ') + 1) + '</span>';
+      }).join('');
+    }
+  }
+
+  function pad8(n) { return String(n || 0).padStart(8, '0'); }
+
+  function formatearFecha(iso) {
+    if (!iso) return '—';
+    var f = new Date(iso);
+    return f.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function formatearHora(iso) {
+    if (!iso) return '—';
+    var f = new Date(iso);
+    return f.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  function abrirModalDni() {
+    document.getElementById('modalCdDni').style.display = 'flex';
+  }
+  function cerrarModalDni() {
+    document.getElementById('modalCdDni').style.display = 'none';
+    document.getElementById('cdTipoBtnBoleto').classList.add('active');
+    document.getElementById('cdTipoBtnDni').classList.remove('active');
+    document.getElementById('cdSerieInputs').style.display = '';
+  }
+
+  function buscarPorDni() {
+    var dni = document.getElementById('cdDniValor').value.trim();
+    var desde = document.getElementById('cdDniDesde').value;
+    var hasta = document.getElementById('cdDniHasta').value;
+    var nombre = document.getElementById('cdDniNombre').value.trim();
+    if (!dni && !nombre) { toast('Ingresa un D.N.I. (o un nombre).', 'error'); return; }
+
+    var url = '/consulta-documentos/buscar-dni?';
+    var params = [];
+    if (dni) params.push('dni=' + encodeURIComponent(dni));
+    if (nombre) params.push('nombre=' + encodeURIComponent(nombre));
+    if (desde) params.push('desde=' + encodeURIComponent(desde));
+    if (hasta) params.push('hasta=' + encodeURIComponent(hasta));
+    url += params.join('&');
+
+    var tbody = document.getElementById('cdDniTbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Buscando…</td></tr>';
+
+    fetch(url).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.error) { toast(d.error, 'error'); tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--color-error)">' + d.error + '</td></tr>'; return; }
+      var resultados = d.resultados || [];
+      if (!resultados.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No se encontraron boletos ni facturas.</td></tr>';
+        return;
+      }
+      document.getElementById('cdDniNombre').value = resultados[0].nombrePasajero || '';
+      tbody.innerHTML = resultados.map(function (r) {
+        return '<tr class="cd-fila-resultado" style="cursor:pointer" onclick="ConsultaDocs.seleccionarResultado(\'' + r.id + '\')">' +
+          '<td>' + (r.nombrePasajero || '—') + '</td>' +
+          '<td>' + formatearFecha(r.fechaViaje) + '</td>' +
+          '<td>' + formatearHora(r.fechaViaje) + '</td>' +
+          '<td>' + r.asiento + '</td>' +
+          '<td>' + r.numeroBoleto + '</td>' +
+          '<td>' + r.ruta + '</td>' +
+          '</tr>';
+      }).join('');
+    }).catch(function () {
+      toast('Error de conexión al buscar.', 'error');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--color-error)">Error de conexión.</td></tr>';
+    });
+  }
+
+  function seleccionarResultado(id) {
+    consultarPorId(id);
+  }
+
+  return {
+    cambiarTipo, consultarBoleto, abrirModalDni, cerrarModalDni, buscarPorDni, seleccionarResultado
+  };
+})();
+</script>

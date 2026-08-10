@@ -1,0 +1,138 @@
+<!-- VIEW: boletaje/asistencia.hbs — Control de Embarque -->
+
+<div class="asis-topbar">
+  <a href="/boletaje" class="btn btn-ghost"><i data-lucide="arrow-left"></i> Volver a Boletaje</a>
+  <div class="asis-resumen" id="asisResumen">Cargando…</div>
+</div>
+
+<div class="asis-info card" id="asisInfo"></div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table class="table" id="asisTabla">
+      <thead>
+        <tr>
+          <th>Asiento</th>
+          <th>N° Boleto</th>
+          <th>Pasajero</th>
+          <th class="hide-sm">Documento</th>
+          <th class="hide-sm">Embarque</th>
+          <th class="hide-sm">Destino</th>
+          <th>Estado</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="asisTbody">
+        <tr><td colspan="8" class="text-muted" style="text-align:center;padding:24px">Cargando pasajeros…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="ma-toast" id="asisToast"></div>
+
+<style>
+.asis-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom: var(--space-4); flex-wrap:wrap; gap:10px; }
+.asis-resumen { display:flex; gap:14px; font-size:var(--text-sm); font-weight:700; }
+.asis-resumen span { padding:5px 12px; border-radius:var(--radius-full); }
+.asis-resumen .r-total     { background:var(--color-surface-2); color:var(--text-secondary); }
+.asis-resumen .r-embarco   { background:var(--color-success-light); color:var(--color-success); }
+.asis-resumen .r-noembarco { background:var(--color-error-light); color:var(--color-error); }
+.asis-resumen .r-pendiente { background:var(--color-warning-light); color:var(--color-warning); }
+.asis-info { padding: var(--space-4); font-size: var(--text-sm); color: var(--text-secondary); display:flex; gap:24px; flex-wrap:wrap; }
+.asis-info b { color: var(--text-primary); }
+.asis-btn-row { display:flex; gap:6px; }
+.asis-btn-row button {
+  border:1px solid var(--color-border); background:white; border-radius:var(--radius-md);
+  padding:6px 10px; font-size:var(--text-xs); font-weight:700; cursor:pointer;
+}
+.asis-btn-embarco:hover, .asis-btn-embarco.activo { background:var(--color-success); color:white; border-color:var(--color-success); }
+.asis-btn-noembarco:hover, .asis-btn-noembarco.activo { background:var(--color-error); color:white; border-color:var(--color-error); }
+.asis-estado-badge { padding:3px 10px; border-radius:var(--radius-full); font-size:var(--text-xs); font-weight:700; }
+.asis-estado-embarco   { background:var(--color-success-light); color:var(--color-success); }
+.asis-estado-noembarco { background:var(--color-error-light); color:var(--color-error); }
+.asis-estado-pendiente { background:var(--color-warning-light); color:var(--color-warning); }
+</style>
+
+<script>
+(function () {
+  var progId = '{{programacionId}}';
+
+  function toast(msg, tipo) {
+    var el = document.getElementById('asisToast');
+    el.textContent = msg;
+    el.className = 'ma-toast ma-toast-' + (tipo || 'ok') + ' ma-toast-visible';
+    setTimeout(function () { el.className = 'ma-toast'; }, 2500);
+  }
+
+  function cargar() {
+    fetch('/boletaje/' + progId + '/asistencia-datos', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { toast('Error: ' + data.error, 'error'); return; }
+        pintar(data);
+      })
+      .catch(function () { toast('Error de conexión.', 'error'); });
+  }
+
+  function pintar(data) {
+    var p = data.programacion;
+    document.getElementById('asisInfo').innerHTML =
+      '<div><b>Ruta:</b> ' + (p.ciudad_origen || '—') + ' → ' + (p.ciudad_destino || '—') + '</div>' +
+      '<div><b>Fecha:</b> ' + p.fecha_salida + '</div>' +
+      '<div><b>Placa:</b> ' + (p.placa || '—') + '</div>' +
+      '<div><b>Servicio:</b> ' + (p.servicio || '—') + '</div>';
+
+    var boletos = data.boletos || [];
+    var embarco = boletos.filter(function (b) { return b.embarco_estado === 'embarco'; }).length;
+    var noEmbarco = boletos.filter(function (b) { return b.embarco_estado === 'no_embarco'; }).length;
+    var pendiente = boletos.length - embarco - noEmbarco;
+    document.getElementById('asisResumen').innerHTML =
+      '<span class="r-total">Total: ' + boletos.length + '</span>' +
+      '<span class="r-embarco">Embarcó: ' + embarco + '</span>' +
+      '<span class="r-noembarco">No embarcó: ' + noEmbarco + '</span>' +
+      '<span class="r-pendiente">Pendiente: ' + pendiente + '</span>';
+
+    var tbody = document.getElementById('asisTbody');
+    if (boletos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-muted" style="text-align:center;padding:24px">No hay pasajeros registrados en esta salida.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = boletos.map(function (b) {
+      var numBoleto = (b.serie && b.correlativo) ? (b.serie + '-' + String(b.correlativo).padStart(7, '0')) : '—';
+      var estadoTxt = b.embarco_estado === 'embarco' ? 'Embarcó' : b.embarco_estado === 'no_embarco' ? 'No embarcó' : 'Pendiente';
+      var estadoClase = b.embarco_estado === 'embarco' ? 'asis-estado-embarco' : b.embarco_estado === 'no_embarco' ? 'asis-estado-noembarco' : 'asis-estado-pendiente';
+      return (
+        '<tr>' +
+        '<td><strong>' + b.numero_asiento + '</strong> <span class="text-muted">(Piso ' + b.piso + ')</span></td>' +
+        '<td><code class="code-text">' + numBoleto + '</code></td>' +
+        '<td>' + (b.nombre_completo || '—') + '</td>' +
+        '<td class="hide-sm">' + (b.tipo_documento || '') + ' ' + (b.numero_documento || '—') + '</td>' +
+        '<td class="hide-sm">' + (b.agencia_embarque ? b.agencia_embarque.nombre : '—') + '</td>' +
+        '<td class="hide-sm">' + (b.agencia_llegada ? b.agencia_llegada.nombre : '—') + '</td>' +
+        '<td><span class="asis-estado-badge ' + estadoClase + '">' + estadoTxt + '</span></td>' +
+        '<td>' +
+        '<div class="asis-btn-row">' +
+        '<button class="asis-btn-embarco ' + (b.embarco_estado === 'embarco' ? 'activo' : '') + '" onclick="marcar(\'' + b.id + '\',\'embarco\')">Embarcó</button>' +
+        '<button class="asis-btn-noembarco ' + (b.embarco_estado === 'no_embarco' ? 'activo' : '') + '" onclick="marcar(\'' + b.id + '\',\'no_embarco\')">No embarcó</button>' +
+        '</div></td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  window.marcar = function (boletoId, estado) {
+    fetch('/boletaje/' + progId + '/asistencia', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ boleto_id: boletoId, embarco_estado: estado })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.ok) { toast('Actualizado.', 'ok'); cargar(); }
+      else toast('Error: ' + (r.error || ''), 'error');
+    }).catch(function () { toast('Error de conexión.', 'error'); });
+  };
+
+  cargar();
+  if (window.lucide) lucide.createIcons();
+})();
+</script>

@@ -15,9 +15,25 @@ router.use(requireAuth);
 
 function puedeCrear(u) { return u.rol === 'admin' || u.puede_crear_codigos === true; }
 
-// ─── GET / — Lista de códigos ──
-router.get('/', async (req, res) => {
+// La ventana de Códigos de Autorización (verla, crearlos, activarlos/
+// desactivarlos) es SOLO para admin o usuarios con el permiso
+// puede_crear_codigos. Cualquier otro usuario que intente entrar es
+// redirigido — aunque pueda seguir USANDO los códigos al vender,
+// desde la pantalla de Boletaje (GET /codigos/validar/:codigo, más
+// abajo, que sí queda abierta a todos los autenticados).
+async function requireAccesoCodigos(req, res, next) {
   const u = await usuarioActualFresco(req.session.user);
+  if (!puedeCrear(u)) {
+    req.flash('error', 'No tienes permiso para ver esta sección.');
+    return res.redirect('/dashboard');
+  }
+  req.usuarioFresco = u;
+  next();
+}
+
+// ─── GET / — Lista de códigos (SOLO admin / autorizados) ──
+router.get('/', requireAccesoCodigos, async (req, res) => {
+  const u = req.usuarioFresco;
   const { data: codigos, error } = await db.select('codigos_autorizacion',
     'select=id,codigo,monto,descripcion,activo,creado_en,creador:usuarios!creado_por(nombre)&order=creado_en.desc');
   if (error) console.error('codigos list:', error);
@@ -73,12 +89,18 @@ router.post('/:id/activo', async (req, res) => {
 });
 
 // ─── GET /validar/:codigo — Valida un código al vender (cualquier usuario) ──
+// Nota: esta validación es solo para feedback inmediato en pantalla.
+// El bloqueo real de "un solo uso" ocurre de forma atómica dentro de
+// la función SQL registrar_venta_asiento (evita condiciones de carrera
+// si dos personas intentan usar el mismo código al mismo tiempo).
 router.get('/validar/:codigo', async (req, res) => {
   const codigo = String(req.params.codigo).trim().toUpperCase();
   const { data, error } = await db.select('codigos_autorizacion',
-    `select=codigo,monto,descripcion&codigo=eq.${encodeURIComponent(codigo)}&activo=eq.true&limit=1`);
+    `select=codigo,monto,descripcion,activo,usado&codigo=eq.${encodeURIComponent(codigo)}&limit=1`);
   if (error) return res.status(500).json({ error: error.message });
-  if (!data || data.length === 0) return res.status(404).json({ error: 'Código no válido o inactivo.' });
+  if (!data || data.length === 0) return res.status(404).json({ error: 'Código no válido.' });
+  if (!data[0].activo) return res.status(404).json({ error: 'Código inactivo.' });
+  if (data[0].usado) return res.status(409).json({ error: 'Este código ya fue usado en otro boleto.' });
   res.json({ ok: true, codigo: data[0].codigo, monto: data[0].monto, descripcion: data[0].descripcion });
 });
 

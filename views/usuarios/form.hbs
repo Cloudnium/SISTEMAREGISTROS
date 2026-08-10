@@ -87,6 +87,11 @@
         <span>Puede habilitar</span>
       </label>
       <label class="form-check-label">
+        <input type="checkbox" name="puede_reintegro" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_reintegro}}checked{{/if}}{{else}}checked{{/if}} />
+        <span>Puede usar Reintegro</span>
+      </label>
+      <label class="form-check-label">
         <input type="checkbox" name="puede_crear_codigos" class="form-check"
                {{#if usuario}}{{#if usuario.puede_crear_codigos}}checked{{/if}}{{/if}} />
         <span>Puede crear códigos de autorización</span>

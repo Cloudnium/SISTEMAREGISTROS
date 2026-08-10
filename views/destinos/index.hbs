@@ -10,6 +10,7 @@
       <h3 class="ciu-panel-titulo">Definir Par de Ruta</h3>
     </div>
 
+    {{#if isAdmin}}
     <form action="/destinos" method="POST" class="ciu-form" id="formDestino">
 
       <!-- Ciudad Origen -->
@@ -48,6 +49,7 @@
       </button>
 
     </form>
+    {{/if}}
 
     {{#unless ciudades.length}}
     <div class="ciu-empty" style="padding: var(--space-4)">
@@ -90,13 +92,16 @@
                 {{#each ciudadesAdicionales}}
                 <span class="dest-chip">
                   {{ciudades.nombre}}
+                  {{#if ../../isAdmin}}
                   <form method="POST" action="/destinos/{{../id}}/ciudad-adicional/{{ciudad_id}}/eliminar"
                         onsubmit="return confirm('¿Quitar {{ciudades.nombre}} de esta ruta?')" style="display:inline">
                     <button type="submit" title="Quitar">×</button>
                   </form>
+                  {{/if}}
                 </span>
                 {{/each}}
               </div>
+              {{#if ../isAdmin}}
               <form method="POST" action="/destinos/{{id}}/ciudad-adicional" class="dest-add-form">
                 <select name="ciudad_id" class="form-control dest-add-select" required>
                   <option value="">+ Agregar ciudad…</option>
@@ -106,6 +111,7 @@
                 </select>
                 <button type="submit" class="btn-icon" title="Agregar"><i data-lucide="plus"></i></button>
               </form>
+              {{/if}}
             </td>
             {{#if ../isAdmin}}
             <td>

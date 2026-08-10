@@ -8,13 +8,11 @@
 (function (window) {
   'use strict';
 
-  var EMPRESA = {
-    nombre: 'LINEA PERUANA COMPANY S.A.C.',
-    ruc: '20602508448',
-    direccion1: 'JUAN VELASCO ALVARADO MZA. B LOTE. 17 A.H.',
-    direccion2: 'LOS JARDINES SANTA ANITA - LIMA',
-    web: 'www.sullanaexpress.com.pe',
-    seguro: 'RIMAC'
+  // Valores de reserva por si algún comprobante muy antiguo no trae
+  // empresa (no debería pasar tras la migración multiempresa).
+  var EMPRESA_POR_DEFECTO = {
+    nombre: '—', ruc: '—', direccion1: '', direccion2: '',
+    web: '', seguro: '', logo: null
   };
 
   function formatearFecha(iso) {
@@ -79,6 +77,7 @@
   //   anulado (bool)
   // }
   function generarHTML(datos) {
+    var empresa = datos.empresa || EMPRESA_POR_DEFECTO;
     var esFactura = !!(datos.ruc && String(datos.ruc).trim() !== '');
     var tipoComprobante = esFactura ? 'FACTURA ELECTRONICA' : 'BOLETA DE VENTA ELECTRONICA';
     var numComprobante = (datos.serie && datos.correlativo)
@@ -93,6 +92,10 @@
         '<div class="small">RAZON SOCIAL: ' + (datos.razonSocial || '—') + '</div>';
     }
 
+    var logoHTML = empresa.logo_data_url
+      ? '<div class="center" style="margin-bottom:4px"><img src="' + empresa.logo_data_url + '" style="max-width:120px;max-height:70px" /></div>'
+      : '';
+
     return (
       '<html><head><title>' + tipoComprobante + '</title><style>' +
       'body{font-family:"Courier New",monospace;width:300px;margin:0 auto;padding:16px;color:#111;font-size:12px;}' +
@@ -102,10 +105,12 @@
       'table{width:100%;border-collapse:collapse;font-size:11px}' +
       'td{vertical-align:top;padding:1px 0}' +
       '</style></head><body>' +
-      '<div class="center bold big">' + EMPRESA.nombre + '</div>' +
-      '<div class="center">RUC: ' + EMPRESA.ruc + '</div>' +
-      '<div class="center">' + EMPRESA.direccion1 + '</div>' +
-      '<div class="center">' + EMPRESA.direccion2 + '</div>' +
+      logoHTML +
+      '<div class="center bold big">' + (empresa.razon_social || empresa.nombre || '—') + '</div>' +
+      '<div class="center">RUC: ' + (empresa.ruc || '—') + '</div>' +
+      (empresa.domicilio_fiscal ? '<div class="center">' + empresa.domicilio_fiscal + '</div>' : '') +
+      (empresa.direccion1 ? '<div class="center">' + empresa.direccion1 + '</div>' : '') +
+      (empresa.direccion2 ? '<div class="center">' + empresa.direccion2 + '</div>' : '') +
       '<div class="center bold" style="margin-top:6px">' + tipoComprobante + '</div>' +
       '<div class="center bold big">' + numComprobante + (datos.anulado ? '  [ANULADO]' : '') + '</div>' +
       datosFacturaHTML +
@@ -134,12 +139,9 @@
       '<div class="small">FECHA EMISION: ' + ahora.toLocaleDateString('es-PE') + '</div>' +
       '<div class="small">USUARIO: ' + (datos.usuario || '—') + '</div>' +
       '<div class="small">HORA IMPRES: ' + ahora.toLocaleTimeString('es-PE', { hour: 'numeric', minute: '2-digit' }) + '</div>' +
+      (datos.polizaBus ? '<div class="line"></div><div class="small center">Los Pasajeros viajan asegurados — Poliza SOAT: ' + datos.polizaBus + '</div>' : '') +
       '<div class="line"></div>' +
-      '<div class="small center">Los Pasajeros viajan asegurados en<br/>la Cia. de Seguros: ' + EMPRESA.seguro +
-      (datos.polizaBus ? '<br/>- Poliza: ' + datos.polizaBus : '') + '</div>' +
-      '<div class="line"></div>' +
-      '<div class="small center">Representación impresa del Documento Electrónico, esta puede ser consultado en:<br/>' + EMPRESA.web + '</div>' +
-      '<div class="small" style="margin-top:8px">Al recibir el presente DOCUMENTO, acepto todos los términos y condiciones del contrato del servicio de transporte detallado en el mismo, los cuales también se encuentran publicados en la página web: ' + EMPRESA.web + '</div>' +
+      '<div class="small" style="margin-top:8px">Al recibir el presente DOCUMENTO, acepto todos los términos y condiciones del contrato del servicio de transporte detallado en el mismo.</div>' +
       '</body></html>'
     );
   }
@@ -158,7 +160,6 @@
     generarHTML: generarHTML,
     imprimir: imprimir,
     numeroALetras: numeroALetras,
-    formatearFecha: formatearFecha,
-    EMPRESA: EMPRESA
+    formatearFecha: formatearFecha
   };
 })(window);

@@ -5,7 +5,7 @@
 const express = require('express');
 const router  = express.Router();
 const { db }  = require('../config/supabase');
-const { requireAuth, requireAdminToDelete } = require('../middleware/auth');
+const { requireAuth, requireAdminToCreate, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
 
 // ─── GET / — Lista destinos + carga combos ────
 router.get('/', requireAuth, async (req, res) => {
@@ -47,7 +47,7 @@ router.get('/', requireAuth, async (req, res) => {
 
 // ─── POST /:id/ciudad-adicional — Agrega una ciudad adicional de llegada ──
 // (ej: además de SULLANA, ofrecer también agencias de PIURA en esa misma ruta)
-router.post('/:id/ciudad-adicional', requireAuth, async (req, res) => {
+router.post('/:id/ciudad-adicional', requireAuth, requireAdminToEdit, async (req, res) => {
   const { ciudad_id } = req.body;
   if (!ciudad_id) {
     req.flash('error', 'Selecciona una ciudad para agregar.');
@@ -67,7 +67,7 @@ router.post('/:id/ciudad-adicional', requireAuth, async (req, res) => {
 });
 
 // ─── POST /:id/ciudad-adicional/:ciudadId/eliminar ──
-router.post('/:id/ciudad-adicional/:ciudadId/eliminar', requireAuth, async (req, res) => {
+router.post('/:id/ciudad-adicional/:ciudadId/eliminar', requireAuth, requireAdminToEdit, async (req, res) => {
   const { error } = await db.delete('destino_ciudades_adicionales',
     `destino_id=eq.${req.params.id}&ciudad_id=eq.${req.params.ciudadId}`);
   if (error) req.flash('error', 'Error al quitar: ' + error.message);
@@ -84,8 +84,8 @@ router.get('/agencias-por-ciudad/:ciudadId', requireAuth, async (req, res) => {
   res.json(data || []);
 });
 
-// ─── POST / — Crear destino ───────────────────
-router.post('/', requireAuth, async (req, res) => {
+// ─── POST / — Crear destino — SOLO admin ─────
+router.post('/', requireAuth, requireAdminToCreate, async (req, res) => {
   const { ciudad_origen, ciudad_destino, agencia_id } = req.body;
   if (!ciudad_origen || !ciudad_destino || !agencia_id) {
     req.flash('error', 'Ciudad Origen, Ciudad Destino y Agencia son obligatorios.');

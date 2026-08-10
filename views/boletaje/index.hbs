@@ -25,14 +25,23 @@
   </form>
 </div>
 
-<!-- ── Resultados ── -->
-{{#if buscado}}
-  {{#if salidas.length}}
+<!-- ── Resultados: agrupados por ruta ── -->
+{{#if grupos.length}}
+  {{#each grupos}}
+  <div class="bol-grupo-ruta">
+    <div class="bol-grupo-ruta-titulo">
+      <i data-lucide="route"></i>
+      <span class="bol-grupo-origen">{{rutaOrigen}}</span>
+      <span class="bol-grupo-flecha">→</span>
+      <span class="bol-grupo-destino">{{rutaDestino}}</span>
+      <span class="bol-grupo-cant">{{salidas.length}} salida{{#if (gt salidas.length 1)}}s{{/if}}</span>
+    </div>
   <div class="card">
     <div class="table-wrapper">
       <table class="table bol-table">
         <thead>
           <tr>
+            <th>Empresa</th>
             <th>Servicio</th>
             <th>Ruta e Itinerario de Agencias</th>
             <th>Precios</th>
@@ -43,6 +52,22 @@
         <tbody>
           {{#each salidas}}
           <tr class="bol-row bol-row-clickable" onclick="BOL.abrirCroquis('{{id}}')" title="Ver croquis y vender asientos">
+
+            <!-- EMPRESA -->
+            <td class="bol-empresa-cell">
+              {{#if buses.empresas}}
+                {{#if buses.empresas.logo_data_url}}
+                <img src="{{buses.empresas.logo_data_url}}" alt="{{buses.empresas.razon_social}}"
+                     title="{{buses.empresas.razon_social}}" class="bol-empresa-logo" />
+                {{else}}
+                <span class="bol-empresa-logo bol-empresa-logo-vacio" title="{{buses.empresas.razon_social}}">
+                  <i data-lucide="building-2"></i>
+                </span>
+                {{/if}}
+              {{else}}
+                <span class="text-muted">—</span>
+              {{/if}}
+            </td>
 
             <!-- SERVICIO -->
             <td>
@@ -106,15 +131,15 @@
             <!-- ACCIONES: Croquis y Manifiesto (no abren la venta; eso lo hace la fila) -->
             <td onclick="event.stopPropagation()">
               <div class="bol-acciones">
-                <button class="btn btn-sm bol-btn-croquis" title="Croquis (próximamente)"
-                        onclick="event.stopPropagation()">
+                <button class="btn btn-sm bol-btn-croquis" title="Ver / editar croquis del bus"
+                        onclick="event.stopPropagation();BOL.abrirTripulacion('{{id}}','croquis')">
                   <i data-lucide="bus"></i> Croquis
                 </button>
-                <button class="btn btn-sm bol-btn-manifiesto" title="Manifiesto (próximamente)"
-                        onclick="event.stopPropagation()">
+                <button class="btn btn-sm bol-btn-manifiesto" title="Ver / editar manifiesto"
+                        onclick="event.stopPropagation();BOL.abrirTripulacion('{{id}}','manifiesto')">
                   <i data-lucide="file-text"></i> Manifiesto
                 </button>
-                {{#if ../puedeEditarPrecios}}
+                {{#if ../../puedeEditarPrecios}}
                 <button class="btn btn-sm bol-btn-editar-precio"
                         title="Editar precio / horario"
                         onclick="event.stopPropagation();BOL.abrirEditarPrecio('{{id}}','{{precio_piso1}}','{{precio_piso2}}','{{#if escalas.[0]}}{{escalas.[0].hora}}{{/if}}')">
@@ -130,23 +155,14 @@
       </table>
     </div>
   </div>
-
-  {{else}}
-  <!-- Sin resultados para esa fecha/destino -->
-  <div class="card">
-    <div class="empty-state">
-      <i data-lucide="calendar-x"></i>
-      <p>No hay salidas publicadas para los filtros seleccionados.</p>
-    </div>
   </div>
-  {{/if}}
-
+  {{/each}}
 {{else}}
-<!-- Estado inicial: aún no se ha buscado -->
+<!-- Sin resultados para esa fecha/destino -->
 <div class="card">
   <div class="empty-state">
-    <i data-lucide="search"></i>
-    <p>Selecciona una fecha y presiona <strong>Buscar Salidas</strong>.</p>
+    <i data-lucide="calendar-x"></i>
+    <p>No hay salidas publicadas para los filtros seleccionados.</p>
   </div>
 </div>
 {{/if}}
@@ -185,9 +201,9 @@
         </div>
         <div class="bol-leyenda">
           <span class="bol-leyenda-item"><i class="bol-dot bol-dot-libre"></i>Libre</span>
-          <span class="bol-leyenda-item"><i class="bol-dot bol-dot-vendido"></i>Vendido</span>
           <span class="bol-leyenda-item"><i class="bol-dot bol-dot-reservado"></i>Reservado</span>
-          <span class="bol-leyenda-item"><i class="bol-dot bol-dot-postergado"></i>Postergado</span>
+          <span class="bol-leyenda-item"><i class="bol-dot" style="background:#111827"></i>Transferido de otra empresa</span>
+          <span class="bol-leyenda-item"><i class="bol-dot" style="background:#9333ea"></i>Reintegro</span>
         </div>
       </div>
       <div class="bol-leyenda bol-leyenda-agencias" id="bolLeyendaAgencias" style="display:none"></div>
@@ -331,6 +347,7 @@
         <button class="bol-btn-anular-asiento" id="bolBtnAnular" onclick="BOL.accion('anular')"><i data-lucide="x-circle"></i> Anular</button>
         <button id="bolBtnPostergar" onclick="BOL.accion('postergar')"><i data-lucide="calendar-clock"></i> Postergar</button>
         <button class="bol-btn-habilitar-asiento" id="bolBtnHabilitar" onclick="BOL.abrirHabilitar()"><i data-lucide="power"></i> Habilitar</button>
+        <button class="bol-btn-reintegro-asiento" id="bolBtnReintegro" onclick="BOL.abrirReintegro()"><i data-lucide="rotate-ccw"></i> Reintegro</button>
         <button class="bol-btn-reservar-asiento" id="bolBtnReservar" onclick="BOL.accion('reservar')"><i data-lucide="bookmark"></i> Reservar</button>
         <button onclick="BOL.imprimir()"><i data-lucide="printer"></i> Imprimir</button>
       </div>
@@ -352,6 +369,9 @@
       <p class="bol-habilitar-desc">
         Ingresa la serie y el correlativo del boleto o factura (por ejemplo, uno emitido
         fuera del sistema) para activarlo en el asiento seleccionado.
+        Si ese número pertenece a un boleto postergado/reservado de <b>otra empresa</b>,
+        se generará un boleto nuevo con la numeración de esta empresa y el original
+        quedará marcado como usado.
       </p>
       <div class="bol-venta-row">
         <div>
@@ -374,7 +394,214 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: Reintegro ═══ -->
+<div class="modal-backdrop" id="bolModalReintegro" style="display:none">
+  <div class="modal bol-modal-reintegro">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="tag"></i> Reintegro</div>
+      <button class="modal-close" onclick="BOL.cerrarReintegro()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="bol-habilitar-desc">Selecciona una opción para procesar el reintegro de tu boleto.</p>
+      <p class="bol-reintegro-subtitulo">Para el boleto actual…</p>
+
+      <label class="bol-reintegro-label">Boleto a procesar</label>
+      <div class="bol-venta-row" style="align-items:flex-end">
+        <div>
+          <label>Serie</label>
+          <input type="text" class="form-control" id="bolReSerie" placeholder="Serie"
+                 maxlength="10" oninput="this.value=this.value.toUpperCase()" />
+        </div>
+        <div>
+          <label>Correlativo</label>
+          <input type="number" class="form-control" id="bolReCorrelativo" placeholder="Correlativo" min="1" />
+        </div>
+        <div>
+          <button type="button" class="btn btn-ghost" onclick="BOL.buscarOrigenReintegro()">
+            <i data-lucide="search"></i> Buscar
+          </button>
+        </div>
+      </div>
+      <div id="bolReOrigenPreview" class="bol-reintegro-preview" style="display:none"></div>
+
+      <div class="bol-reintegro-opciones">
+        <label class="bol-reintegro-opcion">
+          <input type="radio" name="bolReTipo" value="1" checked onchange="BOL.cambiarTipoReintegro(1)" />
+          <i data-lucide="tag"></i>
+          <span>1.- Reintegro por Variación de Precio Pasaje (Cambio de Serv.)</span>
+        </label>
+        <label class="bol-reintegro-opcion">
+          <input type="radio" name="bolReTipo" value="2" onchange="BOL.cambiarTipoReintegro(2)" />
+          <i data-lucide="id-card"></i>
+          <span>2.- Cambio de Nombre o Pérdida de Boleto</span>
+        </label>
+      </div>
+
+      <div class="bol-venta-row">
+        <div>
+          <label>Precio del nuevo boleto (S/)</label>
+          <input type="number" class="form-control" id="bolRePrecio" step="0.01" min="0" />
+        </div>
+        <div>
+          <label>Método de pago</label>
+          <select class="form-control" id="bolReMetodoPago">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="yape">Yape</option>
+            <option value="plin">Plin</option>
+            <option value="transferencia">Transferencia</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="bol-reintegro-subtitulo">Agencias de esta salida</p>
+      <div class="bol-venta-row">
+        <div>
+          <label>Agencia de Embarque</label>
+          <select class="form-control" id="bolReAgenciaOrigen">
+            <option value="">— Selecciona —</option>
+          </select>
+        </div>
+        <div>
+          <label>Agencia de Destino</label>
+          <select class="form-control" id="bolReAgenciaDestino">
+            <option value="">— Selecciona —</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="bolReCambioNombre" style="display:none">
+        <p class="bol-reintegro-subtitulo">Nuevos datos del pasajero</p>
+        <div class="bol-venta-row">
+          <div>
+            <label>Tipo Documento</label>
+            <select class="form-control" id="bolReTipoDoc">
+              <option value="DNI">DNI</option>
+              <option value="CE">Carné Ext.</option>
+              <option value="Pasaporte">Pasaporte</option>
+            </select>
+          </div>
+          <div>
+            <label>Número Documento</label>
+            <input type="text" class="form-control" id="bolReNumDoc" placeholder="00000000" />
+          </div>
+        </div>
+        <label>Nombre completo</label>
+        <input type="text" class="form-control" id="bolReNombre" placeholder="Nombre completo del nuevo pasajero" />
+        <div class="bol-venta-row">
+          <div>
+            <label>Edad</label>
+            <input type="number" class="form-control" id="bolReEdad" placeholder="Edad" min="0" />
+          </div>
+          <div>
+            <label>Teléfono</label>
+            <input type="text" class="form-control" id="bolReTelefono" placeholder="999 999 999" />
+          </div>
+        </div>
+      </div>
+
+      <p class="bol-reintegro-subtitulo">Factura (opcional)</p>
+      <div class="bol-venta-row">
+        <div>
+          <label>RUC</label>
+          <input type="text" class="form-control" id="bolReRuc" placeholder="RUC (opcional)" maxlength="11" />
+        </div>
+        <div>
+          <label>Razón Social</label>
+          <input type="text" class="form-control" id="bolReRazonSocial" placeholder="Razón social" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" onclick="BOL.cerrarReintegro()"><i data-lucide="x"></i> Cancelar</button>
+      <button class="btn btn-primary" onclick="BOL.confirmarReintegro()">
+        <i data-lucide="check"></i> Aceptar
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="ma-toast" id="bolToast"></div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: Información General del Bus (Croquis / Manifiesto)
+     ═══════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="bolModalTripulacion" style="display:none">
+  <div class="modal bol-modal-tripulacion">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="search"></i> Información General del Bus</div>
+      <button class="modal-close" onclick="BOL.cerrarTripulacion()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="trip-grid">
+        <div class="trip-col">
+          <div class="trip-field">
+            <label>Propietario</label>
+            <input type="text" class="form-control" id="tripPropietario" readonly />
+          </div>
+          <div class="trip-field">
+            <label>Terramoza</label>
+            <select class="form-control" id="tripTerramoza"><option value="">— Ninguna —</option></select>
+          </div>
+          <div class="trip-field">
+            <label>Ayudante</label>
+            <select class="form-control" id="tripAyudante"><option value="">— Ninguno —</option></select>
+          </div>
+          <div class="trip-field-row">
+            <div class="trip-field">
+              <label>Marca</label>
+              <input type="text" class="form-control" id="tripMarca" readonly />
+            </div>
+            <div class="trip-field">
+              <label>Servicio</label>
+              <select class="form-control" id="tripServicio"><option value="">—</option></select>
+            </div>
+          </div>
+          <div class="trip-field">
+            <label>Piloto</label>
+            <select class="form-control" id="tripPiloto"><option value="">— Ninguno —</option></select>
+          </div>
+          <div class="trip-field-row">
+            <div class="trip-field">
+              <label>Co-Piloto 1</label>
+              <select class="form-control" id="tripCopiloto1"><option value="">— Ninguno —</option></select>
+            </div>
+            <div class="trip-field">
+              <label>Co-Piloto 2</label>
+              <select class="form-control" id="tripCopiloto2"><option value="">— Ninguno —</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="trip-col trip-col-specs">
+          <div class="trip-specs-titulo">Especificaciones y Registros</div>
+          <div class="trip-field">
+            <label>Tarj. Única Circulación</label>
+            <input type="text" class="form-control" id="tripTarjeta" readonly />
+          </div>
+          <div class="trip-field">
+            <label>Nro Asientos</label>
+            <input type="text" class="form-control" id="tripNroAsientos" readonly />
+          </div>
+          <div class="trip-field">
+            <label>Placa</label>
+            <select class="form-control" id="tripPlaca"><option value="">— Selecciona bus —</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer trip-footer">
+      <button class="btn btn-ghost" onclick="BOL.cerrarTripulacion()"><i data-lucide="x"></i> Cancelar</button>
+      <button class="btn btn-primary" onclick="BOL.guardarTripulacion()"><i data-lucide="check"></i> Aceptar</button>
+      <span class="trip-footer-spacer"></span>
+      <button class="btn-icon trip-icon-btn" title="Imprimir" onclick="BOL.imprimirTripulacion()">
+        <i data-lucide="printer"></i>
+      </button>
+      <button class="btn-icon trip-icon-btn" title="Control de embarque (asistencia)" id="tripBtnTablero" style="display:none" onclick="BOL.irAsistencia()">
+        <i data-lucide="clipboard-check"></i>
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════
      MODAL: Editar precio / horario de una salida
@@ -413,6 +640,7 @@
 </div>
 
 <script src="/js/comprobante-print.js"></script>
+<script src="/js/croquis-manifiesto-print.js"></script>
 <script>
 // ═══════════════════════════════════════════════════
 // BOL — Ventana de venta de asientos (Croquis)
@@ -505,13 +733,14 @@ var BOL = (function () {
 
   // ── Oculta/deshabilita los botones de acción según los permisos del usuario ──
   function aplicarPermisos(permisos) {
-    var mapa = { bolBtnAnular: 'puede_anular', bolBtnPostergar: 'puede_postergar', bolBtnReservar: 'puede_reservar', bolBtnHabilitar: 'puede_habilitar' };
+    var mapa = { bolBtnAnular: 'puede_anular', bolBtnPostergar: 'puede_postergar', bolBtnReservar: 'puede_reservar', bolBtnHabilitar: 'puede_habilitar', bolBtnReintegro: 'puede_reintegro' };
     Object.keys(mapa).forEach(function (btnId) {
       var btn = document.getElementById(btnId);
       var permitido = permisos[mapa[btnId]] !== false;
       btn.disabled = !permitido;
       btn.classList.toggle('bol-btn-disabled', !permitido);
       btn.title = permitido ? '' : 'No tienes permiso para realizar esta acción.';
+      btn.dataset.sinPermiso = permitido ? '0' : '1';
     });
   }
 
@@ -570,9 +799,17 @@ var BOL = (function () {
         var key = piso + '-' + asiento.numero_asiento;
         var boleto = boletosPorAsiento[key];
         var estado = boleto ? boleto.estado : 'libre';
-        var claseEstado = { libre: 'bol-libre', vendido: 'bol-vendido', reservado: 'bol-reservado', postergado: 'bol-postergado' }[estado] || 'bol-libre';
+        var claseEstado = { libre: 'bol-libre', vendido: 'bol-vendido', reservado: 'bol-reservado', postergado: 'bol-postergado', reintegro: 'bol-reintegro' }[estado] || 'bol-libre';
 
         celda.className = 'ma-asiento ' + claseEstado;
+        // El "transferido de otra empresa" solo se pinta de negro
+        // mientras esté VENDIDO activamente. Si ese mismo boleto
+        // luego se postergó o anuló, debe verse como cualquier otro
+        // postergado/anulado — si no, el negro (con la opacidad del
+        // estado) se veía como un gris confuso, y parecía "libre".
+        if (boleto && boleto.transferido_otra_empresa && boleto.estado === 'vendido') {
+          celda.className += ' bol-transferido';
+        }
         if (seleccion && seleccion.piso === piso && seleccion.numero_asiento === asiento.numero_asiento) {
           celda.className += ' bol-seleccionado';
         }
@@ -594,7 +831,7 @@ var BOL = (function () {
 
         var ico = document.createElement('div');
         ico.className = 'ma-asiento-ico';
-        ico.innerHTML = estado === 'vendido' ? iconoPersonaSVG() : iconoAsientoSVG();
+        ico.innerHTML = (estado === 'vendido' || estado === 'reintegro') ? iconoPersonaSVG() : iconoAsientoSVG();
         var num = document.createElement('div');
         num.className = 'ma-asiento-num';
         num.style.cursor = 'pointer';
@@ -690,7 +927,11 @@ var BOL = (function () {
       document.getElementById('bolRazonSocial').value  = boleto.razon_social || '';
       document.getElementById('bolAgenciaOrigen').value  = boleto.agencia_embarque_id || '';
       document.getElementById('bolAgenciaDestino').value = boleto.agencia_llegada_id  || '';
-      document.getElementById('bolTipoMov').value = boleto.estado === 'reservado' ? 'reserva' : 'venta';
+      // Por defecto siempre "Venta": así, si ya está reservado y el
+      // cajero completa los datos y presiona Guardar, el asiento pasa
+      // de reservado a vendido directamente. Si de verdad quiere
+      // volver a reservarlo, para eso está el botón "Reservar".
+      document.getElementById('bolTipoMov').value = 'venta';
       document.getElementById('bolMetodoPago').value = boleto.metodo_pago || 'efectivo';
       if (boleto.codigo_usado) {
         document.getElementById('bolCodigo').value = boleto.codigo_usado;
@@ -708,6 +949,48 @@ var BOL = (function () {
       // Asiento libre: el "usuario" vuelve a mostrar quién está haciendo la venta ahora
       document.getElementById('bolUsuarioBadge').textContent = data.usuarioActual.nombre;
     }
+
+    aplicarEstadoBotones(boleto ? boleto.estado : 'libre');
+
+    // Una vez que el asiento tiene un boleto activo, los datos de
+    // identidad del pasajero ya NO se pueden editar aquí — para
+    // corregir nombre/DNI/edad/teléfono/RUC/Razón Social existe la
+    // función Reintegro (que emite un comprobante nuevo, trazable).
+    var bloqueado = !!boleto;
+    ['bolTipoDoc', 'bolNumDoc', 'bolNombre', 'bolEdad', 'bolTelefono', 'bolRuc', 'bolRazonSocial'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'SELECT') el.disabled = bloqueado;
+      else el.readOnly = bloqueado;
+      el.classList.toggle('bol-campo-bloqueado', bloqueado);
+      el.title = bloqueado ? 'Ya no se puede editar: usa Reintegro para corregir estos datos.' : '';
+    });
+  }
+
+  // ── Además de los permisos, cada acción solo tiene sentido en
+  // ciertos estados del asiento: no se puede postergar/anular un
+  // asiento libre, ni reservar uno ya ocupado. ──
+  function aplicarEstadoBotones(estado) {
+    var reglas = {
+      bolBtnPostergar: estado === 'vendido' || estado === 'reintegro',
+      bolBtnAnular:    estado === 'vendido' || estado === 'reservado' || estado === 'postergado' || estado === 'reintegro',
+      bolBtnReservar:  estado === 'libre',
+      // Habilitar y Reintegro solo tienen sentido sobre un asiento
+      // libre: si ya está ocupado (vendido/reservado/reintegro), no
+      // corresponde activar otro boleto encima — primero hay que
+      // anularlo.
+      bolBtnHabilitar: estado === 'libre',
+      bolBtnReintegro: estado === 'libre'
+    };
+    Object.keys(reglas).forEach(function (btnId) {
+      var btn = document.getElementById(btnId);
+      if (!btn || btn.dataset.sinPermiso === '1') return; // ya deshabilitado por permisos, no lo pisamos
+      var permitidoPorEstado = reglas[btnId];
+      btn.disabled = !permitidoPorEstado;
+      btn.classList.toggle('bol-btn-disabled', !permitidoPorEstado);
+      if (!permitidoPorEstado) btn.title = 'No aplica para un asiento en estado "' + estado + '".';
+      else btn.title = '';
+    });
   }
 
   function limpiarFormularioCliente() {
@@ -846,7 +1129,12 @@ var BOL = (function () {
     body.correlativo_manual = correlativo;
     post('/boletaje/' + progId + '/asiento', body).then(function (r) {
       if (r.ok) {
-        toast('Asiento habilitado con boleto ' + serie + '-' + String(correlativo).padStart(8, '0') + '.', 'ok');
+        var num = r.serie + '-' + String(r.correlativo).padStart(8, '0');
+        if (r.transferido) {
+          toast('Boleto original de otra empresa: se generó el nuevo comprobante ' + num + ' y el original quedó "usado".', 'ok');
+        } else {
+          toast('Asiento habilitado con boleto ' + num + '.', 'ok');
+        }
         cerrarHabilitar();
         recargar();
       } else toast('Error: ' + (r.error || ''), 'error');
@@ -919,6 +1207,7 @@ var BOL = (function () {
     ComprobantePrint.imprimir({
       serie: serie, correlativo: correlativo,
       ruc: ruc, razonSocial: razonSocial,
+      empresa: data.bus && data.bus.empresa ? data.bus.empresa : null,
       agenciaEmbarqueNombre: agencia ? agencia.nombre : null,
       agenciaEmbarqueDireccion: agencia ? agencia.direccion : null,
       fechaSalida: data.programacion.fecha_salida,
@@ -945,10 +1234,255 @@ var BOL = (function () {
     seleccion = null;
   }
 
+  // ═══════════════════════════════════════════════
+  // Información General del Bus (Croquis / Manifiesto)
+  // Cualquier usuario puede abrir esto y editar la tripulación.
+  // ═══════════════════════════════════════════════
+  var tripProgId = null;
+  var tripModo   = 'croquis';
+  var tripDataActual = null;
+
+  function abrirTripulacion(progIdParam, modo) {
+    tripProgId = progIdParam;
+    tripModo = modo || 'croquis';
+    document.getElementById('tripBtnTablero').style.display = (tripModo === 'croquis') ? '' : 'none';
+
+    get('/boletaje/' + tripProgId + '/tripulacion').then(function (res) {
+      if (res.error) { toast('Error: ' + res.error, 'error'); return; }
+      tripDataActual = res;
+
+      llenarSelectPersonal('tripTerramoza', res.terramozas, res.prog.terramoza_id);
+      llenarSelectPersonal('tripAyudante',  res.ayudantes,  res.prog.ayudante_id);
+      llenarSelectPersonal('tripPiloto',    res.choferes,   res.prog.piloto_id);
+      llenarSelectPersonal('tripCopiloto1', res.choferes,   res.prog.copiloto1_id);
+      llenarSelectPersonal('tripCopiloto2', res.choferes,   res.prog.copiloto2_id);
+
+      var selServicio = document.getElementById('tripServicio');
+      selServicio.innerHTML = '<option value="">—</option>';
+      (res.servicios || []).forEach(function (s) {
+        var o = document.createElement('option');
+        o.value = s.id; o.textContent = s.nombre;
+        if (s.id === res.prog.servicio_id) o.selected = true;
+        selServicio.appendChild(o);
+      });
+
+      var selPlaca = document.getElementById('tripPlaca');
+      selPlaca.innerHTML = '<option value="">— Selecciona bus —</option>';
+      (res.buses || []).forEach(function (b) {
+        var o = document.createElement('option');
+        o.value = b.id; o.textContent = b.placa;
+        o.dataset.marca = b.marca || '';
+        o.dataset.tarjeta = b.soat_poliza || '';
+        o.dataset.asientos = b.total_asientos || '';
+        o.dataset.propietario = b.empresas ? b.empresas.razon_social : '';
+        if (b.id === res.prog.bus_id) o.selected = true;
+        selPlaca.appendChild(o);
+      });
+      selPlaca.onchange = actualizarDatosBus;
+      actualizarDatosBus();
+
+      document.getElementById('bolModalTripulacion').style.display = 'flex';
+      if (window.lucide) lucide.createIcons();
+    }).catch(function () { toast('Error de conexión al cargar la tripulación.', 'error'); });
+  }
+
+  function llenarSelectPersonal(id, lista, seleccionadoId) {
+    var sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— Ninguno —</option>';
+    (lista || []).forEach(function (p) {
+      var o = document.createElement('option');
+      o.value = p.id; o.textContent = p.nombres + ' ' + p.apellidos;
+      if (p.id === seleccionadoId) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  function actualizarDatosBus() {
+    var sel = document.getElementById('tripPlaca');
+    var op = sel.options[sel.selectedIndex];
+    var marca = (op && op.dataset.marca) || '';
+    var tarjeta = (op && op.dataset.tarjeta) || '';
+    var asientos = (op && op.dataset.asientos) || '';
+    var propietario = (op && op.dataset.propietario) || '';
+    document.getElementById('tripMarca').value = marca;
+    document.getElementById('tripTarjeta').value = tarjeta;
+    document.getElementById('tripNroAsientos').value = asientos;
+    document.getElementById('tripPropietario').value = propietario;
+  }
+
+  function cerrarTripulacion() {
+    document.getElementById('bolModalTripulacion').style.display = 'none';
+  }
+
+  function guardarTripulacion() {
+    if (!tripProgId) return;
+    post('/boletaje/' + tripProgId + '/tripulacion', {
+      bus_id:       document.getElementById('tripPlaca').value,
+      servicio_id:  document.getElementById('tripServicio').value,
+      piloto_id:    document.getElementById('tripPiloto').value,
+      copiloto1_id: document.getElementById('tripCopiloto1').value,
+      copiloto2_id: document.getElementById('tripCopiloto2').value,
+      terramoza_id: document.getElementById('tripTerramoza').value,
+      ayudante_id:  document.getElementById('tripAyudante').value
+    }).then(function (r) {
+      if (r.ok) { toast('Información del bus actualizada.', 'ok'); cerrarTripulacion(); }
+      else toast('Error: ' + (r.error || ''), 'error');
+    }).catch(function () { toast('Error de conexión.', 'error'); });
+  }
+
+  function imprimirTripulacion() {
+    if (!tripProgId) return;
+    var endpoint = tripModo === 'manifiesto' ? 'manifiesto-datos' : 'croquis-datos';
+    get('/boletaje/' + tripProgId + '/' + endpoint).then(function (res) {
+      if (res.error) { toast('Error: ' + res.error, 'error'); return; }
+      if (tripModo === 'manifiesto') CroquisManifiestoPrint.imprimirManifiesto(res);
+      else CroquisManifiestoPrint.imprimirCroquis(res);
+    }).catch(function () { toast('Error de conexión al generar la impresión.', 'error'); });
+  }
+
+  function irAsistencia() {
+    if (!tripProgId) return;
+    window.open('/boletaje/' + tripProgId + '/asistencia', '_blank');
+  }
+
+  // ── Reintegro: emite un boleto nuevo a partir de uno original
+  // (postergado/reservado) por variación de precio o cambio de nombre ──
+  var reintegroOrigen = null;
+
+  function abrirReintegro() {
+    if (!requiereSeleccion()) return;
+    document.getElementById('bolReSerie').value = '';
+    document.getElementById('bolReCorrelativo').value = '';
+    document.querySelector('input[name="bolReTipo"][value="1"]').checked = true;
+    document.getElementById('bolReTipoDoc').value = 'DNI';
+    document.getElementById('bolReNumDoc').value = '';
+    document.getElementById('bolReNombre').value = '';
+    document.getElementById('bolReEdad').value = '';
+    document.getElementById('bolReTelefono').value = '';
+    document.getElementById('bolReRuc').value = '';
+    document.getElementById('bolReRazonSocial').value = '';
+    document.getElementById('bolReMetodoPago').value = 'efectivo';
+    document.getElementById('bolReOrigenPreview').style.display = 'none';
+    reintegroOrigen = null;
+
+    // Las agencias de esta salida son las mismas que ofrece el
+    // formulario principal (data.agenciasOrigen / agenciasDestino)
+    var selOrigen = document.getElementById('bolReAgenciaOrigen');
+    var selDestino = document.getElementById('bolReAgenciaDestino');
+    selOrigen.innerHTML = '<option value="">— Selecciona —</option>' +
+      (data.agenciasOrigen || []).map(function (a) { return '<option value="' + a.id + '">' + a.nombre + '</option>'; }).join('');
+    selDestino.innerHTML = '<option value="">— Selecciona —</option>' +
+      (data.agenciasDestino || []).map(function (a) { return '<option value="' + a.id + '">' + a.nombre + '</option>'; }).join('');
+
+    var precioBase = seleccion.piso === 1 ? data.programacion.precio_piso1 : data.programacion.precio_piso2;
+    document.getElementById('bolRePrecio').value = precioBase != null ? Number(precioBase).toFixed(2) : '';
+    cambiarTipoReintegro(1);
+    document.getElementById('bolModalReintegro').style.display = 'flex';
+  }
+  function cerrarReintegro() {
+    document.getElementById('bolModalReintegro').style.display = 'none';
+  }
+  function cambiarTipoReintegro(tipo) {
+    document.getElementById('bolReCambioNombre').style.display = (tipo === 2) ? '' : 'none';
+  }
+
+  // Busca el boleto original por serie/correlativo: muestra una vista
+  // previa, y precarga (sin obligar) las agencias de embarque/destino
+  // si coinciden con alguna disponible en esta salida, y los datos
+  // del pasajero para el caso de cambio de nombre (quedan editables).
+  function buscarOrigenReintegro() {
+    var serie = document.getElementById('bolReSerie').value.trim();
+    var correlativo = document.getElementById('bolReCorrelativo').value.trim();
+    if (!serie || !correlativo) { toast('Ingresa la serie y el correlativo del boleto a procesar.', 'error'); return; }
+
+    get('/boletaje/' + progId + '/origen-reintegro?serie=' + encodeURIComponent(serie) + '&correlativo=' + encodeURIComponent(correlativo))
+      .then(function (r) {
+        if (r.error) {
+          toast(r.error, 'error');
+          document.getElementById('bolReOrigenPreview').style.display = 'none';
+          reintegroOrigen = null;
+          return;
+        }
+        reintegroOrigen = r;
+        var preview = document.getElementById('bolReOrigenPreview');
+        preview.style.display = '';
+        preview.innerHTML = '<i data-lucide="check-circle-2"></i> Boleto encontrado: <b>' + (r.nombre_completo || '—') +
+          '</b> — ' + (r.tipo_documento || 'DNI') + ' ' + (r.numero_documento || '—') +
+          ' <span class="bol-reintegro-preview-estado">(' + r.estado + ')</span>';
+        if (window.lucide) lucide.createIcons();
+
+        // Precarga agencias si coinciden con alguna de esta salida (el usuario las puede cambiar)
+        if (r.agencia_embarque_id) document.getElementById('bolReAgenciaOrigen').value = r.agencia_embarque_id;
+        if (r.agencia_llegada_id)  document.getElementById('bolReAgenciaDestino').value = r.agencia_llegada_id;
+
+        // Precarga datos del pasajero para cambio de nombre (editable)
+        document.getElementById('bolReTipoDoc').value = r.tipo_documento || 'DNI';
+        document.getElementById('bolReNumDoc').value  = r.numero_documento || '';
+        document.getElementById('bolReNombre').value  = r.nombre_completo || '';
+        document.getElementById('bolReEdad').value    = r.edad != null ? r.edad : '';
+        document.getElementById('bolReTelefono').value = r.telefono || '';
+        document.getElementById('bolReRuc').value        = r.ruc || '';
+        document.getElementById('bolReRazonSocial').value = r.razon_social || '';
+      }).catch(function () { toast('Error de conexión al buscar el boleto.', 'error'); });
+  }
+
+  function confirmarReintegro() {
+    var serie = document.getElementById('bolReSerie').value.trim();
+    var correlativo = document.getElementById('bolReCorrelativo').value.trim();
+    if (!serie || !correlativo) { toast('Ingresa la serie y el correlativo del boleto a procesar.', 'error'); return; }
+    var tipoSeleccionado = document.querySelector('input[name="bolReTipo"]:checked');
+    var tipo = tipoSeleccionado ? parseInt(tipoSeleccionado.value) : 1;
+    var precio = document.getElementById('bolRePrecio').value;
+    if (precio === '' || isNaN(Number(precio))) { toast('Ingresa el precio del nuevo boleto.', 'error'); return; }
+
+    var body = {
+      piso: seleccion.piso,
+      numero_asiento: seleccion.numero_asiento,
+      accion: 'reintegro',
+      serie_original: serie,
+      correlativo_original: correlativo,
+      tipo_reintegro: tipo,
+      precio: precio,
+      metodo_pago: document.getElementById('bolReMetodoPago').value,
+      agencia_embarque_id: document.getElementById('bolReAgenciaOrigen').value || null,
+      agencia_llegada_id:  document.getElementById('bolReAgenciaDestino').value || null,
+      ruc:          document.getElementById('bolReRuc').value.trim(),
+      razon_social: document.getElementById('bolReRazonSocial').value.trim()
+    };
+    if (body.ruc && !body.razon_social) { toast('Ingresa la razón social para la factura.', 'error'); return; }
+    if (tipo === 2) {
+      var numDoc = document.getElementById('bolReNumDoc').value.trim();
+      var nombre = document.getElementById('bolReNombre').value.trim();
+      if (!numDoc || !nombre) { toast('Ingresa el nuevo nombre completo y número de documento.', 'error'); return; }
+      body.tipo_documento   = document.getElementById('bolReTipoDoc').value;
+      body.numero_documento = numDoc;
+      body.nombre_completo  = nombre;
+      body.edad     = document.getElementById('bolReEdad').value || null;
+      body.telefono = document.getElementById('bolReTelefono').value.trim() || null;
+    }
+
+    if (!window.confirm('¿Estás seguro de emitir este boleto de reintegro? El boleto original (' + serie + '-' + correlativo + ') quedará marcado como usado y esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    post('/boletaje/' + progId + '/asiento', body).then(function (r) {
+      if (r.ok) {
+        var num = r.serie + '-' + String(r.correlativo).padStart(8, '0');
+        toast('Reintegro procesado: nuevo comprobante ' + num + '.', 'ok');
+        cerrarReintegro();
+        recargar().then(function () {
+          imprimirComprobante(r.serie, r.correlativo, body.precio);
+        });
+      } else toast('Error: ' + (r.error || ''), 'error');
+    });
+  }
+
   return {
     abrirCroquis, cambiarTab, guardar, accion, buscarDni, buscarRuc, imprimir, cerrar,
     validarCodigo, abrirHabilitar, cerrarHabilitar, confirmarHabilitar,
-    abrirEditarPrecio, cerrarEditarPrecio, guardarEditarPrecio
+    abrirReintegro, cerrarReintegro, cambiarTipoReintegro, confirmarReintegro, buscarOrigenReintegro,
+    abrirEditarPrecio, cerrarEditarPrecio, guardarEditarPrecio,
+    abrirTripulacion, cerrarTripulacion, guardarTripulacion, imprimirTripulacion, irAsistencia
   };
 })();
 </script>

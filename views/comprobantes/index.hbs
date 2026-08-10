@@ -26,6 +26,8 @@
         <option value="reservado"  {{#if (eq filtros.estado 'reservado')}}selected{{/if}}>Reservado</option>
         <option value="postergado" {{#if (eq filtros.estado 'postergado')}}selected{{/if}}>Postergado</option>
         <option value="anulado"    {{#if (eq filtros.estado 'anulado')}}selected{{/if}}>Anulado</option>
+        <option value="usado"      {{#if (eq filtros.estado 'usado')}}selected{{/if}}>Usado (transferido)</option>
+        <option value="reintegro" {{#if (eq filtros.estado 'reintegro')}}selected{{/if}}>Reintegro</option>
       </select>
     </div>
     <div class="bol-filtro-campo" style="flex:2">
@@ -89,6 +91,11 @@
           </td>
           <td>
             <span class="badge cmp-badge-{{estado}}" id="cmpEstado-{{id}}">{{estado}}</span>
+            {{#if usado_en}}
+            <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:2px">
+              → {{usado_en.serie}}-{{pad8 usado_en.correlativo}}
+            </div>
+            {{/if}}
           </td>
           <td class="hide-sm" style="font-size:var(--text-xs);color:var(--text-secondary)">
             {{#if vendedor}}{{vendedor.nombre}}{{else}}—{{/if}}
@@ -100,7 +107,7 @@
               </button>
               {{#if ../puedeAnular}}
               <button class="btn-icon btn-icon-delete" title="Anular comprobante" id="cmpBtnAnular-{{id}}"
-                      onclick="CMP.anular('{{id}}')" {{#if (eq estado 'anulado')}}disabled{{/if}}>
+                      onclick="CMP.anular('{{id}}')" {{#if (or (eq estado 'anulado') (eq estado 'usado'))}}disabled{{/if}}>
                 <i data-lucide="x-circle"></i>
               </button>
               {{/if}}
@@ -175,6 +182,7 @@ var CMP = (function () {
     ComprobantePrint.imprimir({
       serie: c.serie, correlativo: c.correlativo,
       ruc: c.ruc, razonSocial: c.razon_social,
+      empresa: c.empresa || null,
       agenciaEmbarqueNombre: c.agencia_embarque ? c.agencia_embarque.nombre : null,
       agenciaEmbarqueDireccion: c.agencia_embarque ? c.agencia_embarque.direccion : null,
       fechaSalida: prog.fecha_salida,

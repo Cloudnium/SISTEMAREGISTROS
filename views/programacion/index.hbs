@@ -6,6 +6,32 @@
   </a>
 </div>
 
+<div class="card prog-filtros">
+  <form action="/programacion" method="GET" class="bol-filtros-form">
+    <div class="bol-filtro-campo">
+      <label class="bol-label">Fecha de salida</label>
+      <input type="date" name="fecha" class="form-control bol-input" value="{{filtros.fecha}}" />
+    </div>
+    <div class="bol-filtro-campo">
+      <label class="bol-label">Ruta</label>
+      <select name="destino_id" class="form-control bol-input">
+        <option value="">Todas las rutas</option>
+        {{#each destinos}}
+        <option value="{{id}}" {{#if (eq id ../filtros.destino_id)}}selected{{/if}}>
+          {{ciudades_origen.nombre}} - {{ciudades_destino.nombre}}
+        </option>
+        {{/each}}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary bol-btn-buscar">
+      <i data-lucide="search"></i> Filtrar
+    </button>
+    {{#if (or filtros.fecha filtros.destino_id)}}
+    <a href="/programacion" class="btn btn-ghost">Limpiar</a>
+    {{/if}}
+  </form>
+</div>
+
 <div class="card">
   <div class="table-wrapper">
     {{#if programaciones.length}}
@@ -54,6 +80,9 @@
           </td>
           <td>
             <div class="table-actions">
+              <a href="/programacion/{{id}}/editar" class="btn btn-sm btn-ghost" title="Editar">
+                <i data-lucide="pencil"></i>
+              </a>
               {{#if (eq estado 'publicado')}}
               <form method="POST" action="/programacion/{{id}}/descartar"
                     onsubmit="return confirm('Descartar esta programación?')">
@@ -77,7 +106,7 @@
     {{else}}
     <div class="empty-state">
       <i data-lucide="calendar-clock"></i>
-      <p>No hay programaciones registradas aún.</p>
+      <p>No hay programaciones que coincidan con estos filtros.</p>
       <a href="/programacion/nueva" class="btn btn-primary btn-sm">
         <i data-lucide="plus"></i> Nueva Programación
       </a>

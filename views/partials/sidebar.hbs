@@ -45,6 +45,10 @@
       <i data-lucide="ticket"></i><span>Boletaje</span>
     </a>
 
+    <a href="/consulta-documentos" class="sidebar-nav-item {{#if (eq currentPath '/consulta-documentos')}}active{{/if}}">
+      <i data-lucide="file-search"></i><span>Consulta de Documentos</span>
+    </a>
+
     <a href="/personal" class="sidebar-nav-item {{#if (eq currentPath '/personal')}}active{{/if}}">
       <i data-lucide="users"></i><span>Personal</span>
     </a>
@@ -73,9 +77,11 @@
     <a href="/comprobantes" class="sidebar-nav-item {{#if (eq currentPath '/comprobantes')}}active{{/if}}">
       <i data-lucide="receipt"></i><span>Comprobantes</span>
     </a>
+    {{#if puedeCrearCodigos}}
     <a href="/codigos" class="sidebar-nav-item {{#if (eq currentPath '/codigos')}}active{{/if}}">
       <i data-lucide="key-round"></i><span>Códigos de Autorización</span>
     </a>
+    {{/if}}
     {{#if (or (eq user.rol 'admin') user.puede_programar)}}
     <a href="/programacion" class="sidebar-nav-item {{#if (eq currentPath '/programacion')}}active{{/if}}">
       <i data-lucide="calendar-clock"></i><span>Programación</span>
@@ -84,6 +90,9 @@
     {{#if (eq user.rol 'admin')}}
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">
       <i data-lucide="shield-check"></i><span>Usuarios</span>
+    </a>
+    <a href="/empresas" class="sidebar-nav-item {{#if (eq currentPath '/empresas')}}active{{/if}}">
+      <i data-lucide="building-2"></i><span>Empresas</span>
     </a>
     <a href="/mapa-asientos" class="sidebar-nav-item {{#if (eq currentPath '/mapa-asientos')}}active{{/if}}">
       <i data-lucide="layout-dashboard"></i><span>Mapa de Asientos</span>

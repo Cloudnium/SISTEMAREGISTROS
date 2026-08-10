@@ -23,7 +23,7 @@ async function requireProgramacionAuth(req, res, next) {
 
 // ─── Helper: carga todos los combos del formulario ───
 async function cargarCombos() {
-  const [destinos, servicios, buses, choferes, tripulacion, agencias] = await Promise.all([
+  const [destinos, servicios, buses, choferes, terramozas, ayudantes, agencias] = await Promise.all([
     db.select('destinos',
       'select=id,ciudad_origen,ciudad_destino,agencia_id,' +
       'ciudades_origen:ciudades!ciudad_origen(nombre),' +
@@ -34,8 +34,9 @@ async function cargarCombos() {
     db.select('personal_tripulantes',
       'select=id,nombres,apellidos,licencia&tipo=eq.Chofer&activo=eq.true&order=nombres.asc'),
     db.select('personal_tripulantes',
-      'select=id,nombres,apellidos,tipo&activo=eq.true' +
-      '&or=(tipo.eq.Terramoza,tipo.eq.Ayudante)&order=nombres.asc'),
+      'select=id,nombres,apellidos&tipo=eq.Terramoza&activo=eq.true&order=nombres.asc'),
+    db.select('personal_tripulantes',
+      'select=id,nombres,apellidos&tipo=eq.Ayudante&activo=eq.true&order=nombres.asc'),
     db.select('agencias', 'select=id,nombre,ciudad_id&activo=eq.true&order=nombre.asc'),
   ]);
   return {
@@ -43,27 +44,39 @@ async function cargarCombos() {
     servicios:  servicios.data  || [],
     buses:      buses.data      || [],
     choferes:   choferes.data   || [],
-    tripulacion: tripulacion.data || [],
+    terramozas: terramozas.data || [],
+    ayudantes:  ayudantes.data  || [],
     agencias:   agencias.data   || [],
   };
 }
 
-// ─── GET / — Lista de programaciones ─────────
+// ─── GET / — Lista de programaciones (con filtros) ──
 router.get('/', requireAuth, requireProgramacionAuth, async (req, res) => {
-  const { data: programaciones } = await db.select('programaciones',
-    'select=id,fecha_salida,estado,precio_piso1,precio_piso2,creado_en,' +
+  const { fecha, destino_id } = req.query;
+
+  let query = 'select=id,fecha_salida,estado,precio_piso1,precio_piso2,creado_en,destino_id,' +
     'destinos(id,' +
       'ciudades_origen:ciudades!ciudad_origen(nombre),' +
       'ciudades_destino:ciudades!ciudad_destino(nombre)),' +
     'servicios(nombre),' +
     'buses(placa)' +
-    '&order=fecha_salida.desc,creado_en.desc');
+    '&order=fecha_salida.desc,creado_en.desc';
+
+  if (fecha)      query += `&fecha_salida=eq.${fecha}`;
+  if (destino_id) query += `&destino_id=eq.${destino_id}`;
+
+  const { data: programaciones } = await db.select('programaciones', query);
+
+  const { data: destinos } = await db.select('destinos',
+    'select=id,ciudades_origen:ciudades!ciudad_origen(nombre),ciudades_destino:ciudades!ciudad_destino(nombre)&order=id.asc');
 
   res.render('programacion/index', {
     layout: 'main', title: 'Programación de Salidas',
     pageTitle: 'Programación de Salidas',
     pageSubtitle: 'Gestión de viajes programados',
-    programaciones: programaciones || []
+    programaciones: programaciones || [],
+    destinos: destinos || [],
+    filtros: { fecha: fecha || '', destino_id: destino_id || '' }
   });
 });
 
@@ -76,7 +89,7 @@ router.get('/nueva', requireAuth, requireProgramacionAuth, async (req, res) => {
     pageSubtitle: 'Asignación de recursos técnicos, humanos y comerciales',
     accion: 'nueva',
     prog: {},
-    escalas: [],
+    escalasByOrden: {},
     agenciasJson: JSON.stringify(combos.agencias),
     ...combos
   });
@@ -118,37 +131,53 @@ router.post('/', requireAuth, requireProgramacionAuth, async (req, res) => {
     }
   }
 
+  // Arma TODAS las filas de una sola vez y las inserta en bloque (2
+  // peticiones en total, sin importar cuántas fechas sean) — antes se
+  // insertaba una programación a la vez, y cada una con otra petición
+  // aparte por cada escala, lo que hacía muy lento crear varias
+  // fechas de golpe.
+  const filasProgramaciones = fechas.map(fecha => ({
+    fecha_salida: fecha, destino_id,
+    servicio_id:  toOpt(servicio_id),
+    bus_id:       toOpt(bus_id),
+    piloto_id,
+    copiloto1_id: toOpt(copiloto1_id),
+    copiloto2_id: toOpt(copiloto2_id),
+    terramoza_id: toOpt(terramoza_id),
+    precio_piso1: toNum(precio_piso1),
+    precio_piso2: toNum(precio_piso2),
+    estado:       'publicado',
+    creado_en:    new Date().toISOString()
+  }));
+
+  const { data: nuevasProgs, error: errorProgs } = await db.insert('programaciones', filasProgramaciones);
+
   let creadas = 0;
   const errores = [];
 
-  for (const fecha of fechas) {
-    const { data: nuevaProg, error } = await db.insert('programaciones', {
-      fecha_salida: fecha, destino_id,
-      servicio_id:  toOpt(servicio_id),
-      bus_id:       toOpt(bus_id),
-      piloto_id,
-      copiloto1_id: toOpt(copiloto1_id),
-      copiloto2_id: toOpt(copiloto2_id),
-      terramoza_id: toOpt(terramoza_id),
-      precio_piso1: toNum(precio_piso1),
-      precio_piso2: toNum(precio_piso2),
-      estado:       'publicado',
-      creado_en:    new Date().toISOString()
-    });
+  if (errorProgs || !nuevasProgs) {
+    errores.push(errorProgs ? errorProgs.message : 'Sin respuesta al crear las programaciones.');
+  } else {
+    const progsCreadas = Array.isArray(nuevasProgs) ? nuevasProgs : [nuevasProgs];
+    creadas = progsCreadas.length;
 
-    if (error) { errores.push(fecha + ': ' + error.message); continue; }
-
-    const progId = Array.isArray(nuevaProg) ? nuevaProg[0].id : nuevaProg.id;
-    for (let i = 0; i < escalasPairs.length; i++) {
-      const [agId, hora] = escalasPairs[i];
-      await db.insert('programacion_escalas', {
-        programacion_id: progId,
-        orden:           i + 1,
-        agencia_id:      agId,
-        hora:            hora && hora !== '' ? hora : null
+    if (escalasPairs.length > 0 && progsCreadas.length > 0) {
+      // Cada programación creada ya vuelve con su propio "id" en la
+      // respuesta, así que no hace falta correlacionarla por fecha.
+      const filasEscalas = [];
+      progsCreadas.forEach(prog => {
+        escalasPairs.forEach(([agId, hora], i) => {
+          filasEscalas.push({
+            programacion_id: prog.id,
+            orden:           i + 1,
+            agencia_id:      agId,
+            hora:            hora && hora !== '' ? hora : null
+          });
+        });
       });
+      const { error: errorEscalas } = await db.insert('programacion_escalas', filasEscalas);
+      if (errorEscalas) errores.push('Escalas: ' + errorEscalas.message);
     }
-    creadas++;
   }
 
   if (creadas === 0) {
@@ -163,6 +192,88 @@ router.post('/', requireAuth, requireProgramacionAuth, async (req, res) => {
   } else {
     req.flash('success', 'Programación publicada correctamente.');
   }
+  res.redirect('/programacion');
+});
+
+// ─── GET /:id/editar — Formulario de edición ──
+router.get('/:id/editar', requireAuth, requireProgramacionAuth, async (req, res) => {
+  const { data: progRows, error } = await db.select('programaciones',
+    `select=*&id=eq.${req.params.id}&limit=1`);
+  if (error || !progRows || progRows.length === 0) {
+    req.flash('error', 'Programación no encontrada.');
+    return res.redirect('/programacion');
+  }
+  const { data: escalas } = await db.select('programacion_escalas',
+    `select=orden,agencia_id,hora&programacion_id=eq.${req.params.id}&order=orden.asc`);
+
+  const escalasByOrden = {};
+  (escalas || []).forEach(e => { escalasByOrden[e.orden] = e; });
+
+  const combos = await cargarCombos();
+  res.render('programacion/form', {
+    layout: 'main', title: 'Editar Programación',
+    pageTitle: 'Editar Programación de Salida',
+    pageSubtitle: 'Modifica los recursos técnicos, humanos y comerciales',
+    accion: 'editar',
+    prog: progRows[0],
+    escalasByOrden: escalasByOrden,
+    agenciasJson: JSON.stringify(combos.agencias),
+    ...combos
+  });
+});
+
+// ─── POST /:id/editar — Actualiza una programación existente ──
+router.post('/:id/editar', requireAuth, requireProgramacionAuth, async (req, res) => {
+  const progId = req.params.id;
+  const {
+    fecha_salida, destino_id, servicio_id, bus_id,
+    piloto_id, copiloto1_id, copiloto2_id, terramoza_id, ayudante_id,
+    precio_piso1, precio_piso2,
+    agencia_1, hora_1, agencia_2, hora_2, agencia_3, hora_3,
+    agencia_4, hora_4, agencia_5, hora_5, agencia_6, hora_6
+  } = req.body;
+
+  if (!fecha_salida || !destino_id || !piloto_id) {
+    req.flash('error', 'Fecha, Destino y Piloto son obligatorios.');
+    return res.redirect(`/programacion/${progId}/editar`);
+  }
+
+  const toNum = v => v && v !== '' ? parseFloat(v) : null;
+  const toOpt = v => v && v !== '' ? v : null;
+
+  const { error } = await db.update('programaciones', `id=eq.${progId}`, {
+    fecha_salida, destino_id,
+    servicio_id:  toOpt(servicio_id),
+    bus_id:       toOpt(bus_id),
+    piloto_id,
+    copiloto1_id: toOpt(copiloto1_id),
+    copiloto2_id: toOpt(copiloto2_id),
+    terramoza_id: toOpt(terramoza_id),
+    ayudante_id:  toOpt(ayudante_id),
+    precio_piso1: toNum(precio_piso1),
+    precio_piso2: toNum(precio_piso2)
+  });
+
+  if (error) {
+    req.flash('error', 'Error al actualizar: ' + error.message);
+    return res.redirect(`/programacion/${progId}/editar`);
+  }
+
+  // Reemplaza las escalas: borra las anteriores y guarda las nuevas
+  await db.delete('programacion_escalas', `programacion_id=eq.${progId}`);
+  const escalasPairs = [
+    [agencia_1, hora_1], [agencia_2, hora_2], [agencia_3, hora_3],
+    [agencia_4, hora_4], [agencia_5, hora_5], [agencia_6, hora_6]
+  ].filter(([agId]) => agId && agId !== '');
+  for (let i = 0; i < escalasPairs.length; i++) {
+    const [agId, hora] = escalasPairs[i];
+    await db.insert('programacion_escalas', {
+      programacion_id: progId, orden: i + 1, agencia_id: agId,
+      hora: hora && hora !== '' ? hora : null
+    });
+  }
+
+  req.flash('success', 'Programación actualizada correctamente.');
   res.redirect('/programacion');
 });
 

@@ -2,10 +2,12 @@
 
 <div class="page-header">
   <div></div>
+  {{#if isAdmin}}
   <button class="btn btn-primary" onclick="Buses.abrirModalNuevo()">
     <i data-lucide="plus"></i>
     <span>Registrar Nuevo Bus</span>
   </button>
+  {{/if}}
 </div>
 
 <!-- ── Tabla de buses ── -->
@@ -100,9 +102,11 @@
     <div class="empty-state">
       <i data-lucide="bus"></i>
       <p>No hay buses registrados aún.</p>
+      {{#if isAdmin}}
       <button class="btn btn-primary btn-sm" onclick="Buses.abrirModalNuevo()">
         <i data-lucide="plus"></i> Registrar primer bus
       </button>
+      {{/if}}
     </div>
     {{/if}}
   </div>
@@ -183,14 +187,16 @@
           </div>
           <div class="bus-fields-grid bus-grid-2">
             <div class="bus-field">
-              <label class="bus-label">Razón Social</label>
-              <input type="text" name="empresa_razon_social" id="bEmpresaRazonSocial" class="form-control bus-input"
-                     placeholder="Ej: LINEA PERUANA COMPANY S.A.C." />
-            </div>
-            <div class="bus-field">
-              <label class="bus-label">RUC</label>
-              <input type="text" name="empresa_ruc" id="bEmpresaRuc" class="form-control bus-input"
-                     placeholder="20602508448" maxlength="11" />
+              <label class="bus-label">Empresa</label>
+              <select name="empresa_id" id="bEmpresaId" class="form-control bus-input">
+                <option value="">— Selecciona una empresa —</option>
+                {{#each empresas}}
+                <option value="{{id}}">{{razon_social}} — {{ruc}}</option>
+                {{/each}}
+              </select>
+              <small class="form-hint">
+                ¿No está en la lista? <a href="/empresas" target="_blank">Regístrala en Empresas</a> primero.
+              </small>
             </div>
           </div>
         </div>
@@ -376,8 +382,7 @@ const Buses = (function () {
         document.getElementById('bChasis').value  = data.chasis             || '';
 
         // Empresa Propietaria
-        document.getElementById('bEmpresaRazonSocial').value = data.empresa_razon_social || '';
-        document.getElementById('bEmpresaRuc').value         = data.empresa_ruc          || '';
+        document.getElementById('bEmpresaId').value = data.empresa_id || '';
 
         // SOAT
         document.getElementById('bSoatPoliza').value    = data.soat_poliza           || '';

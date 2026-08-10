@@ -5,7 +5,7 @@
 const express = require('express');
 const router  = express.Router();
 const { db }  = require('../config/supabase');
-const { requireAuth, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
+const { requireAuth, requireAdminToCreate, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
 
 // ─── Helper: calcula estado del bus según vigencias ───
 // "Operativo"    → SOAT y TUC vigentes (más de 0 días)
@@ -36,6 +36,9 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: servicios } = await db.select('servicios',
     'select=id,nombre,icono,categoria&activo=eq.true&order=nombre.asc');
 
+  const { data: empresas } = await db.select('empresas',
+    'select=id,ruc,razon_social&activo=eq.true&order=razon_social.asc');
+
   const lista = (buses || []).map(b => ({
     ...b,
     estado: calcularEstado(b.soat_vigencia, b.tuc_vigencia),
@@ -48,7 +51,8 @@ router.get('/', requireAuth, async (req, res) => {
     pageTitle: 'Módulo de Buses',
     pageSubtitle: 'Gestión de flota, seguros y documentación técnica',
     buses: lista,
-    servicios: servicios || []
+    servicios: servicios || [],
+    empresas: empresas || []
   });
 });
 
@@ -61,12 +65,12 @@ router.get('/:id/json', requireAuth, async (req, res) => {
   res.json(data[0]);
 });
 
-// ─── POST / — Crear bus ───────────────────────
-router.post('/', requireAuth, async (req, res) => {
+// ─── POST / — Crear bus — SOLO admin ─────────
+router.post('/', requireAuth, requireAdminToCreate, async (req, res) => {
   const {
     placa, marca, modelo, anio_fabricacion,
     nro_ejes, nro_ruedas, nro_motor, chasis,
-    empresa_razon_social, empresa_ruc,
+    empresa_id,
     soat_poliza, soat_asientos, soat_vigencia,
     soat_poliza_dano, soat_vigencia_dano, soat_monto_asegurado,
     tuc_numero, tuc_vigencia, extintor_vigencia, total_asientos,
@@ -89,8 +93,7 @@ router.post('/', requireAuth, async (req, res) => {
     anio_fabricacion:     toInt(anio_fabricacion),
     nro_ejes:             toInt(nro_ejes), nro_ruedas: toInt(nro_ruedas),
     nro_motor:            toTxt(nro_motor), chasis: toTxt(chasis),
-    empresa_razon_social: toTxt(empresa_razon_social),
-    empresa_ruc:          toTxt(empresa_ruc),
+    empresa_id:           empresa_id && empresa_id !== '' ? empresa_id : null,
     soat_poliza:          toTxt(soat_poliza),
     soat_asientos:        toInt(soat_asientos),
     soat_vigencia:        toDate(soat_vigencia),
@@ -115,7 +118,7 @@ router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => 
   const {
     placa, marca, modelo, anio_fabricacion,
     nro_ejes, nro_ruedas, nro_motor, chasis,
-    empresa_razon_social, empresa_ruc,
+    empresa_id,
     soat_poliza, soat_asientos, soat_vigencia,
     soat_poliza_dano, soat_vigencia_dano, soat_monto_asegurado,
     tuc_numero, tuc_vigencia, extintor_vigencia, total_asientos,
@@ -138,8 +141,7 @@ router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => 
     anio_fabricacion:     toInt(anio_fabricacion),
     nro_ejes:             toInt(nro_ejes), nro_ruedas: toInt(nro_ruedas),
     nro_motor:            toTxt(nro_motor), chasis: toTxt(chasis),
-    empresa_razon_social: toTxt(empresa_razon_social),
-    empresa_ruc:          toTxt(empresa_ruc),
+    empresa_id:           empresa_id && empresa_id !== '' ? empresa_id : null,
     soat_poliza:          toTxt(soat_poliza),
     soat_asientos:        toInt(soat_asientos),
     soat_vigencia:        toDate(soat_vigencia),

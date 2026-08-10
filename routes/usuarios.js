@@ -35,7 +35,7 @@ router.get('/nuevo', async (req, res) => {
 router.post('/', async (req, res) => {
   const {
     nombre, username, email, password, confirmar_password, rol, agencia_id,
-    puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_crear_codigos,
+    puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_reintegro, puede_crear_codigos,
     puede_editar_precios, puede_programar
   } = req.body;
   if (!nombre || !username || !email || !password || !rol) {
@@ -65,6 +65,7 @@ router.post('/', async (req, res) => {
       puede_postergar: puede_postergar === 'on',
       puede_reservar:  puede_reservar  === 'on',
       puede_habilitar: puede_habilitar === 'on',
+      puede_reintegro: puede_reintegro === 'on',
       puede_crear_codigos: puede_crear_codigos === 'on',
       puede_editar_precios: puede_editar_precios === 'on',
       puede_programar: puede_programar === 'on',
@@ -83,7 +84,7 @@ router.post('/', async (req, res) => {
 // ─── EDIT FORM ───
 router.get('/:id/editar', requireAdminToEdit, async (req, res) => {
   const { data, error } = await db.select('usuarios',
-    `select=id,nombre,username,email,rol,activo,agencia_id,puede_anular,puede_postergar,puede_reservar,puede_habilitar,puede_crear_codigos,puede_editar_precios,puede_programar&id=eq.${req.params.id}&limit=1`);
+    `select=id,nombre,username,email,rol,activo,agencia_id,puede_anular,puede_postergar,puede_reservar,puede_habilitar,puede_reintegro,puede_crear_codigos,puede_editar_precios,puede_programar&id=eq.${req.params.id}&limit=1`);
   if (error) {
     console.error('editar usuario - error de BD:', error);
     req.flash('error', 'Error al leer el usuario desde la base de datos: ' + error.message +
@@ -106,7 +107,7 @@ router.get('/:id/editar', requireAdminToEdit, async (req, res) => {
 router.post('/:id/editar', requireAdminToEdit, async (req, res) => {
   const {
     nombre, username, email, password, confirmar_password, rol, activo, agencia_id,
-    puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_crear_codigos,
+    puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_reintegro, puede_crear_codigos,
     puede_editar_precios, puede_programar
   } = req.body;
   try {
@@ -117,6 +118,7 @@ router.post('/:id/editar', requireAdminToEdit, async (req, res) => {
       puede_postergar: puede_postergar === 'on',
       puede_reservar:  puede_reservar  === 'on',
       puede_habilitar: puede_habilitar === 'on',
+      puede_reintegro: puede_reintegro === 'on',
       puede_crear_codigos: puede_crear_codigos === 'on',
       puede_editar_precios: puede_editar_precios === 'on',
       puede_programar: puede_programar === 'on'
