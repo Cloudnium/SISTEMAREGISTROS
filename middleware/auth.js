@@ -44,6 +44,29 @@ function requireAdminToDelete(req, res, next) {
   res.redirect('back');
 }
 
+// Solo Desarrollador (o admin) puede administrar la visibilidad de secciones
+function requireDesarrollador(req, res, next) {
+  const rol = req.session && req.session.user && req.session.user.rol;
+  if (rol === 'desarrollador' || rol === 'admin') return next();
+  req.flash('error', 'No tienes permisos para acceder a esta sección.');
+  res.redirect('/dashboard');
+}
+
+// Bloquea el acceso directo por URL a una sección que el Desarrollador
+// ocultó, para quien no sea admin/desarrollador (el sidebar ya la
+// oculta, pero esto evita que alguien entre escribiendo la URL).
+function requireSeccionVisible(clave) {
+  return async (req, res, next) => {
+    const rol = req.session && req.session.user && req.session.user.rol;
+    if (rol === 'admin' || rol === 'desarrollador') return next();
+    if (res.locals.secciones && res.locals.secciones[clave] === false) {
+      req.flash('error', 'Esta sección no está disponible en este momento.');
+      return res.redirect('/dashboard');
+    }
+    next();
+  };
+}
+
 // Redirige al dashboard si ya tiene sesión activa (para el login)
 function redirectIfAuth(req, res, next) {
   if (req.session && req.session.user) return res.redirect('/dashboard');
@@ -65,6 +88,8 @@ module.exports = {
   requireAdminToEdit,
   requireAdminToCreate,
   requireAdminToDelete,
+  requireDesarrollador,
+  requireSeccionVisible,
   redirectIfAuth,
   exposeUserRole
 };

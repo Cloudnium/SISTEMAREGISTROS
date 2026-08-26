@@ -5,58 +5,53 @@
   <div></div>
   <button class="btn btn-primary" onclick="Personal.abrirModalNuevo()">
     <i data-lucide="user-plus"></i>
-    <span>Registrar Tripulante</span>
+    <span>Registrar Personal</span>
   </button>
 </div>
 
-<!-- ══ RESUMEN DE TRIPULACIÓN ══
-     Siempre se muestra, aunque no haya registros (mostrará 0)
--->
+<!-- ══ RESUMEN ══ -->
 <div class="pers-resumen">
-  <h2 class="pers-resumen-titulo">Resumen de Tripulación</h2>
+  <h2 class="pers-resumen-titulo">Resumen de Personal</h2>
   <div class="pers-resumen-cards">
-
-    <!-- Choferes -->
     <div class="pers-stat-card pers-stat-chofer">
-      <div class="pers-stat-icon">
-        <i data-lucide="id-card"></i>
-      </div>
-      <div class="pers-stat-numero">
-        {{padNum resumen.choferes}}
-      </div>
+      <div class="pers-stat-icon"><i data-lucide="id-card"></i></div>
+      <div class="pers-stat-numero">{{padNum resumen.choferes}}</div>
       <div class="pers-stat-label">Choferes habilitados</div>
       <div class="pers-stat-barra pers-barra-chofer"></div>
     </div>
-
-    <!-- Terramozas/os -->
     <div class="pers-stat-card pers-stat-terramoza">
-      <div class="pers-stat-icon">
-        <i data-lucide="person-standing"></i>
-      </div>
-      <div class="pers-stat-numero">
-        {{padNum resumen.terramozas}}
-      </div>
+      <div class="pers-stat-icon"><i data-lucide="person-standing"></i></div>
+      <div class="pers-stat-numero">{{padNum resumen.terramozas}}</div>
       <div class="pers-stat-label">Terramozas/os</div>
       <div class="pers-stat-barra pers-barra-terramoza"></div>
     </div>
-
-    <!-- Ayudantes -->
     <div class="pers-stat-card pers-stat-ayudante">
-      <div class="pers-stat-icon">
-        <i data-lucide="hand-helping"></i>
-      </div>
-      <div class="pers-stat-numero">
-        {{padNum resumen.ayudantes}}
-      </div>
+      <div class="pers-stat-icon"><i data-lucide="hand-helping"></i></div>
+      <div class="pers-stat-numero">{{padNum resumen.ayudantes}}</div>
       <div class="pers-stat-label">Ayudantes</div>
       <div class="pers-stat-barra pers-barra-ayudante"></div>
     </div>
-
+    <div class="pers-stat-card pers-stat-admin">
+      <div class="pers-stat-icon"><i data-lucide="briefcase"></i></div>
+      <div class="pers-stat-numero">{{padNum resumen.administrativos}}</div>
+      <div class="pers-stat-label">Personal administrativo</div>
+      <div class="pers-stat-barra pers-barra-admin"></div>
+    </div>
   </div>
 </div>
 
-<!-- ── Tabla de tripulantes ── -->
-<div class="card">
+<!-- ── Tabs Tripulación / Administrativo ── -->
+<div class="pers-tabs">
+  <button type="button" class="pers-tab active" id="tabTripulacion" onclick="Personal.cambiarTab('tripulacion')">
+    <i data-lucide="steering-wheel"></i> Tripulación
+  </button>
+  <button type="button" class="pers-tab" id="tabAdministrativo" onclick="Personal.cambiarTab('administrativo')">
+    <i data-lucide="briefcase"></i> Administrativo y otros cargos
+  </button>
+</div>
+
+<!-- ── Tabla: Tripulación ── -->
+<div class="card" id="panelTripulacion">
   <div class="table-wrapper">
     {{#if tripulantes.length}}
     <table class="table">
@@ -64,7 +59,7 @@
         <tr>
           <th>Nombre completo</th>
           <th>DNI</th>
-          <th>Tipo de personal</th>
+          <th>Tipo</th>
           <th class="hide-sm">Teléfono</th>
           <th class="hide-sm">Licencia / Otros</th>
           {{#if isAdmin}}<th>Acción</th>{{/if}}
@@ -83,20 +78,14 @@
               {{tipo}}
             </span>
           </td>
+          <td class="hide-sm">{{#if telefono}}{{telefono}}{{else}}<span class="text-muted">—</span>{{/if}}</td>
           <td class="hide-sm">
-            {{#if telefono}}{{telefono}}{{else}}<span class="text-muted">—</span>{{/if}}
-          </td>
-          <td class="hide-sm">
-            {{#if licencia}}
-              <span class="pers-licencia"><i data-lucide="credit-card"></i> {{licencia}}</span>
-            {{else}}
-              <span class="text-muted">—</span>
-            {{/if}}
+            {{#if licencia}}<span class="pers-licencia"><i data-lucide="credit-card"></i> {{licencia}}</span>
+            {{else}}<span class="text-muted">—</span>{{/if}}
           </td>
           {{#if ../isAdmin}}
           <td>
-            <button class="btn-icon btn-icon-edit" title="Editar"
-                    onclick='Personal.abrirModalEditar({{json this}})'>
+            <button class="btn-icon btn-icon-edit" title="Editar" onclick='Personal.abrirModalEditar({{json this}})'>
               <i data-lucide="pencil"></i>
             </button>
           </td>
@@ -109,15 +98,65 @@
     <div class="empty-state">
       <i data-lucide="users"></i>
       <p>No hay tripulantes registrados aún.</p>
-      <button class="btn btn-primary btn-sm" onclick="Personal.abrirModalNuevo()">
-        <i data-lucide="plus"></i> Registrar primer tripulante
-      </button>
     </div>
     {{/if}}
   </div>
 </div>
 
-<!-- ══ MODAL: Registrar / Editar tripulante ══ -->
+<!-- ── Tabla: Administrativo (con filtro por cargo) ── -->
+<div class="card" id="panelAdministrativo" style="display:none">
+  <div class="pers-filtro-cargo">
+    <i data-lucide="search"></i>
+    <input type="text" id="filtroCargo" class="form-control" placeholder="Filtrar escribiendo el cargo (Ej: Mecánico, Contabilidad...)"
+           value="{{filtroCargo}}" list="listaCargos" onkeydown="if(event.key==='Enter') Personal.filtrarCargo()" />
+    <datalist id="listaCargos"></datalist>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="Personal.filtrarCargo()">Buscar</button>
+    {{#if filtroCargo}}
+    <a href="/personal" class="btn btn-ghost btn-sm">Limpiar</a>
+    {{/if}}
+  </div>
+  <div class="table-wrapper">
+    {{#if administrativos.length}}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre completo</th>
+          <th>DNI</th>
+          <th>Cargo</th>
+          <th class="hide-sm">Teléfono</th>
+          <th class="hide-sm">Sueldo Base</th>
+          {{#if isAdmin}}<th>Acción</th>{{/if}}
+        </tr>
+      </thead>
+      <tbody>
+        {{#each administrativos}}
+        <tr class="{{#unless activo}}pers-row-inactivo{{/unless}}">
+          <td class="pers-nombre">{{nombres}} {{apellidos}}</td>
+          <td>{{dni}}</td>
+          <td><span class="badge badge-neutral">{{cargo}}</span></td>
+          <td class="hide-sm">{{#if telefono}}{{telefono}}{{else}}<span class="text-muted">—</span>{{/if}}</td>
+          <td class="hide-sm">{{#if sueldo_base}}S/ {{sueldo_base}}{{else}}<span class="text-muted">—</span>{{/if}}</td>
+          {{#if ../isAdmin}}
+          <td>
+            <button class="btn-icon btn-icon-edit" title="Editar" onclick='Personal.abrirModalEditar({{json this}})'>
+              <i data-lucide="pencil"></i>
+            </button>
+          </td>
+          {{/if}}
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="briefcase"></i>
+      <p>No hay personal administrativo registrado {{#if filtroCargo}}con ese cargo{{/if}}.</p>
+    </div>
+    {{/if}}
+  </div>
+</div>
+
+<!-- ══ MODAL: Registrar / Editar personal ══ -->
 <div class="modal-backdrop" id="modalPersonal" style="display:none">
   <div class="modal pers-modal">
     <form id="formPersonal" method="POST" action="/personal">
@@ -128,59 +167,75 @@
       </div>
 
       <div class="modal-body pers-modal-body">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label-pers">Nombres *</label>
-            <input type="text" name="nombres" id="pNombres" class="form-control"
-                   placeholder="Ej: Juan Carlos" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label-pers">Apellidos *</label>
-            <input type="text" name="apellidos" id="pApellidos" class="form-control"
-                   placeholder="Ej: Pérez García" required />
+
+        <div class="form-group">
+          <label class="form-label-pers">Categoría *</label>
+          <div class="pers-categoria-toggle">
+            <label><input type="radio" name="categoria" value="tripulacion" checked onchange="Personal.cambiarCategoriaForm()" /> Tripulación</label>
+            <label><input type="radio" name="categoria" value="administrativo" onchange="Personal.cambiarCategoriaForm()" /> Administrativo / Otro cargo</label>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label-pers">Tipo de personal *</label>
-            <select name="tipo" id="pTipo" class="form-control" required
-                    onchange="Personal.toggleLicencia()">
+            <label class="form-label-pers">Nombres *</label>
+            <input type="text" name="nombres" id="pNombres" class="form-control" placeholder="Ej: Juan Carlos" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label-pers">Apellidos *</label>
+            <input type="text" name="apellidos" id="pApellidos" class="form-control" placeholder="Ej: Pérez García" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" id="pTipoGroup">
+            <label class="form-label-pers">Tipo de tripulante *</label>
+            <select name="tipo" id="pTipo" class="form-control" onchange="Personal.toggleLicencia()">
               <option value="">Selecciona un tipo</option>
               <option value="Chofer">Chofer</option>
               <option value="Terramoza">Terramoza</option>
               <option value="Ayudante">Ayudante</option>
             </select>
           </div>
+          <div class="form-group" id="pCargoGroup" style="display:none">
+            <label class="form-label-pers">Cargo *</label>
+            <input type="text" name="cargo" id="pCargo" class="form-control" list="listaCargosModal"
+                   placeholder="Ej: Mecánico, Contabilidad, Limpieza..." />
+            <datalist id="listaCargosModal"></datalist>
+          </div>
           <div class="form-group">
             <label class="form-label-pers">Número de DNI *</label>
-            <input type="text" name="dni" id="pDni" class="form-control"
-                   placeholder="00000000" maxlength="15" required />
+            <input type="text" name="dni" id="pDni" class="form-control" placeholder="00000000" maxlength="15" required />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label class="form-label-pers">Teléfono / Celular</label>
-            <input type="text" name="telefono" id="pTelefono" class="form-control"
-                   placeholder="999 999 999" />
+            <input type="text" name="telefono" id="pTelefono" class="form-control" placeholder="999 999 999" />
           </div>
-
-          <!-- Campo Licencia — solo visible si Tipo = Chofer -->
           <div class="form-group pers-licencia-box" id="pLicenciaBox" style="display:none">
-            <label class="form-label-pers pers-licencia-label">
-              <i data-lucide="credit-card"></i> Licencia de conducir
-            </label>
+            <label class="form-label-pers pers-licencia-label"><i data-lucide="credit-card"></i> Licencia de conducir</label>
             <input type="text" name="licencia" id="pLicencia" class="form-control"
-                   placeholder="Nro de Licencia (Categoría A-III)"
-                   oninput="this.value=this.value.toUpperCase()" />
+                   placeholder="Nro de Licencia (Categoría A-III)" oninput="this.value=this.value.toUpperCase()" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label-pers">Sueldo base (S/) <small class="text-muted">— para Planilla</small></label>
+            <input type="number" name="sueldo_base" id="pSueldoBase" class="form-control" step="0.01" min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label-pers">Fecha de ingreso</label>
+            <input type="date" name="fecha_ingreso" id="pFechaIngreso" class="form-control" />
           </div>
         </div>
 
         <div class="form-group form-check-group" id="pActivoGroup" style="display:none">
           <label class="form-check-label">
             <input type="checkbox" name="activo" id="pActivo" class="form-check" checked />
-            <span>Tripulante activo</span>
+            <span>Personal activo</span>
           </label>
         </div>
       </div>
@@ -188,7 +243,7 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="Personal.cerrarModal()">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="pBtnGuardar">
-          <i data-lucide="save"></i> Guardar Tripulante
+          <i data-lucide="save"></i> Guardar
         </button>
       </div>
 
@@ -198,10 +253,43 @@
 
 <style>
 @media (max-width: 639px) { .hide-sm { display: none; } }
+.pers-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.pers-tab {
+  display: flex; align-items: center; gap: 6px; padding: 9px 16px; border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); background: var(--color-surface); font-size: var(--text-sm); font-weight: 600;
+  color: var(--text-secondary); cursor: pointer;
+}
+.pers-tab.active { background: var(--color-accent); color: white; border-color: var(--color-accent); }
+.pers-tab i { width: 15px; height: 15px; }
+.pers-filtro-cargo { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--color-border); }
+.pers-filtro-cargo i { width: 16px; height: 16px; color: var(--text-muted); }
+.pers-filtro-cargo input { flex: 1; max-width: 360px; }
+.pers-categoria-toggle { display: flex; gap: 18px; padding: 8px 0; }
+.pers-categoria-toggle label { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); cursor: pointer; }
+.pers-stat-admin .pers-stat-icon { color: #7c3aed; }
+.pers-barra-admin { background: #7c3aed; }
 </style>
 
 <script>
 const Personal = (function () {
+  function cambiarTab(tab) {
+    document.getElementById('tabTripulacion').classList.toggle('active', tab === 'tripulacion');
+    document.getElementById('tabAdministrativo').classList.toggle('active', tab === 'administrativo');
+    document.getElementById('panelTripulacion').style.display = tab === 'tripulacion' ? '' : 'none';
+    document.getElementById('panelAdministrativo').style.display = tab === 'administrativo' ? '' : 'none';
+  }
+  function filtrarCargo() {
+    var v = document.getElementById('filtroCargo').value.trim();
+    window.location.href = '/personal' + (v ? ('?cargo=' + encodeURIComponent(v)) : '');
+  }
+  function cambiarCategoriaForm() {
+    var esAdmin = document.querySelector('input[name="categoria"]:checked').value === 'administrativo';
+    document.getElementById('pTipoGroup').style.display = esAdmin ? 'none' : '';
+    document.getElementById('pCargoGroup').style.display = esAdmin ? '' : 'none';
+    document.getElementById('pTipo').required = !esAdmin;
+    document.getElementById('pCargo').required = esAdmin;
+    if (esAdmin) { document.getElementById('pLicenciaBox').style.display = 'none'; document.getElementById('pLicencia').value = ''; }
+  }
   function toggleLicencia() {
     const tipo  = document.getElementById('pTipo').value;
     const box   = document.getElementById('pLicenciaBox');
@@ -222,25 +310,41 @@ const Personal = (function () {
     document.getElementById('persModalTitulo').textContent = 'Datos Personales';
     document.getElementById('formPersonal').action = '/personal';
     document.getElementById('formPersonal').reset();
+    document.querySelector('input[name="categoria"][value="tripulacion"]').checked = true;
     document.getElementById('pActivoGroup').style.display = 'none';
-    document.getElementById('pBtnGuardar').innerHTML = '<i data-lucide="save"></i> Guardar Tripulante';
+    document.getElementById('pBtnGuardar').innerHTML = '<i data-lucide="save"></i> Guardar';
+    cambiarCategoriaForm();
     toggleLicencia();
     abrirModal();
   }
   function abrirModalEditar(data) {
-    document.getElementById('persModalTitulo').textContent = 'Editar Tripulante';
+    document.getElementById('persModalTitulo').textContent = 'Editar Personal';
     document.getElementById('formPersonal').action = '/personal/' + data.id + '/editar';
     document.getElementById('pNombres').value   = data.nombres   || '';
     document.getElementById('pApellidos').value = data.apellidos || '';
+    document.querySelector('input[name="categoria"][value="' + (data.categoria || 'tripulacion') + '"]').checked = true;
     document.getElementById('pTipo').value      = data.tipo      || '';
+    document.getElementById('pCargo').value     = data.cargo     || '';
     document.getElementById('pDni').value       = data.dni       || '';
     document.getElementById('pTelefono').value  = data.telefono  || '';
     document.getElementById('pLicencia').value  = data.licencia  || '';
+    document.getElementById('pSueldoBase').value = data.sueldo_base || '';
+    document.getElementById('pFechaIngreso').value = data.fecha_ingreso || '';
     document.getElementById('pActivo').checked  = !!data.activo;
     document.getElementById('pActivoGroup').style.display = 'flex';
-    document.getElementById('pBtnGuardar').innerHTML = '<i data-lucide="save"></i> Actualizar Tripulante';
+    document.getElementById('pBtnGuardar').innerHTML = '<i data-lucide="save"></i> Actualizar';
+    cambiarCategoriaForm();
     toggleLicencia();
     abrirModal();
+  }
+  function cargarSugerenciasCargo() {
+    fetch('/personal/cargos/sugerencias', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var opts = (d.cargos || []).map(function (c) { return '<option value="' + c + '"></option>'; }).join('');
+        document.getElementById('listaCargos').innerHTML = opts;
+        document.getElementById('listaCargosModal').innerHTML = opts;
+      }).catch(function () {});
   }
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('modalPersonal').addEventListener('click', function (e) {
@@ -249,7 +353,9 @@ const Personal = (function () {
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') cerrarModal();
     });
+    cargarSugerenciasCargo();
+    {{#if filtroCargo}}cambiarTab('administrativo');{{/if}}
   });
-  return { abrirModalNuevo, abrirModalEditar, cerrarModal, toggleLicencia };
+  return { abrirModalNuevo, abrirModalEditar, cerrarModal, toggleLicencia, cambiarTab, filtrarCargo, cambiarCategoriaForm };
 })();
 </script>

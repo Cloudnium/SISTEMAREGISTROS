@@ -1,7 +1,241 @@
-<div class="module-coming-soon">
-  <div class="module-icon" style="--mod-color:#10b981;">
-    <i data-lucide="package"></i>
-  </div>
-  <h2>Inventario</h2>
-  <p>Control de stock y productos<br/>Este modulo esta listo para ser desarrollado.</p>
+<!-- VIEW: inventario/index.hbs — Uniformes -->
+
+<div class="page-header">
+  <div></div>
+  {{#if puedeGestionarInventario}}
+  <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevo()">
+    <i data-lucide="plus"></i> Nuevo Uniforme
+  </button>
+  {{/if}}
 </div>
+
+<div class="card" style="padding:0;overflow:visible">
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Uniforme</th>
+          <th>Descripción</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th></th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each uniformes}}
+        <tr {{#unless activo}}style="opacity:.5"{{/unless}}>
+          <td style="font-weight:600">{{nombre}}</td>
+          <td class="hide-sm" style="color:var(--text-muted);font-size:var(--text-sm)">{{#if descripcion}}{{descripcion}}{{else}}—{{/if}}</td>
+          <td>S/ {{precio}}</td>
+          <td><span class="badge {{#if stock}}badge-success{{else}}badge-error{{/if}}">{{stock}}</span></td>
+          <td>{{#unless activo}}<span class="text-muted" style="font-size:var(--text-xs)">Inactivo</span>{{/unless}}</td>
+          <td>
+            <div class="inv-acciones">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="Inv.abrirStock('{{id}}', '{{nombre}}')">
+                <i data-lucide="plus-circle"></i> Stock
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="Inv.abrirEntrega('{{id}}', '{{nombre}}', {{stock}})">
+                <i data-lucide="shirt"></i> Entregar
+              </button>
+              {{#if ../puedeGestionarInventario}}
+              <button type="button" class="btn-icon" title="Editar" onclick='Inv.abrirEditar({{{json this}}})'>
+                <i data-lucide="pencil"></i>
+              </button>
+              {{/if}}
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{#unless uniformes.length}}
+    <div class="ciu-empty"><i data-lucide="shirt"></i><span>No hay uniformes registrados en el catálogo.</span></div>
+    {{/unless}}
+  </div>
+</div>
+
+<!-- ═══ MODAL: Nuevo / Editar uniforme (solo autorizados) ═══ -->
+{{#if puedeGestionarInventario}}
+<div class="modal-backdrop" id="invModalForm" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title" id="invFormTitulo"><i data-lucide="shirt"></i> Nuevo Uniforme</div>
+      <button class="modal-close" onclick="Inv.cerrarForm()"><i data-lucide="x"></i></button>
+    </div>
+    <form id="invForm" method="POST" action="/inventario/uniformes">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label-pers">Nombre (ej. Camisa manga larga - Talla M)</label>
+          <input type="text" name="nombre" id="invNombre" class="form-control" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Descripción (opcional)</label>
+          <input type="text" name="descripcion" id="invDescripcion" class="form-control" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label-pers">Precio (S/)</label>
+            <input type="number" name="precio" id="invPrecio" class="form-control" step="0.01" min="0" required />
+          </div>
+          <div class="form-group" id="invStockGroup">
+            <label class="form-label-pers">Stock inicial</label>
+            <input type="number" name="stock" id="invStock" class="form-control" min="0" value="0" />
+          </div>
+        </div>
+        <label class="form-check-label" id="invActivoWrap" style="display:none">
+          <input type="checkbox" name="activo" id="invActivo" class="form-check" checked />
+          <span>Activo (visible para entregas)</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Inv.cerrarForm()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{/if}}
+
+<!-- ═══ MODAL: Aumentar stock (todos) ═══ -->
+<div class="modal-backdrop" id="invModalStock" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="plus-circle"></i> Aumentar stock — <span id="invStockNombre"></span></div>
+      <button class="modal-close" onclick="Inv.cerrarStock()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-pers">Cantidad a agregar</label>
+        <input type="number" class="form-control" id="invStockCantidad" min="1" value="1" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="Inv.cerrarStock()">Cancelar</button>
+      <button type="button" class="btn btn-primary" onclick="Inv.confirmarStock()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Entregar a personal (todos) ═══ -->
+<div class="modal-backdrop" id="invModalEntrega" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="shirt"></i> Entregar — <span id="invEntregaNombre"></span></div>
+      <button class="modal-close" onclick="Inv.cerrarEntrega()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="form-hint" style="margin-top:0">Stock disponible: <b id="invEntregaStockDisp"></b>. Se descontará del stock y se registrará automáticamente como un descuento en la Planilla del trabajador.</p>
+      <div class="form-group">
+        <label class="form-label-pers">Trabajador</label>
+        <select class="form-control" id="invEntregaPersonal">
+          <option value="">— Selecciona —</option>
+          {{#each personal}}
+          <option value="{{id}}">{{etiqueta}}</option>
+          {{/each}}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Cantidad</label>
+        <input type="number" class="form-control" id="invEntregaCantidad" min="1" value="1" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="Inv.cerrarEntrega()">Cancelar</button>
+      <button type="button" class="btn btn-primary" onclick="Inv.confirmarEntrega()">Entregar</button>
+    </div>
+  </div>
+</div>
+
+<div class="ma-toast" id="invToast"></div>
+
+<style>
+.inv-acciones { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+</style>
+
+<script>
+var Inv = (function () {
+  var uniformeActualId = null, stockDisponibleActual = 0;
+
+  function toast(msg, tipo) {
+    var el = document.getElementById('invToast');
+    el.textContent = msg;
+    el.className = 'ma-toast ma-toast-' + (tipo || 'ok') + ' ma-toast-visible';
+    setTimeout(function () { el.className = 'ma-toast'; }, 3000);
+  }
+
+  function abrirNuevo() {
+    var form = document.getElementById('invForm');
+    if (!form) return;
+    form.action = '/inventario/uniformes';
+    form.reset();
+    document.getElementById('invFormTitulo').innerHTML = '<i data-lucide="shirt"></i> Nuevo Uniforme';
+    document.getElementById('invStockGroup').style.display = '';
+    document.getElementById('invActivoWrap').style.display = 'none';
+    document.getElementById('invModalForm').style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+  function abrirEditar(u) {
+    var form = document.getElementById('invForm');
+    if (!form) return;
+    form.action = '/inventario/uniformes/' + u.id + '/editar';
+    document.getElementById('invNombre').value = u.nombre || '';
+    document.getElementById('invDescripcion').value = u.descripcion || '';
+    document.getElementById('invPrecio').value = u.precio || 0;
+    document.getElementById('invActivo').checked = !!u.activo;
+    document.getElementById('invFormTitulo').innerHTML = '<i data-lucide="pencil"></i> Editar Uniforme';
+    document.getElementById('invStockGroup').style.display = 'none';
+    document.getElementById('invActivoWrap').style.display = '';
+    document.getElementById('invModalForm').style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+  function cerrarForm() { document.getElementById('invModalForm').style.display = 'none'; }
+
+  function abrirStock(id, nombre) {
+    uniformeActualId = id;
+    document.getElementById('invStockNombre').textContent = nombre;
+    document.getElementById('invStockCantidad').value = 1;
+    document.getElementById('invModalStock').style.display = 'flex';
+  }
+  function cerrarStock() { document.getElementById('invModalStock').style.display = 'none'; }
+  function confirmarStock() {
+    var cantidad = document.getElementById('invStockCantidad').value;
+    if (!cantidad || Number(cantidad) <= 0) { toast('Ingresa una cantidad válida.', 'error'); return; }
+    fetch('/inventario/uniformes/' + uniformeActualId + '/stock', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cantidad: cantidad })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.error) { toast(r.error, 'error'); return; }
+      toast('Stock actualizado.', 'ok');
+      setTimeout(function () { location.reload(); }, 500);
+    });
+  }
+
+  function abrirEntrega(id, nombre, stockDisp) {
+    uniformeActualId = id; stockDisponibleActual = stockDisp;
+    document.getElementById('invEntregaNombre').textContent = nombre;
+    document.getElementById('invEntregaStockDisp').textContent = stockDisp;
+    document.getElementById('invEntregaPersonal').value = '';
+    document.getElementById('invEntregaCantidad').value = 1;
+    document.getElementById('invModalEntrega').style.display = 'flex';
+  }
+  function cerrarEntrega() { document.getElementById('invModalEntrega').style.display = 'none'; }
+  function confirmarEntrega() {
+    var personalId = document.getElementById('invEntregaPersonal').value;
+    var cantidad = document.getElementById('invEntregaCantidad').value;
+    if (!personalId) { toast('Selecciona el trabajador.', 'error'); return; }
+    if (!cantidad || Number(cantidad) <= 0) { toast('Ingresa una cantidad válida.', 'error'); return; }
+    if (Number(cantidad) > stockDisponibleActual) { toast('No hay stock suficiente.', 'error'); return; }
+    fetch('/inventario/uniformes/' + uniformeActualId + '/entregar', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personal_id: personalId, cantidad: cantidad })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.error) { toast(r.error, 'error'); return; }
+      toast('Entrega registrada. Se generó el descuento en Planilla.', 'ok');
+      setTimeout(function () { location.reload(); }, 700);
+    });
+  }
+
+  return { abrirNuevo, abrirEditar, cerrarForm, abrirStock, cerrarStock, confirmarStock, abrirEntrega, cerrarEntrega, confirmarEntrega };
+})();
+</script>

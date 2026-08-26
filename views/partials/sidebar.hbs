@@ -41,13 +41,17 @@
       <i data-lucide="fuel"></i><span>Combustible</span>
     </a>
 
+    {{#if (or isAdmin isDesarrollador secciones.boletaje)}}
     <a href="/boletaje" class="sidebar-nav-item {{#if (eq currentPath '/boletaje')}}active{{/if}}">
       <i data-lucide="ticket"></i><span>Boletaje</span>
     </a>
+    {{/if}}
 
+    {{#if (or isAdmin isDesarrollador secciones.[consulta-documentos])}}
     <a href="/consulta-documentos" class="sidebar-nav-item {{#if (eq currentPath '/consulta-documentos')}}active{{/if}}">
       <i data-lucide="file-search"></i><span>Consulta de Documentos</span>
     </a>
+    {{/if}}
 
     <a href="/personal" class="sidebar-nav-item {{#if (eq currentPath '/personal')}}active{{/if}}">
       <i data-lucide="users"></i><span>Personal</span>
@@ -57,45 +61,76 @@
       <i data-lucide="package"></i><span>Inventario</span>
     </a>
 
+    {{#if (or isAdmin puedeVerPlanilla)}}
+    <a href="/planilla" class="sidebar-nav-item {{#if (eq currentPath '/planilla')}}active{{/if}}">
+      <i data-lucide="wallet"></i><span>Planilla</span>
+    </a>
+    {{/if}}
+
+    {{#if (or isAdmin isDesarrollador secciones.servicios)}}
     <a href="/servicios" class="sidebar-nav-item {{#if (eq currentPath '/servicios')}}active{{/if}}">
       <i data-lucide="layout-grid"></i><span>Servicios</span>
     </a>
+    {{/if}}
 
+    {{#if (or isAdmin isDesarrollador secciones.buses)}}
     <a href="/buses" class="sidebar-nav-item {{#if (eq currentPath '/buses')}}active{{/if}}">
       <i data-lucide="bus"></i><span>Buses</span>
     </a>
+    {{/if}}
 
+    {{#if (or isAdmin isDesarrollador secciones.ciudades)}}
     <a href="/ciudades" class="sidebar-nav-item {{#if (eq currentPath '/ciudades')}}active{{/if}}">
       <i data-lucide="map-pin"></i><span>Ciudades / Agencias</span>
     </a>
+    {{/if}}
 
+    {{#if (or isAdmin isDesarrollador secciones.destinos)}}
     <a href="/destinos" class="sidebar-nav-item {{#if (eq currentPath '/destinos')}}active{{/if}}">
       <i data-lucide="route"></i><span>Destinos</span>
     </a>
+    {{/if}}
 
     <div class="sidebar-section-label">Administración</div>
+    {{#if (or isAdmin isDesarrollador secciones.comprobantes)}}
     <a href="/comprobantes" class="sidebar-nav-item {{#if (eq currentPath '/comprobantes')}}active{{/if}}">
       <i data-lucide="receipt"></i><span>Comprobantes</span>
     </a>
+    {{/if}}
     {{#if puedeCrearCodigos}}
+    {{#if (or isAdmin isDesarrollador secciones.codigos)}}
     <a href="/codigos" class="sidebar-nav-item {{#if (eq currentPath '/codigos')}}active{{/if}}">
       <i data-lucide="key-round"></i><span>Códigos de Autorización</span>
     </a>
     {{/if}}
+    {{/if}}
     {{#if (or (eq user.rol 'admin') user.puede_programar)}}
+    {{#if (or isAdmin isDesarrollador secciones.programacion)}}
     <a href="/programacion" class="sidebar-nav-item {{#if (eq currentPath '/programacion')}}active{{/if}}">
       <i data-lucide="calendar-clock"></i><span>Programación</span>
     </a>
     {{/if}}
+    {{/if}}
     {{#if (eq user.rol 'admin')}}
+    {{#if (or isAdmin isDesarrollador secciones.usuarios)}}
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">
       <i data-lucide="shield-check"></i><span>Usuarios</span>
     </a>
+    {{/if}}
+    {{#if (or isAdmin isDesarrollador secciones.empresas)}}
     <a href="/empresas" class="sidebar-nav-item {{#if (eq currentPath '/empresas')}}active{{/if}}">
       <i data-lucide="building-2"></i><span>Empresas</span>
     </a>
+    {{/if}}
+    {{#if (or isAdmin isDesarrollador secciones.[mapa-asientos])}}
     <a href="/mapa-asientos" class="sidebar-nav-item {{#if (eq currentPath '/mapa-asientos')}}active{{/if}}">
       <i data-lucide="layout-dashboard"></i><span>Mapa de Asientos</span>
+    </a>
+    {{/if}}
+    {{/if}}
+    {{#if isDesarrollador}}
+    <a href="/configuracion" class="sidebar-nav-item {{#if (eq currentPath '/configuracion')}}active{{/if}}">
+      <i data-lucide="sliders-horizontal"></i><span>Configuración</span>
     </a>
     {{/if}}
 

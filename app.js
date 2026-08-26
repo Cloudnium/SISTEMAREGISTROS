@@ -120,14 +120,29 @@ app.use(cookieSession({
 // Flash messages (mensajes de éxito/error entre redirecciones)
 app.use(flash());
 
+// Visibilidad de secciones (Desarrollador) — caché en memoria de 5s
+// para no consultar la BD en cada request, pero que los cambios se
+// reflejen casi al instante.
+const { db: dbLocals } = require('./config/supabase');
+let seccionesCache = { data: {}, expira: 0 };
+async function obtenerSecciones() {
+  if (Date.now() < seccionesCache.expira) return seccionesCache.data;
+  const { data } = await dbLocals.select('configuracion_secciones', 'select=clave,visible');
+  const mapa = {};
+  (data || []).forEach(s => { mapa[s.clave] = s.visible; });
+  seccionesCache = { data: mapa, expira: Date.now() + 5000 };
+  return mapa;
+}
+
 // Expone datos de sesión y flash a todas las vistas HBS
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   res.locals.user        = req.session.user || null;
   res.locals.currentPath = req.path;
   res.locals.success     = req.flash('success');
   res.locals.error       = req.flash('error');
   // Expone rol a todas las vistas para mostrar/ocultar botones
   res.locals.isAdmin     = req.session.user && req.session.user.rol === 'admin';
+  res.locals.isDesarrollador = req.session.user && req.session.user.rol === 'desarrollador';
   // Expone si puede ver/crear Códigos de Autorización, para ocultar
   // ese ítem del sidebar a quien no tenga el permiso. Se basa en el
   // valor cacheado en la sesión (se refresca al volver a iniciar
@@ -136,6 +151,15 @@ app.use((req, res, next) => {
   res.locals.puedeCrearCodigos = !!(req.session.user && (
     req.session.user.rol === 'admin' || req.session.user.puede_crear_codigos === true
   ));
+  res.locals.puedeGestionarInventario = !!(req.session.user && (
+    req.session.user.rol === 'admin' || req.session.user.puede_gestionar_inventario === true
+  ));
+  res.locals.puedeVerPlanilla = !!(req.session.user && (
+    req.session.user.rol === 'admin' || req.session.user.puede_ver_planilla === true
+  ));
+  // Secciones ocultadas por el Desarrollador (Combustible, Personal e
+  // Inventario nunca se incluyen aquí — siempre quedan visibles)
+  res.locals.secciones = await obtenerSecciones();
   next();
 });
 
@@ -160,24 +184,29 @@ const codigosRoutes       = require('./routes/codigos');
 const empresasRoutes      = require('./routes/empresas');
 const consultaDocumentosRoutes = require('./routes/consulta-documentos');
 const chatRoutes = require('./routes/chat');
+const configuracionRoutes = require('./routes/configuracion');
+const planillaRoutes      = require('./routes/planilla');
+const { requireSeccionVisible } = require('./middleware/auth');
 
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
-app.use('/usuarios', usuariosRoutes);
+app.use('/usuarios', requireSeccionVisible('usuarios'), usuariosRoutes);
 app.use('/combustible', combustibleRoutes);
 app.use('/personal',     personalRoutes);
-app.use('/boletaje',     boletajeRoutes);
+app.use('/boletaje',     requireSeccionVisible('boletaje'), boletajeRoutes);
 app.use('/inventario', inventarioRoutes);
-app.use('/servicios',  serviciosRoutes);
-app.use('/buses',      busesRoutes);
-app.use('/ciudades',      ciudadesRoutes);
-app.use('/destinos',      destinosRoutes);
-app.use('/programacion',   programacionRoutes);
-app.use('/mapa-asientos',  mapaAsientosRoutes);
-app.use('/comprobantes',   comprobantesRoutes);
-app.use('/codigos',        codigosRoutes);
-app.use('/empresas',       empresasRoutes);
-app.use('/consulta-documentos', consultaDocumentosRoutes);
+app.use('/servicios',  requireSeccionVisible('servicios'), serviciosRoutes);
+app.use('/buses',      requireSeccionVisible('buses'), busesRoutes);
+app.use('/ciudades',      requireSeccionVisible('ciudades'), ciudadesRoutes);
+app.use('/destinos',      requireSeccionVisible('destinos'), destinosRoutes);
+app.use('/programacion',   requireSeccionVisible('programacion'), programacionRoutes);
+app.use('/mapa-asientos',  requireSeccionVisible('mapa-asientos'), mapaAsientosRoutes);
+app.use('/comprobantes',   requireSeccionVisible('comprobantes'), comprobantesRoutes);
+app.use('/codigos',        requireSeccionVisible('codigos'), codigosRoutes);
+app.use('/empresas',       requireSeccionVisible('empresas'), empresasRoutes);
+app.use('/consulta-documentos', requireSeccionVisible('consulta-documentos'), consultaDocumentosRoutes);
+app.use('/planilla',       requireSeccionVisible('planilla'), planillaRoutes);
+app.use('/configuracion',  configuracionRoutes);
 app.use('/chat', chatRoutes);
 
 // ─────────────────────────────────────────────

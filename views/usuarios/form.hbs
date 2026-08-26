@@ -45,6 +45,7 @@
           <option value="admin"        {{#if (eq usuario.rol 'admin')}}selected{{/if}}>Administrador</option>
           <option value="operador"     {{#if (eq usuario.rol 'operador')}}selected{{/if}}>Operador</option>
           <option value="visualizador" {{#if (eq usuario.rol 'visualizador')}}selected{{/if}}>Visualizador</option>
+          <option value="desarrollador" {{#if (eq usuario.rol 'desarrollador')}}selected{{/if}}>Desarrollador</option>
         </select>
       </div>
     </div>
@@ -90,6 +91,16 @@
         <input type="checkbox" name="puede_reintegro" class="form-check"
                {{#if usuario}}{{#if usuario.puede_reintegro}}checked{{/if}}{{else}}checked{{/if}} />
         <span>Puede usar Reintegro</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_gestionar_inventario" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_gestionar_inventario}}checked{{/if}}{{/if}} />
+        <span>Puede gestionar Inventario (crear/editar catálogo y precios)</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_ver_planilla" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_ver_planilla}}checked{{/if}}{{/if}} />
+        <span>Puede ver Planilla</span>
       </label>
       <label class="form-check-label">
         <input type="checkbox" name="puede_crear_codigos" class="form-check"

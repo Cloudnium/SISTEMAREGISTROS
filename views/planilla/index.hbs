@@ -1,0 +1,184 @@
+<!-- VIEW: planilla/index.hbs -->
+
+<div class="pln-aviso">
+  <i data-lucide="info"></i>
+  <span>Los bonos y descuentos quedan <b>pendientes</b> hasta que los marques como cobrados.
+  Si no cobras uno, sigue apareciendo aquí (pasa automáticamente al siguiente pago).</span>
+</div>
+
+{{#if personal.length}}
+<div class="pln-lista">
+  {{#each personal}}
+  <div class="pln-card">
+    <div class="pln-card-header">
+      <div>
+        <div class="pln-nombre">{{nombres}} {{apellidos}}</div>
+        <div class="pln-cargo">{{cargoMostrar}}</div>
+      </div>
+      <div class="pln-sueldo-box">
+        <label>Sueldo Base (S/)</label>
+        <input type="number" class="form-control pln-sueldo-input" id="pln-sueldo-{{id}}"
+               value="{{sueldo_base}}" step="0.01" min="0"
+               onchange="Planilla.guardarSueldo('{{id}}', this.value)" />
+      </div>
+    </div>
+
+    <div class="pln-mov-cols">
+      <div class="pln-mov-col">
+        <div class="pln-mov-col-titulo pln-col-bono"><i data-lucide="plus-circle"></i> Bonos pendientes (S/ {{totalBonos}})</div>
+        {{#each bonos}}
+        <div class="pln-mov-item">
+          <label class="pln-mov-check">
+            <input type="checkbox" onchange="Planilla.marcarCobrado('{{id}}', this.checked)" />
+          </label>
+          <span class="pln-mov-concepto">{{concepto}}</span>
+          <span class="pln-mov-monto pln-col-bono">S/ {{monto}}</span>
+        </div>
+        {{/each}}
+        <button type="button" class="btn btn-ghost btn-sm" onclick="Planilla.abrirMovimiento('{{id}}', 'bono')">
+          <i data-lucide="plus"></i> Agregar bono
+        </button>
+      </div>
+
+      <div class="pln-mov-col">
+        <div class="pln-mov-col-titulo pln-col-descuento"><i data-lucide="minus-circle"></i> Descuentos pendientes (S/ {{totalDescuentos}})</div>
+        {{#each descuentos}}
+        <div class="pln-mov-item">
+          <label class="pln-mov-check">
+            <input type="checkbox" onchange="Planilla.marcarCobrado('{{id}}', this.checked)" />
+          </label>
+          <span class="pln-mov-concepto">{{concepto}} {{#if (eq origen 'uniforme')}}<i data-lucide="shirt" title="Generado por entrega de uniforme"></i>{{/if}}</span>
+          <span class="pln-mov-monto pln-col-descuento">S/ {{monto}}</span>
+        </div>
+        {{/each}}
+        <button type="button" class="btn btn-ghost btn-sm" onclick="Planilla.abrirMovimiento('{{id}}', 'descuento')">
+          <i data-lucide="plus"></i> Agregar descuento
+        </button>
+      </div>
+    </div>
+
+    <div class="pln-total">
+      Total a pagar: <b>S/ {{totalPagar}}</b>
+    </div>
+  </div>
+  {{/each}}
+</div>
+{{else}}
+<div class="card" style="padding:40px;text-align:center;color:var(--text-muted)">
+  No hay personal activo registrado todavía.
+</div>
+{{/if}}
+
+<!-- Modal: agregar bono/descuento -->
+<div class="modal-backdrop" id="plnModalMov" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="plnModalTitulo">Agregar movimiento</div>
+      <button class="modal-close" onclick="Planilla.cerrarMovimiento()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-pers">Concepto</label>
+        <input type="text" class="form-control" id="plnConcepto" placeholder="Ej: Adelanto de sueldo" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Monto (S/)</label>
+        <input type="number" class="form-control" id="plnMonto" step="0.01" min="0.01" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Planilla.cerrarMovimiento()">Cancelar</button>
+      <button class="btn btn-primary" onclick="Planilla.guardarMovimiento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.pln-aviso {
+  display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-bottom: 20px;
+  background: var(--color-accent-light); border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--text-secondary);
+}
+.pln-aviso i { width: 18px; height: 18px; color: var(--color-accent); flex-shrink: 0; margin-top: 1px; }
+.pln-lista { display: flex; flex-direction: column; gap: 14px; }
+.pln-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 18px 20px; }
+.pln-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
+.pln-nombre { font-weight: 700; font-size: var(--text-md); }
+.pln-cargo { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+.pln-sueldo-box label { display: block; font-size: var(--text-xs); color: var(--text-muted); margin-bottom: 3px; }
+.pln-sueldo-input { width: 130px; }
+.pln-mov-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+.pln-mov-col-titulo { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 700; margin-bottom: 8px; }
+.pln-mov-col-titulo i { width: 14px; height: 14px; }
+.pln-col-bono { color: var(--color-success); }
+.pln-col-descuento { color: var(--color-error); }
+.pln-mov-item { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm); padding: 4px 0; }
+.pln-mov-concepto { flex: 1; color: var(--text-secondary); }
+.pln-mov-concepto i { width: 12px; height: 12px; vertical-align: middle; color: var(--text-muted); }
+.pln-mov-monto { font-weight: 600; }
+.pln-total { text-align: right; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--color-border); font-size: var(--text-sm); }
+@media (max-width: 640px) { .pln-mov-cols { grid-template-columns: 1fr; } }
+</style>
+
+<div class="ma-toast" id="plnToast"></div>
+
+<script>
+var Planilla = (function () {
+  var personalActual = null, tipoActual = null;
+
+  function toast(msg, tipo) {
+    var el = document.getElementById('plnToast');
+    el.textContent = msg;
+    el.className = 'ma-toast ma-toast-' + (tipo || 'ok') + ' ma-toast-visible';
+    setTimeout(function () { el.className = 'ma-toast'; }, 3000);
+  }
+
+  function guardarSueldo(personalId, valor) {
+    fetch('/planilla/' + personalId + '/sueldo', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sueldo_base: valor })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.error) toast(r.error, 'error'); else toast('Sueldo actualizado.', 'ok');
+    });
+  }
+
+  function marcarCobrado(id, cobrado) {
+    fetch('/planilla/movimiento/' + id + '/cobrar', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cobrado: cobrado })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.error) { toast(r.error, 'error'); return; }
+      toast(cobrado ? 'Marcado como cobrado.' : 'Marcado como pendiente.', 'ok');
+      setTimeout(function () { location.reload(); }, 500);
+    });
+  }
+
+  function abrirMovimiento(personalId, tipo) {
+    personalActual = personalId; tipoActual = tipo;
+    document.getElementById('plnModalTitulo').textContent = tipo === 'bono' ? 'Agregar bono' : 'Agregar descuento';
+    document.getElementById('plnConcepto').value = '';
+    document.getElementById('plnMonto').value = '';
+    document.getElementById('plnModalMov').style.display = 'flex';
+  }
+  function cerrarMovimiento() {
+    document.getElementById('plnModalMov').style.display = 'none';
+  }
+  function guardarMovimiento() {
+    var concepto = document.getElementById('plnConcepto').value.trim();
+    var monto = document.getElementById('plnMonto').value;
+    if (!concepto || !monto) { toast('Completa concepto y monto.', 'error'); return; }
+    fetch('/planilla/' + personalActual + '/movimiento', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: tipoActual, concepto: concepto, monto: monto })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.error) { toast(r.error, 'error'); return; }
+      cerrarMovimiento();
+      location.reload();
+    });
+  }
+
+  return { guardarSueldo, marcarCobrado, abrirMovimiento, cerrarMovimiento, guardarMovimiento };
+})();
+</script>

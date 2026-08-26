@@ -17,7 +17,7 @@ const { db } = require('../config/supabase');
 async function usuarioActualFresco(sessionUser) {
   if (!sessionUser || !sessionUser.id) return sessionUser;
   const { data, error } = await db.select('usuarios',
-    'select=id,nombre,rol,agencia_id,puede_anular,puede_postergar,puede_reservar,puede_habilitar,puede_reintegro,puede_crear_codigos,puede_editar_precios,puede_programar' +
+    'select=id,nombre,rol,agencia_id,puede_anular,puede_postergar,puede_reservar,puede_habilitar,puede_reintegro,puede_crear_codigos,puede_editar_precios,puede_programar,puede_gestionar_inventario,puede_ver_planilla' +
     `&id=eq.${sessionUser.id}&limit=1`);
   if (error || !data || !data[0]) {
     // Respaldo defensivo: si falla la consulta, seguimos con lo que
@@ -37,7 +37,9 @@ async function usuarioActualFresco(sessionUser) {
     puede_reintegro:    u.puede_reintegro    !== false,
     puede_crear_codigos: u.puede_crear_codigos === true,
     puede_editar_precios: u.puede_editar_precios === true,
-    puede_programar:      u.puede_programar      === true
+    puede_programar:      u.puede_programar      === true,
+    puede_gestionar_inventario: u.puede_gestionar_inventario === true,
+    puede_ver_planilla:         u.puede_ver_planilla         === true
   };
 }
 

@@ -1,5 +1,11 @@
 // =============================================
-// routes/personal.js — Gestión de Personal/Tripulantes
+// routes/personal.js — Gestión de Personal
+// Dos categorías:
+//   - tripulacion: Chofer/Terramoza/Ayudante (se siguen usando para
+//     asignar a los buses en Programación, igual que antes)
+//   - administrativo: cargo libre (Administrativo, Contabilidad,
+//     Mecánico, Eléctrico, Limpieza, Lavandería, etc.), filtrable
+//     escribiendo el nombre del cargo.
 // GET /          → todos los roles autenticados
 // POST /         → registrar (todos)
 // GET  /:id/json → datos para editar
@@ -13,77 +19,120 @@ const { requireAuth, requireAdminToEdit, requireAdminToDelete } = require('../mi
 
 // ─── LIST ─────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
-  const { data: tripulantes } = await db.select('personal_tripulantes',
-    'select=id,nombres,apellidos,tipo,dni,telefono,licencia,activo&order=creado_en.desc');
+  const { cargo, categoria } = req.query;
+  let query = 'select=id,nombres,apellidos,categoria,tipo,cargo,dni,telefono,licencia,sueldo_base,fecha_ingreso,activo&order=creado_en.desc';
+  if (categoria) query += `&categoria=eq.${encodeURIComponent(categoria)}`;
+  if (cargo && cargo.trim() !== '') query += `&cargo=ilike.*${encodeURIComponent(cargo.trim())}*`;
 
-  const lista = tripulantes || [];
+  const { data: personalRaw } = await db.select('personal_tripulantes', query);
+  const lista = personalRaw || [];
 
-  // Contadores por tipo — siempre se calculan aunque no haya registros
+  // Contadores — siempre se calculan aunque no haya registros
   const resumen = {
     choferes:   lista.filter(t => t.tipo === 'Chofer'    && t.activo).length,
     terramozas: lista.filter(t => t.tipo === 'Terramoza' && t.activo).length,
-    ayudantes:  lista.filter(t => t.tipo === 'Ayudante'  && t.activo).length
+    ayudantes:  lista.filter(t => t.tipo === 'Ayudante'  && t.activo).length,
+    administrativos: lista.filter(t => t.categoria === 'administrativo' && t.activo).length
   };
 
   res.render('personal/index', {
     layout: 'main', title: 'Personal',
     pageTitle: 'Gestión de Personal',
-    pageSubtitle: 'Tripulación activa para rutas e itinerarios',
-    tripulantes: lista,
-    resumen
+    pageSubtitle: 'Tripulación y personal administrativo',
+    tripulantes: lista.filter(t => t.categoria === 'tripulacion'),
+    administrativos: lista.filter(t => t.categoria === 'administrativo'),
+    resumen,
+    filtroCargo: cargo || ''
   });
 });
 
 // ─── JSON para edición AJAX ───────────────────
 router.get('/:id/json', requireAuth, async (req, res) => {
   const { data, error } = await db.select('personal_tripulantes',
-    `select=id,nombres,apellidos,tipo,dni,telefono,licencia,activo&id=eq.${req.params.id}&limit=1`);
+    `select=id,nombres,apellidos,categoria,tipo,cargo,dni,telefono,licencia,sueldo_base,fecha_ingreso,activo&id=eq.${req.params.id}&limit=1`);
   if (error) return res.status(500).json({ error: error.message });
   if (!data || data.length === 0) return res.status(404).json({ error: 'No encontrado' });
   res.json(data[0]);
 });
 
+// ─── Autocompletar cargos ya usados (para filtrar escribiendo) ──
+router.get('/cargos/sugerencias', requireAuth, async (req, res) => {
+  const { data } = await db.select('personal_tripulantes',
+    'select=cargo&categoria=eq.administrativo&cargo=not.is.null');
+  const unicos = [...new Set((data || []).map(d => d.cargo).filter(Boolean))].sort();
+  res.json({ cargos: unicos });
+});
+
 // ─── CREATE — cualquier usuario autenticado ───
 router.post('/', requireAuth, async (req, res) => {
-  const { nombres, apellidos, tipo, dni, telefono, licencia } = req.body;
-  if (!nombres || !apellidos || !tipo || !dni) {
-    req.flash('error', 'Nombres, Apellidos, Tipo de Personal y DNI son obligatorios.');
+  const { nombres, apellidos, categoria, tipo, cargo, dni, telefono, licencia, sueldo_base, fecha_ingreso } = req.body;
+  const cat = categoria === 'administrativo' ? 'administrativo' : 'tripulacion';
+
+  if (!nombres || !apellidos || !dni) {
+    req.flash('error', 'Nombres, Apellidos y DNI son obligatorios.');
     return res.redirect('/personal');
   }
+  if (cat === 'tripulacion' && !tipo) {
+    req.flash('error', 'Selecciona el tipo de tripulante (Chofer, Terramoza o Ayudante).');
+    return res.redirect('/personal');
+  }
+  if (cat === 'administrativo' && (!cargo || !cargo.trim())) {
+    req.flash('error', 'Indica el cargo (Administrativo, Contabilidad, Mecánico, etc.).');
+    return res.redirect('/personal');
+  }
+
   const { error } = await db.insert('personal_tripulantes', {
     nombres: nombres.trim(),
     apellidos: apellidos.trim(),
-    tipo,
+    categoria: cat,
+    tipo: cat === 'tripulacion' ? tipo : null,
+    cargo: cat === 'administrativo' ? cargo.trim() : null,
     dni: dni.trim(),
     telefono: telefono && telefono.trim() !== '' ? telefono.trim() : null,
-    // La licencia solo se guarda si el tipo es Chofer
-    licencia: (tipo === 'Chofer' && licencia && licencia.trim() !== '') ? licencia.trim().toUpperCase() : null,
+    licencia: (cat === 'tripulacion' && tipo === 'Chofer' && licencia && licencia.trim() !== '') ? licencia.trim().toUpperCase() : null,
+    sueldo_base: sueldo_base && sueldo_base !== '' ? parseFloat(sueldo_base) : null,
+    fecha_ingreso: fecha_ingreso && fecha_ingreso !== '' ? fecha_ingreso : null,
     activo: true,
     creado_en: new Date().toISOString()
   });
   if (error) req.flash('error', 'Error al guardar: ' + error.message);
-  else       req.flash('success', 'Tripulante registrado correctamente.');
+  else       req.flash('success', 'Personal registrado correctamente.');
   res.redirect('/personal');
 });
 
 // ─── UPDATE — SOLO admin ──────────────────────
 router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => {
-  const { nombres, apellidos, tipo, dni, telefono, licencia, activo } = req.body;
-  if (!nombres || !apellidos || !tipo || !dni) {
+  const { nombres, apellidos, categoria, tipo, cargo, dni, telefono, licencia, sueldo_base, fecha_ingreso, activo } = req.body;
+  const cat = categoria === 'administrativo' ? 'administrativo' : 'tripulacion';
+
+  if (!nombres || !apellidos || !dni) {
     req.flash('error', 'Completa todos los campos obligatorios.');
     return res.redirect('/personal');
   }
+  if (cat === 'tripulacion' && !tipo) {
+    req.flash('error', 'Selecciona el tipo de tripulante.');
+    return res.redirect('/personal');
+  }
+  if (cat === 'administrativo' && (!cargo || !cargo.trim())) {
+    req.flash('error', 'Indica el cargo.');
+    return res.redirect('/personal');
+  }
+
   const { error } = await db.update('personal_tripulantes', `id=eq.${req.params.id}`, {
     nombres: nombres.trim(),
     apellidos: apellidos.trim(),
-    tipo,
+    categoria: cat,
+    tipo: cat === 'tripulacion' ? tipo : null,
+    cargo: cat === 'administrativo' ? cargo.trim() : null,
     dni: dni.trim(),
     telefono: telefono && telefono.trim() !== '' ? telefono.trim() : null,
-    licencia: (tipo === 'Chofer' && licencia && licencia.trim() !== '') ? licencia.trim().toUpperCase() : null,
+    licencia: (cat === 'tripulacion' && tipo === 'Chofer' && licencia && licencia.trim() !== '') ? licencia.trim().toUpperCase() : null,
+    sueldo_base: sueldo_base && sueldo_base !== '' ? parseFloat(sueldo_base) : null,
+    fecha_ingreso: fecha_ingreso && fecha_ingreso !== '' ? fecha_ingreso : null,
     activo: activo === 'on' || activo === true
   });
   if (error) req.flash('error', 'Error al actualizar: ' + error.message);
-  else       req.flash('success', 'Tripulante actualizado correctamente.');
+  else       req.flash('success', 'Registro actualizado correctamente.');
   res.redirect('/personal');
 });
 
@@ -91,7 +140,7 @@ router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => 
 router.post('/:id/eliminar', requireAuth, requireAdminToDelete, async (req, res) => {
   const { error } = await db.delete('personal_tripulantes', `id=eq.${req.params.id}`);
   if (error) req.flash('error', 'Error al eliminar: ' + error.message);
-  else       req.flash('success', 'Tripulante eliminado.');
+  else       req.flash('success', 'Registro eliminado.');
   res.redirect('/personal');
 });
 
