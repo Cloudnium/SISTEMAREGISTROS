@@ -13,7 +13,7 @@ const { requireAuth } = require('../middleware/auth');
 
 function requirePlanilla(req, res, next) {
   const u = req.session.user;
-  if (u && (u.rol === 'admin' || u.puede_ver_planilla === true)) return next();
+  if (u && ((u.rol === 'admin' || u.rol === 'desarrollador') || u.puede_ver_planilla === true)) return next();
   req.flash('error', 'No tienes permiso para ver la Planilla.');
   res.redirect('/dashboard');
 }

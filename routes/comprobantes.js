@@ -85,14 +85,14 @@ router.get('/', async (req, res) => {
     pageTitle: 'Comprobantes', pageSubtitle: 'Boletos y facturas emitidas — anulación, reimpresión y método de pago',
     comprobantes, destinos: destinos || [],
     filtros: { fecha: fecha || '', destino_id: destino_id || '', estado: estado || '', q: q || '' },
-    puedeAnular: (await usuarioActualFresco(req.session.user)).puede_anular !== false || req.session.user.rol === 'admin'
+    puedeAnular: (await usuarioActualFresco(req.session.user)).puede_anular !== false || (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador')
   });
 });
 
 // ─── POST /:id/anular — Anula (NO borra) un comprobante ──
 router.post('/:id/anular', async (req, res) => {
   const u = await usuarioActualFresco(req.session.user);
-  const esAdmin = u.rol === 'admin';
+  const esAdmin = (u.rol === 'admin' || u.rol === 'desarrollador');
   if (!esAdmin && u.puede_anular === false) {
     return res.status(403).json({ error: 'No tienes permiso para anular comprobantes.' });
   }

@@ -104,14 +104,14 @@
     </a>
     {{/if}}
     {{/if}}
-    {{#if (or (eq user.rol 'admin') user.puede_programar)}}
+    {{#if (or isAdmin user.puede_programar)}}
     {{#if (or isAdmin isDesarrollador secciones.programacion)}}
     <a href="/programacion" class="sidebar-nav-item {{#if (eq currentPath '/programacion')}}active{{/if}}">
       <i data-lucide="calendar-clock"></i><span>Programación</span>
     </a>
     {{/if}}
     {{/if}}
-    {{#if (eq user.rol 'admin')}}
+    {{#if isAdmin}}
     {{#if (or isAdmin isDesarrollador secciones.usuarios)}}
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}">
       <i data-lucide="shield-check"></i><span>Usuarios</span>

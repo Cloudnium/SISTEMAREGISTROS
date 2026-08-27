@@ -141,7 +141,7 @@ app.use(async (req, res, next) => {
   res.locals.success     = req.flash('success');
   res.locals.error       = req.flash('error');
   // Expone rol a todas las vistas para mostrar/ocultar botones
-  res.locals.isAdmin     = req.session.user && req.session.user.rol === 'admin';
+  res.locals.isAdmin     = req.session.user && (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador');
   res.locals.isDesarrollador = req.session.user && req.session.user.rol === 'desarrollador';
   // Expone si puede ver/crear Códigos de Autorización, para ocultar
   // ese ítem del sidebar a quien no tenga el permiso. Se basa en el
@@ -149,13 +149,13 @@ app.use(async (req, res, next) => {
   // sesión); el acceso real a la ruta /codigos se re-valida siempre
   // contra la base de datos (ver utils/permisos.js).
   res.locals.puedeCrearCodigos = !!(req.session.user && (
-    req.session.user.rol === 'admin' || req.session.user.puede_crear_codigos === true
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_crear_codigos === true
   ));
   res.locals.puedeGestionarInventario = !!(req.session.user && (
-    req.session.user.rol === 'admin' || req.session.user.puede_gestionar_inventario === true
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_gestionar_inventario === true
   ));
   res.locals.puedeVerPlanilla = !!(req.session.user && (
-    req.session.user.rol === 'admin' || req.session.user.puede_ver_planilla === true
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_ver_planilla === true
   ));
   // Secciones ocultadas por el Desarrollador (Combustible, Personal e
   // Inventario nunca se incluyen aquí — siempre quedan visibles)

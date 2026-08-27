@@ -56,10 +56,20 @@ router.get('/:id/json', requireAuth, async (req, res) => {
 });
 
 // ─── Autocompletar cargos ya usados (para filtrar escribiendo) ──
+// Cargos preestablecidos que siempre aparecen como sugerencia,
+// aunque todavía no se haya registrado nadie con ese cargo. El
+// campo sigue permitiendo escribir cualquier otro cargo libremente.
+const CARGOS_PREESTABLECIDOS = [
+  'ADMINISTRATIVO', 'CONTABILIDAD', 'MECÁNICO', 'ELÉCTRICO',
+  'LIMPIEZA', 'LAVANDERÍA', 'SEGURIDAD', 'AYUDANTE DE PATIO',
+  'RECEPCIÓN', 'ALMACÉN', 'SISTEMAS', 'RECURSOS HUMANOS'
+];
+
 router.get('/cargos/sugerencias', requireAuth, async (req, res) => {
   const { data } = await db.select('personal_tripulantes',
     'select=cargo&categoria=eq.administrativo&cargo=not.is.null');
-  const unicos = [...new Set((data || []).map(d => d.cargo).filter(Boolean))].sort();
+  const usados = (data || []).map(d => d.cargo).filter(Boolean);
+  const unicos = [...new Set([...CARGOS_PREESTABLECIDOS, ...usados])].sort();
   res.json({ cargos: unicos });
 });
 

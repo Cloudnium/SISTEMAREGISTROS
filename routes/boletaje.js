@@ -78,7 +78,7 @@ router.get('/', requireAuth, async (req, res) => {
     filtroFecha:    fecha      || '',
     filtroDestino:  destino_id || '',
     buscado: true,
-    puedeEditarPrecios: u.rol === 'admin' || u.puede_editar_precios === true
+    puedeEditarPrecios: (u.rol === 'admin' || u.rol === 'desarrollador') || u.puede_editar_precios === true
   });
 });
 
@@ -154,7 +154,7 @@ router.get('/:id/croquis', requireAuth, async (req, res) => {
 
   const primerParadero = (escalas || []).find(e => e.orden === 1) || (escalas || [])[0] || null;
   const u = await usuarioActualFresco(req.session.user);
-  const esAdmin = u.rol === 'admin';
+  const esAdmin = (u.rol === 'admin' || u.rol === 'desarrollador');
 
   res.json({
     programacion: {
@@ -209,7 +209,7 @@ router.post('/:id/asiento', requireAuth, async (req, res) => {
   }
 
   const u = await usuarioActualFresco(req.session.user);
-  const esAdmin = u.rol === 'admin';
+  const esAdmin = (u.rol === 'admin' || u.rol === 'desarrollador');
   const permisoRequerido = { anular: 'puede_anular', postergar: 'puede_postergar', reservar: 'puede_reservar', habilitar: 'puede_habilitar', reintegro: 'puede_reintegro' };
   if (permisoRequerido[accion] && !esAdmin && u[permisoRequerido[accion]] === false) {
     return res.status(403).json({ error: 'No tienes permiso para realizar esta acción.' });

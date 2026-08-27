@@ -13,7 +13,7 @@ const { usuarioActualFresco } = require('../utils/permisos');
 
 router.use(requireAuth);
 
-function puedeCrear(u) { return u.rol === 'admin' || u.puede_crear_codigos === true; }
+function puedeCrear(u) { return (u.rol === 'admin' || u.rol === 'desarrollador') || u.puede_crear_codigos === true; }
 
 // La ventana de Códigos de Autorización (verla, crearlos, activarlos/
 // desactivarlos) es SOLO para admin o usuarios con el permiso

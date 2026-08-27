@@ -16,14 +16,14 @@ function requireAuth(req, res, next) {
 
 // Solo administradores (gestión de usuarios del sistema)
 function requireAdmin(req, res, next) {
-  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  if (req.session && req.session.user && (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador')) return next();
   req.flash('error', 'No tienes permisos para acceder a esta seccion.');
   res.redirect('/dashboard');
 }
 
 // Solo admin puede EDITAR (PUT/POST editar)
 function requireAdminToEdit(req, res, next) {
-  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  if (req.session && req.session.user && (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador')) return next();
   req.flash('error', 'Solo el administrador puede editar registros.');
   res.redirect('back');
 }
@@ -32,14 +32,14 @@ function requireAdminToEdit(req, res, next) {
 // Ciudades/Agencias, Destinos). La venta de boletos y demás
 // operaciones diarias NO pasan por aquí.
 function requireAdminToCreate(req, res, next) {
-  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  if (req.session && req.session.user && (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador')) return next();
   req.flash('error', 'Solo el administrador puede crear nuevos registros en esta sección.');
   res.redirect('back');
 }
 
 // Solo admin puede ELIMINAR (POST eliminar)
 function requireAdminToDelete(req, res, next) {
-  if (req.session && req.session.user && req.session.user.rol === 'admin') return next();
+  if (req.session && req.session.user && (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador')) return next();
   req.flash('error', 'Solo el administrador puede eliminar registros.');
   res.redirect('back');
 }
@@ -76,7 +76,7 @@ function redirectIfAuth(req, res, next) {
 // Expone el rol del usuario a las vistas HBS como variable global
 // Usado para mostrar/ocultar botones según el rol
 function exposeUserRole(req, res, next) {
-  res.locals.isAdmin      = req.session && req.session.user && req.session.user.rol === 'admin';
+  res.locals.isAdmin      = req.session && req.session.user && (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador');
   res.locals.isOperador   = req.session && req.session.user && req.session.user.rol === 'operador';
   res.locals.userRol      = req.session && req.session.user ? req.session.user.rol : null;
   next();

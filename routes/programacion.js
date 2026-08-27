@@ -13,7 +13,7 @@ const { usuarioActualFresco } = require('../utils/permisos');
 // inmediato sin necesitar volver a iniciar sesión).
 async function requireProgramacionAuth(req, res, next) {
   const u = await usuarioActualFresco(req.session.user);
-  if (u.rol === 'admin' || u.puede_programar === true) {
+  if ((u.rol === 'admin' || u.rol === 'desarrollador') || u.puede_programar === true) {
     req.usuarioActual = u;
     return next();
   }

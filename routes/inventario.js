@@ -15,7 +15,7 @@ const { requireAuth } = require('../middleware/auth');
 
 function requireInventarioAutorizado(req, res, next) {
   const u = req.session.user;
-  if (u && (u.rol === 'admin' || u.puede_gestionar_inventario === true)) return next();
+  if (u && ((u.rol === 'admin' || u.rol === 'desarrollador') || u.puede_gestionar_inventario === true)) return next();
   req.flash('error', 'No tienes permiso para registrar nuevos uniformes ni editar sus precios.');
   res.redirect('/inventario');
 }
