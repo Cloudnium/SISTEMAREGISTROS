@@ -1,0 +1,67 @@
+<!-- VIEW: planilla/periodos.hbs -->
+{{> planilla-subnav}}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+  <div></div>
+  {{#if puedeEditar}}
+  <button class="btn btn-primary" onclick="document.getElementById('plnModalNuevoPeriodo').style.display='flex'">
+    <i data-lucide="plus"></i> Abrir nuevo periodo
+  </button>
+  {{/if}}
+</div>
+
+{{#if anios.length}}
+{{#each anios}}
+<div class="pln-year-heading">{{anio}}</div>
+{{#each periodos}}
+<a href="/planilla/periodos/{{id}}" class="pln-periodo-card">
+  <div>
+    <div class="pln-periodo-nombre">{{etiqueta}}</div>
+    <div class="pln-periodo-metrics">
+      <span><i data-lucide="users" style="width:13px;height:13px;vertical-align:-2px"></i> {{totales.trabajadores}} trabajadores</span>
+      <span>Sueldos {{formatSoles totales.sueldos}}</span>
+      <span>Bonos {{formatSoles totales.bonos}}</span>
+      <span>Descuentos {{formatSoles totales.descuentos}}</span>
+      <span style="font-weight:700">Neto {{formatSoles totales.neto}}</span>
+    </div>
+  </div>
+  <span class="badge {{#if (eq estado 'cerrado')}}badge-success{{else}}badge-warning{{/if}}">{{estado}}</span>
+</a>
+{{/each}}
+{{/each}}
+{{else}}
+<div class="empty-state">
+  <i data-lucide="calendar-range"></i>
+  <p>Todavía no hay periodos de planilla creados.</p>
+</div>
+{{/if}}
+
+{{#if puedeEditar}}
+<div class="modal-backdrop" id="plnModalNuevoPeriodo" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="calendar-plus"></i> Abrir nuevo periodo</div>
+      <button class="modal-close" onclick="document.getElementById('plnModalNuevoPeriodo').style.display='none'"><i data-lucide="x"></i></button>
+    </div>
+    <form method="POST" action="/planilla/periodos">
+      <div class="modal-body">
+        <p class="modal-hint">Se cargarán automáticamente todos los trabajadores activos de TRABAJADORES, con su sueldo actual como base de esta planilla.</p>
+        <div class="form-group">
+          <label class="form-label-pers">Mes</label>
+          <select name="mes" class="form-control" required>
+            {{#each meses}}{{#if this}}<option value="{{@index}}">{{this}}</option>{{/if}}{{/each}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Año</label>
+          <input type="number" name="anio" class="form-control" value="{{currentYear}}" min="2020" max="2100" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('plnModalNuevoPeriodo').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Crear periodo</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{/if}}

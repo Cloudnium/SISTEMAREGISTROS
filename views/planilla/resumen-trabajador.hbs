@@ -1,0 +1,169 @@
+<!-- VIEW: planilla/resumen-trabajador.hbs -->
+{{> planilla-subnav}}
+
+<a href="/planilla/resumen" class="btn btn-ghost btn-sm" style="margin-bottom:14px">
+  <i data-lucide="arrow-left"></i> Buscar otro trabajador
+</a>
+
+<div class="card" style="padding:22px;margin-bottom:20px">
+  <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <h2 style="margin:0 0 4px">{{trabajador.nombres}} {{trabajador.apellidos}}
+        {{#unless trabajador.activo}}<span class="badge badge-error">Inactivo</span>{{/unless}}
+      </h2>
+      <div class="text-muted">{{trabajador.cargoMostrar}}{{#if trabajador.area}} · {{trabajador.area}}{{/if}}</div>
+    </div>
+    {{#if puedeEditar}}
+    <button class="btn btn-primary btn-sm" onclick="abrirNuevoDescuento()"><i data-lucide="plus"></i> Nuevo descuento</button>
+    {{/if}}
+  </div>
+
+  <div class="pln-stat-grid" style="margin-top:18px">
+    <div class="pln-stat-card"><label>DNI</label><span style="font-size:15px">{{trabajador.dni}}</span></div>
+    <div class="pln-stat-card"><label>Fecha de ingreso</label><span style="font-size:15px">{{#if trabajador.fecha_ingreso}}{{formatDate trabajador.fecha_ingreso}}{{else}}—{{/if}}</span></div>
+    <div class="pln-stat-card"><label>Sueldo actual</label><span>{{formatSoles trabajador.sueldo_base}}</span></div>
+    <div class="pln-stat-card"><label>Último periodo</label><span style="font-size:15px">{{#if ultimo}}{{ultimo.etiqueta}}{{else}}—{{/if}}</span></div>
+    <div class="pln-stat-card"><label>Neto último periodo</label><span>{{#if ultimo}}{{formatSoles ultimo.neto}}{{else}}—{{/if}}</span></div>
+    <div class="pln-stat-card"><label>Descuentos pendientes</label><span style="color:{{#if totalDescuentosPendientes}}var(--color-error){{/if}}">{{formatSoles totalDescuentosPendientes}}</span></div>
+  </div>
+</div>
+
+<div class="card" style="padding:22px;margin-bottom:20px">
+  <h3 style="margin:0 0 14px">Descuentos pendientes</h3>
+  {{#if descuentosPendientes.length}}
+  <table class="table">
+    <thead><tr><th>Concepto</th><th>Origen</th><th class="text-right">Original</th><th class="text-right">Cobrado</th><th class="text-right">Saldo</th><th></th></tr></thead>
+    <tbody>
+      {{#each descuentosPendientes}}
+      <tr>
+        <td>{{concepto.nombre}}</td>
+        <td>{{#if origen_codigo}}{{origen_codigo}}{{else}}—{{/if}}</td>
+        <td class="text-right">{{formatSoles importe_original}}</td>
+        <td class="text-right">{{formatSoles cobrado}}</td>
+        <td class="text-right" style="font-weight:700">{{formatSoles saldo}}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="verDetalleDescuento('{{id}}')"><i data-lucide="history"></i> Historial</button></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="text-muted" style="margin:0">Sin descuentos pendientes.</p>
+  {{/if}}
+</div>
+
+<div class="card" style="padding:22px;margin-bottom:20px">
+  <h3 style="margin:0 0 14px">Histórico de planillas</h3>
+  {{#if historial.length}}
+  <table class="table">
+    <thead><tr><th>Periodo</th><th class="text-right">Sueldo</th><th class="text-right">Bonos</th><th class="text-right">Descuentos</th><th class="text-right">Neto</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+      {{#each historial}}
+      <tr>
+        <td>{{etiqueta}}</td>
+        <td class="text-right">{{formatSoles sueldo}}</td>
+        <td class="text-right">{{formatSoles bonos}}</td>
+        <td class="text-right">{{formatSoles descuentos}}</td>
+        <td class="text-right" style="font-weight:700">{{formatSoles neto}}</td>
+        <td><span class="badge {{#if (eq estado 'cerrado')}}badge-success{{else}}badge-warning{{/if}}">{{estado}}</span></td>
+        <td><a href="/planilla/periodos/{{periodoId}}/trabajador/{{rosterId}}" class="btn btn-ghost btn-sm">Ver</a></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="text-muted" style="margin:0">Este trabajador todavía no aparece en ningún periodo de planilla.</p>
+  {{/if}}
+</div>
+
+<div class="card" style="padding:22px">
+  <h3 style="margin:0 0 14px">Vacaciones y permisos recientes</h3>
+  <div class="pln-ausencias-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div>
+      <div class="text-muted" style="font-size:12px;text-transform:uppercase;margin-bottom:6px">Vacaciones</div>
+      {{#each vacaciones}}
+      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">{{formatDate fecha_inicio}} — {{formatDate fecha_fin}} ({{dias}} días) <span class="badge badge-neutral">{{estado}}</span></div>
+      {{else}}<p class="text-muted">Sin registros.</p>{{/each}}
+    </div>
+    <div>
+      <div class="text-muted" style="font-size:12px;text-transform:uppercase;margin-bottom:6px">Permisos</div>
+      {{#each permisos}}
+      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">{{formatDate fecha}} — {{#if dia_completo}}Día completo{{else}}Por horas{{/if}} <span class="badge badge-neutral">{{estado}}</span></div>
+      {{else}}<p class="text-muted">Sin registros.</p>{{/each}}
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nuevo descuento -->
+<div class="modal-backdrop" id="plnModalDescuento" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="minus-circle"></i> Nuevo descuento</div>
+      <button class="modal-close" onclick="cerrarNuevoDescuento()"><i data-lucide="x"></i></button>
+    </div>
+    <form method="POST" action="/planilla/descuentos">
+      <div class="modal-body">
+        <input type="hidden" name="personal_id" value="{{trabajador.id}}" />
+        <div class="form-group">
+          <label class="form-label-pers">Concepto</label>
+          <select name="concepto_id" id="plnConceptoSelect" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Origen / referencia <small class="text-muted">(opcional)</small></label>
+          <input type="text" name="origen_codigo" class="form-control" placeholder="Ej: Préstamo #001" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Importe total (S/)</label>
+          <input type="number" name="importe_original" class="form-control" step="0.01" min="0.01" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Observación</label>
+          <textarea name="observacion" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="cerrarNuevoDescuento()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: historial de un descuento -->
+<div class="modal-backdrop" id="plnModalHistorial" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="history"></i> Historial de cobros</div>
+      <button class="modal-close" onclick="document.getElementById('plnModalHistorial').style.display='none'"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="plnHistorialBody">Cargando...</div>
+  </div>
+</div>
+
+<script>
+  function abrirNuevoDescuento() {
+    fetch('/planilla/descuentos/conceptos', { credentials: 'same-origin' }).then(r => r.json()).then(data => {
+      var sel = document.getElementById('plnConceptoSelect');
+      sel.innerHTML = (data.conceptos || []).map(c => '<option value="' + c.id + '">' + c.nombre + '</option>').join('');
+      document.getElementById('plnModalDescuento').style.display = 'flex';
+    });
+  }
+  function cerrarNuevoDescuento() { document.getElementById('plnModalDescuento').style.display = 'none'; }
+
+  function verDetalleDescuento(id) {
+    document.getElementById('plnModalHistorial').style.display = 'flex';
+    document.getElementById('plnHistorialBody').innerHTML = 'Cargando...';
+    fetch('/planilla/descuentos/' + id, { credentials: 'same-origin' }).then(r => r.json()).then(data => {
+      var d = data.descuento;
+      var html = '<p><b>' + d.concepto.nombre + '</b>' + (d.origen_codigo ? ' — ' + d.origen_codigo : '') + '</p>' +
+        '<p>Importe original: <b>S/ ' + Number(d.importe_original).toFixed(2) + '</b> · Saldo: <b>S/ ' + Number(d.saldo).toFixed(2) + '</b></p>' +
+        '<table class="table"><thead><tr><th>Periodo</th><th class="text-right">Importe</th><th>Estado</th></tr></thead><tbody>';
+      if (!data.historial.length) html += '<tr><td colspan="3" class="text-muted">Sin cobros registrados todavía.</td></tr>';
+      data.historial.forEach(function (h) {
+        html += '<tr><td>' + (h.periodo ? h.periodo.etiqueta : '—') + '</td><td class="text-right">S/ ' + Number(h.importe).toFixed(2) + '</td>' +
+          '<td>' + (h.cobrado ? '<span class="badge badge-success">Cobrado</span>' : '<span class="badge badge-warning">No cobrado</span>') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('plnHistorialBody').innerHTML = html;
+    });
+  }
+</script>

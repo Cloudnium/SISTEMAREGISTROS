@@ -8,6 +8,20 @@
     pueden seguir entrando, aunque esté apagada).</span>
   </div>
 
+  <h3 style="margin:0 0 12px">Datos de la empresa (aparecen en las boletas de pago de Planilla)</h3>
+  <form method="POST" action="/configuracion/empresa" class="cfg-empresa-form" style="margin-bottom:26px">
+    <div class="form-group">
+      <label class="form-label-pers">Razón social</label>
+      <input type="text" name="nombre" class="form-control" value="{{empresa.nombre}}" placeholder="Ej: Transportes Cloudnium S.A.C." />
+    </div>
+    <div class="form-group">
+      <label class="form-label-pers">RUC</label>
+      <input type="text" name="ruc" class="form-control" value="{{empresa.ruc}}" placeholder="20123456789" />
+    </div>
+    <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Guardar</button>
+  </form>
+
+  <h3 style="margin:0 0 14px">Visibilidad de secciones</h3>
   <div class="cfg-grid">
     {{#each secciones}}
     <div class="cfg-item">
@@ -30,6 +44,8 @@
   background: var(--color-accent-light); border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--text-secondary);
 }
 .cfg-aviso i { width: 18px; height: 18px; color: var(--color-accent); flex-shrink: 0; margin-top: 1px; }
+.cfg-empresa-form { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.cfg-empresa-form .form-group { min-width: 220px; }
 .cfg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cfg-item {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

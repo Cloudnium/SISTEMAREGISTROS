@@ -100,7 +100,12 @@
       <label class="form-check-label">
         <input type="checkbox" name="puede_ver_planilla" class="form-check"
                {{#if usuario}}{{#if usuario.puede_ver_planilla}}checked{{/if}}{{/if}} />
-        <span>Puede ver Planilla</span>
+        <span>Puede ver Planilla (consulta, imprimir, reportes)</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_editar_planilla" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_editar_planilla}}checked{{/if}}{{/if}} />
+        <span>Puede editar Planilla (crear periodos, bonos, descuentos, cobros, vacaciones, permisos)</span>
       </label>
       <label class="form-check-label">
         <input type="checkbox" name="puede_crear_codigos" class="form-check"

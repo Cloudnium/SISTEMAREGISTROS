@@ -1,0 +1,109 @@
+<!-- VIEW: planilla/vacaciones.hbs -->
+
+<div class="pln-subnav">
+  <a href="/planilla" class="pln-subnav-item"><i data-lucide="wallet"></i> Resumen</a>
+  <a href="/planilla/periodos" class="pln-subnav-item"><i data-lucide="calendar-range"></i> Periodos</a>
+  <a href="/planilla/vacaciones" class="pln-subnav-item active"><i data-lucide="umbrella"></i> Vacaciones y Permisos</a>
+  <a href="/planilla/reportes" class="pln-subnav-item"><i data-lucide="bar-chart-3"></i> Reportes</a>
+</div>
+
+<div class="card" style="padding:20px 22px;margin-bottom:18px">
+  <h3 style="margin:0 0 14px"><i data-lucide="plus-circle"></i> Registrar vacaciones o permiso</h3>
+  <form method="POST" action="/planilla/vacaciones" class="vac-form">
+    <div class="form-group">
+      <label class="form-label-pers">Trabajador</label>
+      <select name="personal_id" class="form-control" required>
+        <option value="">— Selecciona —</option>
+        {{#each personal}}
+        <option value="{{id}}">{{apellidos}}, {{nombres}} ({{cargoMostrar}}) — {{dias_vacaciones_disponibles}} días disp.</option>
+        {{/each}}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label-pers">Tipo</label>
+      <select name="tipo" class="form-control">
+        <option value="vacaciones">Vacaciones</option>
+        <option value="permiso">Permiso</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label-pers">Inicio</label>
+      <input type="date" name="fecha_inicio" class="form-control" required />
+    </div>
+    <div class="form-group">
+      <label class="form-label-pers">Fin</label>
+      <input type="date" name="fecha_fin" class="form-control" required />
+    </div>
+    <div class="form-group">
+      <label class="form-label-pers">Días utilizados</label>
+      <input type="number" name="dias_utilizados" class="form-control" min="0.5" step="0.5" required />
+    </div>
+    <div class="form-group" style="flex:2">
+      <label class="form-label-pers">Motivo (opcional, para permisos)</label>
+      <input type="text" name="motivo" class="form-control" placeholder="Ej: cita médica" />
+    </div>
+    <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Registrar</button>
+  </form>
+</div>
+
+<div class="vac-lista">
+  {{#each personal}}
+  <div class="card vac-card">
+    <div class="vac-card-header">
+      <div>
+        <div class="pln-nombre">{{apellidos}}, {{nombres}}</div>
+        <div class="pln-cargo">{{cargoMostrar}}</div>
+      </div>
+      <div class="vac-dias-disp">
+        <span class="vac-dias-num">{{dias_vacaciones_disponibles}}</span>
+        <span class="vac-dias-lbl">días disponibles</span>
+      </div>
+    </div>
+    {{#if registros.length}}
+    <table class="table" style="margin-top:10px">
+      <thead><tr><th>Tipo</th><th>Del</th><th>Al</th><th>Días</th><th>Motivo</th><th></th></tr></thead>
+      <tbody>
+        {{#each registros}}
+        <tr>
+          <td><span class="badge {{#if (eq tipo 'vacaciones')}}badge-success{{else}}badge-warning{{/if}}">{{tipo}}</span></td>
+          <td>{{fecha_inicio}}</td>
+          <td>{{fecha_fin}}</td>
+          <td>{{dias_utilizados}}</td>
+          <td style="color:var(--text-muted)">{{#if motivo}}{{motivo}}{{else}}—{{/if}}</td>
+          <td>
+            <form method="POST" action="/planilla/vacaciones/{{id}}/eliminar" onsubmit="return confirm('¿Eliminar este registro? Los días se devuelven al saldo disponible.')">
+              <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar"><i data-lucide="trash-2"></i></button>
+            </form>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{else}}
+    <p style="color:var(--text-muted);font-size:var(--text-sm);margin:10px 0 0">Sin registros todavía.</p>
+    {{/if}}
+  </div>
+  {{/each}}
+</div>
+
+<style>
+.pln-subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.pln-subnav-item {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  border-radius: var(--radius-md); border: 1px solid var(--color-border);
+  background: var(--color-surface); color: var(--text-secondary); font-size: var(--text-sm);
+  font-weight: 600; text-decoration: none;
+}
+.pln-subnav-item i { width: 16px; height: 16px; }
+.pln-subnav-item.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.vac-form { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.vac-form .form-group { min-width: 160px; }
+.vac-lista { display: flex; flex-direction: column; gap: 14px; }
+.vac-card { padding: 16px 20px; }
+.vac-card-header { display: flex; justify-content: space-between; align-items: center; }
+.pln-nombre { font-weight: 700; font-size: var(--text-md); }
+.pln-cargo { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+.vac-dias-disp { text-align: right; }
+.vac-dias-num { display: block; font-size: 22px; font-weight: 800; color: var(--color-accent); }
+.vac-dias-lbl { font-size: var(--text-xs); color: var(--text-muted); }
+</style>

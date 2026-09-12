@@ -1,14 +1,34 @@
-<!-- VIEW: inventario/index.hbs — Uniformes -->
+<!-- VIEW: inventario/index.hbs — Almacén por secciones -->
 
-<div class="page-header">
-  <div></div>
+<div class="inv-tabs">
+  {{#each categorias}}
+  <a href="/inventario?seccion={{clave}}" class="inv-tab {{#if (eq clave ../categoriaActiva.clave)}}active{{/if}}">
+    <i data-lucide="{{icono}}"></i><span>{{nombre}}</span>
+  </a>
+  {{/each}}
   {{#if puedeGestionarInventario}}
-  <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevo()">
-    <i data-lucide="plus"></i> Nuevo Uniforme
+  <button type="button" class="inv-tab inv-tab-nueva" onclick="Inv.abrirNuevaSeccion()">
+    <i data-lucide="plus"></i><span>Nueva sección</span>
   </button>
   {{/if}}
 </div>
 
+<div class="page-header">
+  <div></div>
+  {{#if puedeGestionarInventario}}
+    {{#if esUniformes}}
+    <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevo()">
+      <i data-lucide="plus"></i> Nuevo Uniforme
+    </button>
+    {{else}}
+    <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevoItem()">
+      <i data-lucide="plus"></i> Nuevo Ítem
+    </button>
+    {{/if}}
+  {{/if}}
+</div>
+
+{{#if esUniformes}}
 <div class="card" style="padding:0;overflow:visible">
   <div class="table-wrapper">
     <table class="table">
@@ -54,6 +74,53 @@
     {{/unless}}
   </div>
 </div>
+{{else}}
+<div class="card" style="padding:0;overflow:visible">
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Ítem</th>
+          <th>Descripción</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th></th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+        <tr {{#unless activo}}style="opacity:.5"{{/unless}}>
+          <td style="font-weight:600">{{nombre}}</td>
+          <td class="hide-sm" style="color:var(--text-muted);font-size:var(--text-sm)">{{#if descripcion}}{{descripcion}}{{else}}—{{/if}}</td>
+          <td>S/ {{precio}}</td>
+          <td><span class="badge {{#if stock}}badge-success{{else}}badge-error{{/if}}">{{stock}}</span></td>
+          <td>{{#unless activo}}<span class="text-muted" style="font-size:var(--text-xs)">Inactivo</span>{{/unless}}</td>
+          <td>
+            <div class="inv-acciones">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="Inv.abrirMovItem('{{id}}', '{{nombre}}', 'ingreso')">
+                <i data-lucide="plus-circle"></i> Ingreso
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="Inv.abrirMovItem('{{id}}', '{{nombre}}', 'salida', {{stock}})">
+                <i data-lucide="minus-circle"></i> Salida
+              </button>
+              {{#if ../puedeGestionarInventario}}
+              <button type="button" class="btn-icon" title="Editar" onclick='Inv.abrirEditarItem({{{json this}}})'>
+                <i data-lucide="pencil"></i>
+              </button>
+              {{/if}}
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    {{#unless items.length}}
+    <div class="ciu-empty"><i data-lucide="{{categoriaActiva.icono}}"></i><span>No hay ítems registrados en {{categoriaActiva.nombre}}.</span></div>
+    {{/unless}}
+  </div>
+</div>
+{{/if}}
 
 <!-- ═══ MODAL: Nuevo / Editar uniforme (solo autorizados) ═══ -->
 {{#if puedeGestionarInventario}}
@@ -139,6 +206,10 @@
         <label class="form-label-pers">Cantidad</label>
         <input type="number" class="form-control" id="invEntregaCantidad" min="1" value="1" />
       </div>
+      <div class="form-group">
+        <label class="form-label-pers">Observación <small class="text-muted">(opcional)</small></label>
+        <input type="text" class="form-control" id="invEntregaObservacion" placeholder="Ej: 2 camisas talla M, 2 pantalones" />
+      </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-ghost" onclick="Inv.cerrarEntrega()">Cancelar</button>
@@ -147,15 +218,120 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: Nueva / Editar sección (solo autorizados) ═══ -->
+{{#if puedeGestionarInventario}}
+<div class="modal-backdrop" id="invModalSeccion" style="display:none">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title" id="invSeccionTitulo"><i data-lucide="folder-plus"></i> Nueva Sección</div>
+      <button class="modal-close" onclick="Inv.cerrarNuevaSeccion()"><i data-lucide="x"></i></button>
+    </div>
+    <form id="invSeccionForm" method="POST" action="/inventario/categorias">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label-pers">Nombre de la sección</label>
+          <input type="text" name="nombre" id="invSeccionNombre" class="form-control" placeholder="Ej: Repuestos" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Ícono</label>
+          <input type="text" name="icono" id="invSeccionIcono" class="form-control" placeholder="package" value="package" />
+          <p class="form-hint">Nombre de un ícono de <a href="https://lucide.dev/icons" target="_blank" rel="noopener">lucide.dev/icons</a> (ej. <code>wrench</code>, <code>shirt</code>, <code>box</code>, <code>droplet</code>).</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Inv.cerrarNuevaSeccion()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Nuevo / Editar ítem genérico (solo autorizados) ═══ -->
+<div class="modal-backdrop" id="invModalItem" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title" id="invItemTitulo"><i data-lucide="box"></i> Nuevo Ítem</div>
+      <button class="modal-close" onclick="Inv.cerrarFormItem()"><i data-lucide="x"></i></button>
+    </div>
+    <form id="invItemForm" method="POST" action="/inventario/items">
+      <div class="modal-body">
+        <input type="hidden" name="categoria_id" value="{{categoriaActiva.id}}" />
+        <div class="form-group">
+          <label class="form-label-pers">Nombre</label>
+          <input type="text" name="nombre" id="invItemNombre" class="form-control" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Descripción (opcional)</label>
+          <input type="text" name="descripcion" id="invItemDescripcion" class="form-control" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label-pers">Precio (S/)</label>
+            <input type="number" name="precio" id="invItemPrecio" class="form-control" step="0.01" min="0" />
+          </div>
+          <div class="form-group" id="invItemStockGroup">
+            <label class="form-label-pers">Stock inicial</label>
+            <input type="number" name="stock" id="invItemStock" class="form-control" min="0" value="0" />
+          </div>
+        </div>
+        <label class="form-check-label" id="invItemActivoWrap" style="display:none">
+          <input type="checkbox" name="activo" id="invItemActivo" class="form-check" checked />
+          <span>Activo</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Inv.cerrarFormItem()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{/if}}
+
+<!-- ═══ MODAL: Ingreso/Salida de stock de ítem genérico (todos) ═══ -->
+<div class="modal-backdrop" id="invModalMovItem" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title" id="invMovItemTitulo"><i data-lucide="plus-circle"></i> Movimiento — <span id="invMovItemNombre"></span></div>
+      <button class="modal-close" onclick="Inv.cerrarMovItem()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label-pers">Cantidad</label>
+        <input type="number" class="form-control" id="invMovItemCantidad" min="1" value="1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Nota (opcional)</label>
+        <input type="text" class="form-control" id="invMovItemNotas" placeholder="Motivo, referencia..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="Inv.cerrarMovItem()">Cancelar</button>
+      <button type="button" class="btn btn-primary" onclick="Inv.confirmarMovItem()">Registrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="ma-toast" id="invToast"></div>
 
 <style>
 .inv-acciones { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.inv-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.inv-tab {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  border-radius: var(--radius-md); border: 1px solid var(--color-border);
+  background: var(--color-surface); color: var(--text-secondary); font-size: var(--text-sm);
+  font-weight: 600; text-decoration: none; cursor: pointer;
+}
+.inv-tab i { width: 16px; height: 16px; }
+.inv-tab.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+.inv-tab-nueva { border-style: dashed; color: var(--text-muted); }
 </style>
 
 <script>
 var Inv = (function () {
   var uniformeActualId = null, stockDisponibleActual = 0;
+  var itemActualId = null, itemMovTipo = 'ingreso', itemStockDisp = 0;
 
   function toast(msg, tipo) {
     var el = document.getElementById('invToast');
@@ -217,6 +393,7 @@ var Inv = (function () {
     document.getElementById('invEntregaStockDisp').textContent = stockDisp;
     document.getElementById('invEntregaPersonal').value = '';
     document.getElementById('invEntregaCantidad').value = 1;
+    document.getElementById('invEntregaObservacion').value = '';
     document.getElementById('invModalEntrega').style.display = 'flex';
   }
   function cerrarEntrega() { document.getElementById('invModalEntrega').style.display = 'none'; }
@@ -228,7 +405,7 @@ var Inv = (function () {
     if (Number(cantidad) > stockDisponibleActual) { toast('No hay stock suficiente.', 'error'); return; }
     fetch('/inventario/uniformes/' + uniformeActualId + '/entregar', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ personal_id: personalId, cantidad: cantidad })
+      body: JSON.stringify({ personal_id: personalId, cantidad: cantidad, observacion: document.getElementById('invEntregaObservacion').value })
     }).then(function (r) { return r.json(); }).then(function (r) {
       if (r.error) { toast(r.error, 'error'); return; }
       toast('Entrega registrada. Se generó el descuento en Planilla.', 'ok');
@@ -236,6 +413,73 @@ var Inv = (function () {
     });
   }
 
-  return { abrirNuevo, abrirEditar, cerrarForm, abrirStock, cerrarStock, confirmarStock, abrirEntrega, cerrarEntrega, confirmarEntrega };
+  // ── Secciones ──
+  function abrirNuevaSeccion() {
+    var form = document.getElementById('invSeccionForm');
+    if (!form) return;
+    form.reset();
+    document.getElementById('invSeccionIcono').value = 'package';
+    document.getElementById('invModalSeccion').style.display = 'flex';
+  }
+  function cerrarNuevaSeccion() { document.getElementById('invModalSeccion').style.display = 'none'; }
+
+  // ── Ítems genéricos ──
+  function abrirNuevoItem() {
+    var form = document.getElementById('invItemForm');
+    if (!form) return;
+    form.action = '/inventario/items';
+    form.reset();
+    document.getElementById('invItemTitulo').innerHTML = '<i data-lucide="box"></i> Nuevo Ítem';
+    document.getElementById('invItemStockGroup').style.display = '';
+    document.getElementById('invItemActivoWrap').style.display = 'none';
+    document.getElementById('invModalItem').style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+  function abrirEditarItem(it) {
+    var form = document.getElementById('invItemForm');
+    if (!form) return;
+    form.action = '/inventario/items/' + it.id + '/editar';
+    document.getElementById('invItemNombre').value = it.nombre || '';
+    document.getElementById('invItemDescripcion').value = it.descripcion || '';
+    document.getElementById('invItemPrecio').value = it.precio || 0;
+    document.getElementById('invItemActivo').checked = !!it.activo;
+    document.getElementById('invItemTitulo').innerHTML = '<i data-lucide="pencil"></i> Editar Ítem';
+    document.getElementById('invItemStockGroup').style.display = 'none';
+    document.getElementById('invItemActivoWrap').style.display = '';
+    document.getElementById('invModalItem').style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+  function cerrarFormItem() { document.getElementById('invModalItem').style.display = 'none'; }
+
+  function abrirMovItem(id, nombre, tipo, stockDisp) {
+    itemActualId = id; itemMovTipo = tipo; itemStockDisp = stockDisp || 0;
+    document.getElementById('invMovItemTitulo').innerHTML =
+      (tipo === 'ingreso' ? '<i data-lucide="plus-circle"></i> Ingreso — ' : '<i data-lucide="minus-circle"></i> Salida — ') +
+      '<span id="invMovItemNombre">' + nombre + '</span>';
+    document.getElementById('invMovItemCantidad').value = 1;
+    document.getElementById('invMovItemNotas').value = '';
+    document.getElementById('invModalMovItem').style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+  function cerrarMovItem() { document.getElementById('invModalMovItem').style.display = 'none'; }
+  function confirmarMovItem() {
+    var cantidad = document.getElementById('invMovItemCantidad').value;
+    if (!cantidad || Number(cantidad) <= 0) { toast('Ingresa una cantidad válida.', 'error'); return; }
+    if (itemMovTipo === 'salida' && Number(cantidad) > itemStockDisp) { toast('No hay stock suficiente.', 'error'); return; }
+    fetch('/inventario/items/' + itemActualId + '/movimiento', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: itemMovTipo, cantidad: cantidad, notas: document.getElementById('invMovItemNotas').value })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.error) { toast(r.error, 'error'); return; }
+      toast('Movimiento registrado.', 'ok');
+      setTimeout(function () { location.reload(); }, 500);
+    });
+  }
+
+  return {
+    abrirNuevo, abrirEditar, cerrarForm, abrirStock, cerrarStock, confirmarStock, abrirEntrega, cerrarEntrega, confirmarEntrega,
+    abrirNuevaSeccion, cerrarNuevaSeccion,
+    abrirNuevoItem, abrirEditarItem, cerrarFormItem, abrirMovItem, cerrarMovItem, confirmarMovItem
+  };
 })();
 </script>

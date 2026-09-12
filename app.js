@@ -154,8 +154,12 @@ app.use(async (req, res, next) => {
   res.locals.puedeGestionarInventario = !!(req.session.user && (
     (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_gestionar_inventario === true
   ));
+  res.locals.puedeEditarPlanilla = !!(req.session.user && (
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_editar_planilla === true
+  ));
   res.locals.puedeVerPlanilla = !!(req.session.user && (
-    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_ver_planilla === true
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') ||
+    req.session.user.puede_ver_planilla === true || req.session.user.puede_editar_planilla === true
   ));
   // Secciones ocultadas por el Desarrollador (Combustible, Personal e
   // Inventario nunca se incluyen aquí — siempre quedan visibles)

@@ -27,7 +27,10 @@ const SECCIONES = [
 ];
 
 router.get('/', requireAuth, requireDesarrollador, async (req, res) => {
-  const { data: filas } = await db.select('configuracion_secciones', 'select=clave,visible');
+  const [{ data: filas }, { data: empresaRows }] = await Promise.all([
+    db.select('configuracion_secciones', 'select=clave,visible'),
+    db.select('planilla_empresa_datos', 'select=nombre,ruc&id=eq.1&limit=1')
+  ]);
   const estado = {};
   (filas || []).forEach(f => { estado[f.clave] = f.visible; });
   const secciones = SECCIONES.map(s => ({ ...s, visible: estado[s.clave] !== false }));
@@ -35,8 +38,22 @@ router.get('/', requireAuth, requireDesarrollador, async (req, res) => {
     layout: 'main', title: 'Configuración',
     pageTitle: 'Configuración del Sistema',
     pageSubtitle: 'Oculta secciones temporalmente mientras trabajas en ellas — Combustible, Personal e Inventario siempre quedan visibles',
-    secciones
+    secciones,
+    empresa: (empresaRows && empresaRows[0]) || { nombre: '', ruc: '' }
   });
+});
+
+// ─── Datos de la empresa que aparecen en la boleta de pago de Planilla ──
+router.post('/empresa', requireAuth, requireDesarrollador, async (req, res) => {
+  const { nombre, ruc } = req.body;
+  const { error } = await db.update('planilla_empresa_datos', 'id=eq.1', {
+    nombre: nombre && nombre.trim() !== '' ? nombre.trim() : null,
+    ruc:    ruc && ruc.trim() !== ''    ? ruc.trim()    : null,
+    actualizado_por: req.session.user.id, actualizado_en: new Date().toISOString()
+  });
+  if (error) req.flash('error', 'Error al guardar los datos de la empresa: ' + error.message);
+  else       req.flash('success', 'Datos de la empresa actualizados.');
+  res.redirect('/configuracion');
 });
 
 router.post('/:clave/toggle', requireAuth, requireDesarrollador, async (req, res) => {

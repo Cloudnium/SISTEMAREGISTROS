@@ -1,0 +1,72 @@
+<!-- VIEW: planilla/reportes.hbs -->
+{{> planilla-subnav}}
+
+<div class="pln-vp-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+  {{#each tiposReporte}}
+  <a href="/planilla/reportes?tipo={{clave}}" class="btn btn-sm {{#if (eq clave ../tipo)}}btn-primary{{else}}btn-ghost{{/if}}">{{nombre}}</a>
+  {{/each}}
+</div>
+
+<form method="GET" class="pln-filtros-row">
+  <input type="hidden" name="tipo" value="{{tipo}}" />
+  {{#if (or (eq tipo 'general') (eq tipo 'bonos'))}}
+  <div class="form-group">
+    <label class="form-label-pers">Periodo desde</label>
+    <select name="periodo_desde" class="form-control">
+      <option value="">— Todos —</option>
+      {{#each periodos}}<option value="{{id}}" {{#if (eq id ../filtros.periodo_desde)}}selected{{/if}}>{{etiqueta}}</option>{{/each}}
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label-pers">Periodo hasta</label>
+    <select name="periodo_hasta" class="form-control">
+      <option value="">— Todos —</option>
+      {{#each periodos}}<option value="{{id}}" {{#if (eq id ../filtros.periodo_hasta)}}selected{{/if}}>{{etiqueta}}</option>{{/each}}
+    </select>
+  </div>
+  {{/if}}
+  <div class="form-group">
+    <label class="form-label-pers">Área</label>
+    <input type="text" name="area" class="form-control" value="{{filtros.area}}" />
+  </div>
+  <div class="form-group">
+    <label class="form-label-pers">Cargo</label>
+    <input type="text" name="cargo" class="form-control" value="{{filtros.cargo}}" />
+  </div>
+  {{#if (eq tipo 'descuentos')}}
+  <div class="form-group">
+    <label class="form-label-pers">Concepto</label>
+    <select name="tipo_concepto" class="form-control">
+      <option value="">— Todos —</option>
+      {{#each conceptos}}<option value="{{id}}" {{#if (eq id ../filtros.tipo_concepto)}}selected{{/if}}>{{nombre}}</option>{{/each}}
+    </select>
+  </div>
+  {{/if}}
+  {{#if (or (eq tipo 'descuentos') (eq tipo 'vacaciones') (eq tipo 'permisos'))}}
+  <div class="form-group">
+    <label class="form-label-pers">Estado</label>
+    <input type="text" name="estado" class="form-control" value="{{filtros.estado}}" placeholder="(dejar vacío = todos)" />
+  </div>
+  {{/if}}
+  <button type="submit" class="btn btn-ghost"><i data-lucide="filter"></i> Filtrar</button>
+  <a href="/planilla/reportes/exportar.csv?{{queryString}}" class="btn btn-primary"><i data-lucide="download"></i> Exportar CSV</a>
+</form>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="table-wrapper">
+    <table class="table">
+      <thead><tr>{{#each reporte.headers}}<th>{{this}}</th>{{/each}}</tr></thead>
+      <tbody>
+        {{#each reporte.rows}}
+        <tr>{{#each this}}<td>{{this}}</td>{{/each}}</tr>
+        {{else}}
+        <tr><td colspan="8" class="text-muted" style="text-align:center;padding:24px">Sin datos para los filtros seleccionados.</td></tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{#if (eq tipo 'historico-trabajador')}}
+<p class="text-muted" style="margin-top:10px;font-size:12.5px">Este reporte requiere elegir un trabajador — búscalo desde <a href="/planilla/resumen">Resumen</a> y usa el enlace "Histórico" ahí, o agrega <code>?tipo=historico-trabajador&personal_id=...</code> a la URL.</p>
+{{/if}}

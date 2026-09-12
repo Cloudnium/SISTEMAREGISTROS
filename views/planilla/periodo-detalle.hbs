@@ -1,0 +1,134 @@
+<!-- VIEW: planilla/periodo-detalle.hbs -->
+{{> planilla-subnav}}
+
+<a href="/planilla/periodos" class="btn btn-ghost btn-sm" style="margin-bottom:14px"><i data-lucide="arrow-left"></i> Todos los periodos</a>
+
+<div class="card" style="padding:20px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+    <div>
+      <h2 style="margin:0 0 4px">{{periodo.etiqueta}}
+        <span class="badge {{#if (eq periodo.estado 'cerrado')}}badge-success{{else}}badge-warning{{/if}}">{{periodo.estado}}</span>
+      </h2>
+      {{#if periodo.motivo_reapertura}}
+      <div class="text-muted" style="font-size:12.5px">Reabierto — motivo: {{periodo.motivo_reapertura}}</div>
+      {{/if}}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="/planilla/periodos/{{periodo.id}}/imprimir" class="btn btn-ghost btn-sm"><i data-lucide="printer"></i> Imprimir planillas</a>
+      {{#if puedeEditar}}
+        {{#if (eq periodo.estado 'abierto')}}
+        <button class="btn btn-primary btn-sm" onclick="agregarTrabajadorModal()"><i data-lucide="user-plus"></i> Agregar trabajador</button>
+        <button class="btn btn-danger btn-sm" onclick="cerrarPeriodo()"><i data-lucide="lock"></i> Cerrar planilla</button>
+        {{/if}}
+      {{/if}}
+      {{#if esAdmin}}
+        {{#if (eq periodo.estado 'cerrado')}}
+        <button class="btn btn-ghost btn-sm" onclick="reabrirPeriodo()"><i data-lucide="lock-open"></i> Reabrir planilla</button>
+        {{/if}}
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+<form method="GET" class="pln-filtros-row">
+  <div class="form-group">
+    <label class="form-label-pers">Buscar</label>
+    <input type="text" name="q" class="form-control" placeholder="Nombre o DNI..." value="{{filtros.q}}" />
+  </div>
+  <div class="form-group">
+    <label class="form-label-pers">Área</label>
+    <input type="text" name="area" class="form-control" value="{{filtros.area}}" />
+  </div>
+  <div class="form-group">
+    <label class="form-label-pers">Cargo</label>
+    <input type="text" name="cargo" class="form-control" value="{{filtros.cargo}}" />
+  </div>
+  <button type="submit" class="btn btn-ghost"><i data-lucide="filter"></i> Filtrar</button>
+  {{#if (or filtros.q filtros.area filtros.cargo)}}
+  <a href="/planilla/periodos/{{periodo.id}}" class="btn btn-ghost">Limpiar</a>
+  {{/if}}
+</form>
+
+{{#if filas.length}}
+<div class="table-wrapper">
+<table class="table">
+  <thead><tr><th>Trabajador</th><th>Cargo</th><th>Área</th><th class="text-right">Sueldo base</th><th class="text-right">Bonos</th><th class="text-right">Descuentos</th><th class="text-right">Neto</th><th></th></tr></thead>
+  <tbody>
+    {{#each filas}}
+    <tr>
+      <td>{{nombreCompleto}}{{#if inactivo}} <span class="badge badge-neutral">Inactivo</span>{{/if}}
+        {{#if tieneDescuentosPendientes}}<i data-lucide="alert-circle" title="Tiene descuentos pendientes" style="width:14px;height:14px;color:var(--color-warning);vertical-align:-2px"></i>{{/if}}
+      </td>
+      <td>{{cargoMostrar}}</td>
+      <td>{{area}}</td>
+      <td class="text-right">{{formatSoles sueldo}}</td>
+      <td class="text-right">{{formatSoles bonos}}</td>
+      <td class="text-right">{{formatSoles descuentos}}</td>
+      <td class="text-right" style="font-weight:700">{{formatSoles neto}}</td>
+      <td><a href="/planilla/periodos/{{../periodo.id}}/trabajador/{{rosterId}}" class="btn btn-ghost btn-sm">Ver</a></td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<div class="empty-state">
+  <i data-lucide="users"></i>
+  <p>No hay trabajadores que coincidan con el filtro.</p>
+</div>
+{{/if}}
+
+{{#if puedeEditar}}
+<div class="modal-backdrop" id="plnModalAgregarTrab" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="user-plus"></i> Agregar trabajador a esta planilla</div>
+      <button class="modal-close" onclick="document.getElementById('plnModalAgregarTrab').style.display='none'"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      {{#if disponibles.length}}
+      <div class="form-group">
+        <label class="form-label-pers">Trabajador</label>
+        <select id="plnAgregarSelect" class="form-control">
+          {{#each disponibles}}<option value="{{id}}">{{nombreCompleto}} — {{cargoMostrar}} ({{dni}})</option>{{/each}}
+        </select>
+      </div>
+      {{else}}
+      <p class="text-muted" style="margin:0">Todos los trabajadores activos ya están incluidos en este periodo.</p>
+      {{/if}}
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('plnModalAgregarTrab').style.display='none'">Cancelar</button>
+      {{#if disponibles.length}}<button type="button" class="btn btn-primary" onclick="confirmarAgregarTrabajador()">Agregar</button>{{/if}}
+    </div>
+  </div>
+</div>
+{{/if}}
+
+<script>
+  var periodoId = '{{periodo.id}}';
+  function agregarTrabajadorModal() { document.getElementById('plnModalAgregarTrab').style.display = 'flex'; }
+  function confirmarAgregarTrabajador() {
+    var personalId = document.getElementById('plnAgregarSelect').value;
+    fetch('/planilla/periodos/' + periodoId + '/agregar-trabajador', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ personal_id: personalId })
+    }).then(r => r.json()).then(r => {
+      if (r.error) { alert(r.error); return; }
+      location.reload();
+    });
+  }
+  function cerrarPeriodo() {
+    if (!confirm('Está a punto de cerrar esta planilla.\n\nDespués del cierre no podrá modificar normalmente los datos de este periodo (sueldos, bonos, descuentos, cobros).\n\n¿Desea continuar?')) return;
+    fetch('/planilla/periodos/' + periodoId + '/cerrar', { method: 'POST', credentials: 'same-origin' })
+      .then(r => r.json()).then(r => { if (r.error) { alert(r.error); return; } location.reload(); });
+  }
+  function reabrirPeriodo() {
+    var motivo = prompt('Este periodo está cerrado. Indica el motivo de la reapertura (obligatorio):');
+    if (!motivo || !motivo.trim()) return;
+    fetch('/planilla/periodos/' + periodoId + '/reabrir', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: motivo })
+    }).then(r => r.json()).then(r => { if (r.error) { alert(r.error); return; } location.reload(); });
+  }
+</script>

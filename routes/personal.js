@@ -20,7 +20,7 @@ const { requireAuth, requireAdminToEdit, requireAdminToDelete } = require('../mi
 // ─── LIST ─────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
   const { cargo, categoria } = req.query;
-  let query = 'select=id,nombres,apellidos,categoria,tipo,cargo,dni,telefono,licencia,sueldo_base,fecha_ingreso,activo&order=creado_en.desc';
+  let query = 'select=id,nombres,apellidos,categoria,tipo,cargo,area,dni,telefono,licencia,sueldo_base,fecha_ingreso,activo,direccion,tipo_contrato,banco,cuenta_bancaria,afp_onp,dias_vacaciones_disponibles&order=creado_en.desc';
   if (categoria) query += `&categoria=eq.${encodeURIComponent(categoria)}`;
   if (cargo && cargo.trim() !== '') query += `&cargo=ilike.*${encodeURIComponent(cargo.trim())}*`;
 
@@ -49,7 +49,7 @@ router.get('/', requireAuth, async (req, res) => {
 // ─── JSON para edición AJAX ───────────────────
 router.get('/:id/json', requireAuth, async (req, res) => {
   const { data, error } = await db.select('personal_tripulantes',
-    `select=id,nombres,apellidos,categoria,tipo,cargo,dni,telefono,licencia,sueldo_base,fecha_ingreso,activo&id=eq.${req.params.id}&limit=1`);
+    `select=id,nombres,apellidos,categoria,tipo,cargo,area,dni,telefono,licencia,sueldo_base,fecha_ingreso,activo,direccion,tipo_contrato,banco,cuenta_bancaria,afp_onp,dias_vacaciones_disponibles&id=eq.${req.params.id}&limit=1`);
   if (error) return res.status(500).json({ error: error.message });
   if (!data || data.length === 0) return res.status(404).json({ error: 'No encontrado' });
   res.json(data[0]);
@@ -75,7 +75,8 @@ router.get('/cargos/sugerencias', requireAuth, async (req, res) => {
 
 // ─── CREATE — cualquier usuario autenticado ───
 router.post('/', requireAuth, async (req, res) => {
-  const { nombres, apellidos, categoria, tipo, cargo, dni, telefono, licencia, sueldo_base, fecha_ingreso } = req.body;
+  const { nombres, apellidos, categoria, tipo, cargo, area, dni, telefono, licencia, sueldo_base, fecha_ingreso,
+    direccion, tipo_contrato, banco, cuenta_bancaria, afp_onp } = req.body;
   const cat = categoria === 'administrativo' ? 'administrativo' : 'tripulacion';
 
   if (!nombres || !apellidos || !dni) {
@@ -97,11 +98,17 @@ router.post('/', requireAuth, async (req, res) => {
     categoria: cat,
     tipo: cat === 'tripulacion' ? tipo : null,
     cargo: cat === 'administrativo' ? cargo.trim() : null,
+    area: area && area.trim() !== '' ? area.trim() : null,
     dni: dni.trim(),
     telefono: telefono && telefono.trim() !== '' ? telefono.trim() : null,
     licencia: (cat === 'tripulacion' && tipo === 'Chofer' && licencia && licencia.trim() !== '') ? licencia.trim().toUpperCase() : null,
     sueldo_base: sueldo_base && sueldo_base !== '' ? parseFloat(sueldo_base) : null,
     fecha_ingreso: fecha_ingreso && fecha_ingreso !== '' ? fecha_ingreso : null,
+    direccion: direccion && direccion.trim() !== '' ? direccion.trim() : null,
+    tipo_contrato: tipo_contrato && tipo_contrato.trim() !== '' ? tipo_contrato.trim() : null,
+    banco: banco && banco.trim() !== '' ? banco.trim() : null,
+    cuenta_bancaria: cuenta_bancaria && cuenta_bancaria.trim() !== '' ? cuenta_bancaria.trim() : null,
+    afp_onp: afp_onp && afp_onp.trim() !== '' ? afp_onp.trim() : null,
     activo: true,
     creado_en: new Date().toISOString()
   });
@@ -112,7 +119,8 @@ router.post('/', requireAuth, async (req, res) => {
 
 // ─── UPDATE — SOLO admin ──────────────────────
 router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => {
-  const { nombres, apellidos, categoria, tipo, cargo, dni, telefono, licencia, sueldo_base, fecha_ingreso, activo } = req.body;
+  const { nombres, apellidos, categoria, tipo, cargo, area, dni, telefono, licencia, sueldo_base, fecha_ingreso, activo,
+    direccion, tipo_contrato, banco, cuenta_bancaria, afp_onp } = req.body;
   const cat = categoria === 'administrativo' ? 'administrativo' : 'tripulacion';
 
   if (!nombres || !apellidos || !dni) {
@@ -134,11 +142,17 @@ router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => 
     categoria: cat,
     tipo: cat === 'tripulacion' ? tipo : null,
     cargo: cat === 'administrativo' ? cargo.trim() : null,
+    area: area && area.trim() !== '' ? area.trim() : null,
     dni: dni.trim(),
     telefono: telefono && telefono.trim() !== '' ? telefono.trim() : null,
     licencia: (cat === 'tripulacion' && tipo === 'Chofer' && licencia && licencia.trim() !== '') ? licencia.trim().toUpperCase() : null,
     sueldo_base: sueldo_base && sueldo_base !== '' ? parseFloat(sueldo_base) : null,
     fecha_ingreso: fecha_ingreso && fecha_ingreso !== '' ? fecha_ingreso : null,
+    direccion: direccion && direccion.trim() !== '' ? direccion.trim() : null,
+    tipo_contrato: tipo_contrato && tipo_contrato.trim() !== '' ? tipo_contrato.trim() : null,
+    banco: banco && banco.trim() !== '' ? banco.trim() : null,
+    cuenta_bancaria: cuenta_bancaria && cuenta_bancaria.trim() !== '' ? cuenta_bancaria.trim() : null,
+    afp_onp: afp_onp && afp_onp.trim() !== '' ? afp_onp.trim() : null,
     activo: activo === 'on' || activo === true
   });
   if (error) req.flash('error', 'Error al actualizar: ' + error.message);

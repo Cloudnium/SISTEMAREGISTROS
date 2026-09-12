@@ -1,0 +1,26 @@
+<!-- VIEW: planilla/resumen.hbs -->
+{{> planilla-subnav}}
+
+<div class="card" style="padding:26px">
+  <h3 style="margin:0 0 6px">Buscar trabajador</h3>
+  <p class="text-muted" style="margin:0 0 16px">Escribe un nombre, apellido o DNI. Al seleccionarlo verás su ficha completa e histórico de planillas.</p>
+
+  <div class="pln-buscador">
+    <i data-lucide="search" class="pln-buscador-icon"></i>
+    <input type="text" id="plnBuscarInput" class="form-control" placeholder="Ej: Juan, Pérez, 45678123..." autocomplete="off" />
+    <div class="pln-sugerencias" id="plnBuscarLista"></div>
+  </div>
+
+  <div class="empty-state" style="margin-top:40px">
+    <i data-lucide="user-search" style="width:48px;height:48px;opacity:.35"></i>
+    <p>Busca a un trabajador para ver su información y su histórico de planillas.</p>
+  </div>
+</div>
+
+<script src="/js/planilla-buscador.js"></script>
+<script>
+  PlanillaBuscador.iniciar({
+    inputId: 'plnBuscarInput', listaId: 'plnBuscarLista',
+    onSeleccionar: function (t) { window.location.href = '/planilla/resumen/' + t.id; }
+  });
+</script>

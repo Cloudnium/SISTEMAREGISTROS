@@ -1,0 +1,44 @@
+<!-- VIEW: planilla/imprimir-masivo.hbs -->
+{{> planilla-subnav}}
+
+<a href="/planilla/periodos/{{periodoId}}" class="btn btn-ghost btn-sm" style="margin-bottom:14px"><i data-lucide="arrow-left"></i> Volver al periodo</a>
+
+<div class="card" style="padding:22px">
+  <h3 style="margin:0 0 6px">Imprimir planillas — {{pageSubtitle}}</h3>
+  <p class="text-muted" style="margin:0 0 16px">Selecciona uno, varios, o todos los trabajadores. Se generará una boleta por cada uno, lista para imprimir o guardar como PDF.</p>
+
+  <div style="margin-bottom:12px;display:flex;gap:10px">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="marcarTodos(true)">Seleccionar todos</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="marcarTodos(false)">Ninguno</button>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="table">
+      <thead><tr><th style="width:36px"></th><th>Trabajador</th><th>DNI</th></tr></thead>
+      <tbody>
+        {{#each trabajadores}}
+        <tr>
+          <td><input type="checkbox" class="pln-check-imprimir" value="{{rosterId}}" /></td>
+          <td>{{nombreCompleto}}</td><td>{{dni}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  <button type="button" class="btn btn-primary" style="margin-top:16px" onclick="imprimirSeleccionados()">
+    <i data-lucide="printer"></i> Imprimir seleccionados
+  </button>
+</div>
+
+<script>
+  function marcarTodos(valor) {
+    document.querySelectorAll('.pln-check-imprimir').forEach(function (c) { c.checked = valor; });
+  }
+  function imprimirSeleccionados() {
+    var ids = Array.prototype.filter.call(document.querySelectorAll('.pln-check-imprimir'), function (c) { return c.checked; })
+      .map(function (c) { return c.value; });
+    if (!ids.length) { alert('Selecciona al menos un trabajador.'); return; }
+    window.open('/planilla/periodos/{{periodoId}}/imprimir?ids=' + ids.join(','), '_blank');
+  }
+</script>

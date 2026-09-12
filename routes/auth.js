@@ -146,7 +146,10 @@ router.post('/login', redirectIfAuth, async (req, res) => {
       puede_reservar:  usuario.puede_reservar  !== false,
       puede_habilitar: usuario.puede_habilitar !== false,
       puede_reintegro: usuario.puede_reintegro !== false,
-      puede_crear_codigos: usuario.puede_crear_codigos === true
+      puede_crear_codigos: usuario.puede_crear_codigos === true,
+      puede_gestionar_inventario: usuario.puede_gestionar_inventario === true,
+      puede_ver_planilla: usuario.puede_ver_planilla === true,
+      puede_editar_planilla: usuario.puede_editar_planilla === true
     };
 
     // Actualiza último acceso

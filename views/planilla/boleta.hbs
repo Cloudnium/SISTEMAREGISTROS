@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Boleta de Pago</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 0; padding: 24px; font-size: 13px; }
+  .bp-page { page-break-after: always; padding-bottom: 20px; }
+  .bp-page:last-child { page-break-after: auto; }
+  .bp-empresa { font-size: 11px; color: #555; margin-bottom: 6px; }
+  .bp-empresa b { color: #111; font-size: 13px; }
+  .bp-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px; }
+  .bp-titulo { font-size: 18px; font-weight: 700; }
+  .bp-periodo { color: #555; margin-top: 2px; }
+  .bp-datos { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-bottom: 18px; }
+  .bp-dato label { display: block; font-size: 10px; text-transform: uppercase; color: #777; letter-spacing: .03em; }
+  .bp-dato span { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; font-size: 12.5px; }
+  th { background: #f3f3f3; text-transform: uppercase; font-size: 10.5px; letter-spacing: .03em; color: #555; }
+  td.monto, th.monto { text-align: right; }
+  .bp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .bp-total-row td { font-weight: 700; border-top: 2px solid #333; border-bottom: none; }
+  .bp-neto { margin-top: 18px; padding: 14px; background: #eef2ff; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .bp-neto .lbl { font-weight: 600; }
+  .bp-neto .val { font-size: 20px; font-weight: 800; color: #4338ca; }
+  .bp-ausencias { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 12px; }
+  .bp-ausencias h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; color: #777; }
+  .bp-firma { margin-top: 44px; display: flex; justify-content: space-between; }
+  .bp-firma div { width: 220px; text-align: center; border-top: 1px solid #333; padding-top: 6px; font-size: 11px; }
+  .bp-emision { margin-top: 8px; font-size: 10.5px; color: #888; text-align: right; }
+  .bp-print-btn { margin-bottom: 16px; }
+  @media print { .bp-print-btn { display: none; } body { padding: 0; } }
+</style>
+</head>
+<body>
+
+  <button class="btn bp-print-btn" onclick="window.print()" style="padding:8px 16px;border-radius:6px;border:1px solid #ccc;background:#4f46e5;color:#fff;cursor:pointer">
+    🖨️ Imprimir / Guardar como PDF
+  </button>
+
+  {{#each boletas}}
+  <div class="bp-page">
+    <div class="bp-header">
+      <div>
+        {{#if empresa.nombre}}
+        <div class="bp-empresa"><b>{{empresa.nombre}}</b>{{#if empresa.ruc}} — RUC {{empresa.ruc}}{{/if}}</div>
+        {{/if}}
+        <div class="bp-titulo">Planilla / Boleta de Pago</div>
+        <div class="bp-periodo">{{periodo.etiqueta}}</div>
+      </div>
+    </div>
+
+    <div class="bp-datos">
+      <div class="bp-dato"><label>Trabajador</label><span>{{roster.personal.nombres}} {{roster.personal.apellidos}}</span></div>
+      <div class="bp-dato"><label>DNI</label><span>{{roster.personal.dni}}</span></div>
+      <div class="bp-dato"><label>Cargo</label><span>{{cargoMostrar}}</span></div>
+      <div class="bp-dato"><label>Área</label><span>{{#if roster.area}}{{roster.area}}{{else}}—{{/if}}</span></div>
+    </div>
+
+    <div class="bp-cols">
+      <div>
+        <table>
+          <thead><tr><th>Ingresos</th><th class="monto">Monto</th></tr></thead>
+          <tbody>
+            <tr><td>Sueldo base</td><td class="monto">{{formatSoles sueldo}}</td></tr>
+            {{#each bonos}}
+            <tr><td>{{concepto}}</td><td class="monto">{{formatSoles importe}}</td></tr>
+            {{/each}}
+            <tr class="bp-total-row"><td>Total Ingresos</td><td class="monto">{{formatSoles totalIngresos}}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <table>
+          <thead><tr><th>Descuentos</th><th class="monto">Monto</th></tr></thead>
+          <tbody>
+            {{#each descuentos}}
+            <tr><td>{{concepto}}{{#if origen}} — {{origen}}{{/if}}</td><td class="monto">{{formatSoles importe}}</td></tr>
+            {{/each}}
+            {{#unless descuentos.length}}
+            <tr><td colspan="2" style="color:#999">Sin descuentos cobrados este periodo</td></tr>
+            {{/unless}}
+            <tr class="bp-total-row"><td>Total Descuentos</td><td class="monto">{{formatSoles totalDescuentos}}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bp-neto">
+      <span class="lbl">NETO A PAGAR</span>
+      <span class="val">{{formatSoles neto}}</span>
+    </div>
+
+    <div class="bp-ausencias">
+      <div>
+        <h4>Vacaciones en el periodo</h4>
+        {{#each vacaciones}}
+        <div>{{desde}} — {{hasta}} ({{dias}} día{{#unless (eq dias 1)}}s{{/unless}})</div>
+        {{else}}
+        <div style="color:#999">Sin vacaciones registradas</div>
+        {{/each}}
+      </div>
+      <div>
+        <h4>Permisos en el periodo</h4>
+        {{#each permisos}}
+        <div>{{fecha}} — {{#if dia_completo}}Día completo{{else}}{{hora_inicio}} a {{hora_fin}}{{/if}}{{#if motivo}} ({{motivo}}){{/if}}</div>
+        {{else}}
+        <div style="color:#999">Sin permisos registrados</div>
+        {{/each}}
+      </div>
+    </div>
+
+    <div class="bp-firma">
+      <div>Firma del trabajador</div>
+      <div>Firma / sello de la empresa</div>
+    </div>
+    <div class="bp-emision">Emitido el {{fechaEmision}}</div>
+  </div>
+  {{else}}
+  <p>No hay planillas para imprimir.</p>
+  {{/each}}
+
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!-- VIEW: planilla/vacaciones-permisos.hbs -->
+{{> planilla-subnav}}
+
+{{#if puedeEditar}}
+<div class="card" style="padding:22px;margin-bottom:20px">
+  <h3 style="margin:0 0 14px">Registrar vacaciones o permiso</h3>
+
+  <div class="pln-buscador" style="margin-bottom:16px">
+    <i data-lucide="search" class="pln-buscador-icon"></i>
+    <input type="text" id="plnVpBuscarInput" class="form-control" placeholder="Busca al trabajador por nombre o DNI..." autocomplete="off" />
+    <div class="pln-sugerencias" id="plnVpBuscarLista"></div>
+  </div>
+  <div id="plnVpSeleccionado" class="text-muted" style="margin-bottom:14px;display:none">
+    Trabajador seleccionado: <b id="plnVpNombreSel"></b> <button type="button" class="btn btn-ghost btn-sm" onclick="limpiarSeleccion()">Cambiar</button>
+  </div>
+
+  <div class="pln-vp-tabs" style="display:flex;gap:8px;margin-bottom:16px">
+    <button type="button" class="btn btn-ghost btn-sm" id="plnTabVac" onclick="mostrarTab('vac')">Vacaciones</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="plnTabPer" onclick="mostrarTab('per')">Permiso</button>
+  </div>
+
+  <form method="POST" action="/planilla/vacaciones" id="formVacaciones" style="display:none">
+    <input type="hidden" name="personal_id" id="vacPersonalId" required />
+    <div class="pln-filtros-row">
+      <div class="form-group"><label class="form-label-pers">Fecha inicio</label><input type="date" name="fecha_inicio" class="form-control" required /></div>
+      <div class="form-group"><label class="form-label-pers">Fecha fin</label><input type="date" name="fecha_fin" class="form-control" required /></div>
+    </div>
+    <div class="form-group"><label class="form-label-pers">Observación</label><input type="text" name="observacion" class="form-control" /></div>
+    <button type="submit" class="btn btn-primary"><i data-lucide="umbrella"></i> Registrar vacaciones</button>
+  </form>
+
+  <form method="POST" action="/planilla/permisos" id="formPermisos" style="display:none">
+    <input type="hidden" name="personal_id" id="perPersonalId" required />
+    <div class="pln-filtros-row">
+      <div class="form-group"><label class="form-label-pers">Tipo</label>
+        <select name="tipo_id" class="form-control">{{#each tipos}}<option value="{{id}}">{{nombre}}</option>{{/each}}</select>
+      </div>
+      <div class="form-group"><label class="form-label-pers">Fecha</label><input type="date" name="fecha" class="form-control" required /></div>
+    </div>
+    <div class="pln-filtros-row">
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="dia_completo" id="perDiaCompleto" checked onchange="toggleHoras()" /> Día completo</label>
+      <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="con_goce" id="perConGoce" checked onchange="toggleDescuentoPermiso()" /> Con goce de haber</label>
+    </div>
+    <div class="pln-filtros-row" id="perHorasRow" style="display:none">
+      <div class="form-group"><label class="form-label-pers">Hora inicio</label><input type="time" name="hora_inicio" class="form-control" /></div>
+      <div class="form-group"><label class="form-label-pers">Hora fin</label><input type="time" name="hora_fin" class="form-control" /></div>
+    </div>
+    <div class="form-group" id="perDescuentoRow" style="display:none">
+      <label class="form-label-pers">Monto a descontar del sueldo (S/) <small class="text-muted">— opcional; si lo dejas vacío, no se descuenta nada</small></label>
+      <input type="number" name="monto_descuento" id="perMontoDescuento" class="form-control" step="0.01" min="0" placeholder="0.00" style="max-width:200px" />
+      <p class="text-muted" style="margin:6px 0 0;font-size:12px">Se creará un descuento pendiente por este monto, que podrás cobrar (total o parcialmente) desde cualquier planilla abierta — igual que cualquier otro descuento.</p>
+    </div>
+    <div class="form-group"><label class="form-label-pers">Motivo</label><input type="text" name="motivo" class="form-control" /></div>
+    <div class="form-group"><label class="form-label-pers">Observación</label><input type="text" name="observacion" class="form-control" /></div>
+    <button type="submit" class="btn btn-primary"><i data-lucide="clock"></i> Registrar permiso</button>
+  </form>
+</div>
+{{/if}}
+
+<div class="card" style="padding:22px;margin-bottom:20px">
+  <h3 style="margin:0 0 14px">Vacaciones recientes</h3>
+  {{#if vacaciones.length}}
+  <table class="table">
+    <thead><tr><th>Trabajador</th><th>Fecha inicio</th><th>Fecha fin</th><th>Días</th><th>Estado</th>{{#if puedeEditar}}<th></th>{{/if}}</tr></thead>
+    <tbody>
+      {{#each vacaciones}}
+      <tr>
+        <td>{{#if personal}}{{personal.nombres}} {{personal.apellidos}}{{else}}—{{/if}}</td>
+        <td>{{formatDate fecha_inicio}}</td><td>{{formatDate fecha_fin}}</td><td>{{dias}}</td>
+        <td>
+          {{#if ../puedeEditar}}
+          <select class="form-control" style="padding:4px 8px;font-size:12px" onchange="cambiarEstadoVacacion('{{id}}', this.value)">
+            {{#each ../estadosVacacion}}<option value="{{this}}" {{#if (eq this ../estado)}}selected{{/if}}>{{this}}</option>{{/each}}
+          </select>
+          {{else}}<span class="badge badge-neutral">{{estado}}</span>{{/if}}
+        </td>
+        {{#if ../puedeEditar}}<td>
+          <form method="POST" action="/planilla/vacaciones/{{id}}/eliminar" onsubmit="return confirm('¿Eliminar este registro?')">
+            <button class="btn btn-ghost btn-sm"><i data-lucide="trash-2"></i></button>
+          </form>
+        </td>{{/if}}
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}<p class="text-muted" style="margin:0">Sin registros.</p>{{/if}}
+</div>
+
+<div class="card" style="padding:22px">
+  <h3 style="margin:0 0 14px">Permisos recientes</h3>
+  {{#if permisos.length}}
+  <table class="table">
+    <thead><tr><th>Trabajador</th><th>Fecha</th><th>Tipo</th><th>Horas</th><th>Descuento</th><th>Estado</th>{{#if puedeEditar}}<th></th>{{/if}}</tr></thead>
+    <tbody>
+      {{#each permisos}}
+      <tr>
+        <td>{{#if personal}}{{personal.nombres}} {{personal.apellidos}}{{else}}—{{/if}}</td>
+        <td>{{formatDate fecha}}</td>
+        <td>{{#if tipo}}{{tipo.nombre}}{{else}}—{{/if}}</td>
+        <td>{{#if dia_completo}}Día completo{{else}}Por horas{{/if}}</td>
+        <td>
+          {{#if descuento}}
+          <span class="badge badge-warning" title="Saldo pendiente">{{formatSoles descuento.saldo}}</span>
+          {{else}}
+          {{#unless con_goce}}<span class="text-muted" style="font-size:12px">Sin goce (sin monto)</span>{{else}}<span class="text-muted">—</span>{{/unless}}
+          {{/if}}
+        </td>
+        <td>
+          {{#if ../puedeEditar}}
+          <select class="form-control" style="padding:4px 8px;font-size:12px" onchange="cambiarEstadoPermiso('{{id}}', this.value)">
+            {{#each ../estadosPermiso}}<option value="{{this}}" {{#if (eq this ../estado)}}selected{{/if}}>{{this}}</option>{{/each}}
+          </select>
+          {{else}}<span class="badge badge-neutral">{{estado}}</span>{{/if}}
+        </td>
+        {{#if ../puedeEditar}}<td>
+          <form method="POST" action="/planilla/permisos/{{id}}/eliminar" onsubmit="return confirm('¿Eliminar este registro?')">
+            <button class="btn btn-ghost btn-sm"><i data-lucide="trash-2"></i></button>
+          </form>
+        </td>{{/if}}
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}<p class="text-muted" style="margin:0">Sin registros.</p>{{/if}}
+</div>
+
+<script src="/js/planilla-buscador.js"></script>
+<script>
+  var tabActiva = 'vac';
+  function mostrarTab(t) {
+    tabActiva = t;
+    document.getElementById('formVacaciones').style.display = t === 'vac' ? 'block' : 'none';
+    document.getElementById('formPermisos').style.display = t === 'per' ? 'block' : 'none';
+    document.getElementById('plnTabVac').className = 'btn btn-sm ' + (t === 'vac' ? 'btn-primary' : 'btn-ghost');
+    document.getElementById('plnTabPer').className = 'btn btn-sm ' + (t === 'per' ? 'btn-primary' : 'btn-ghost');
+  }
+  function toggleHoras() {
+    document.getElementById('perHorasRow').style.display = document.getElementById('perDiaCompleto').checked ? 'none' : 'flex';
+  }
+  function toggleDescuentoPermiso() {
+    var sinGoce = !document.getElementById('perConGoce').checked;
+    document.getElementById('perDescuentoRow').style.display = sinGoce ? 'block' : 'none';
+    if (!sinGoce) document.getElementById('perMontoDescuento').value = '';
+  }
+  function limpiarSeleccion() {
+    document.getElementById('plnVpSeleccionado').style.display = 'none';
+    document.getElementById('plnVpBuscarInput').value = '';
+    document.getElementById('plnVpBuscarInput').style.display = 'block';
+  }
+  if (document.getElementById('plnVpBuscarInput')) {
+    mostrarTab('vac');
+    PlanillaBuscador.iniciar({
+      inputId: 'plnVpBuscarInput', listaId: 'plnVpBuscarLista',
+      onSeleccionar: function (t) {
+        document.getElementById('vacPersonalId').value = t.id;
+        document.getElementById('perPersonalId').value = t.id;
+        document.getElementById('plnVpNombreSel').textContent = t.nombreCompleto;
+        document.getElementById('plnVpSeleccionado').style.display = 'block';
+        document.getElementById('plnVpBuscarInput').style.display = 'none';
+      }
+    });
+  }
+  function cambiarEstadoVacacion(id, estado) {
+    fetch('/planilla/vacaciones/' + id + '/estado', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: estado })
+    }).then(r => r.json()).then(r => { if (r.error) alert(r.error); });
+  }
+  function cambiarEstadoPermiso(id, estado) {
+    fetch('/planilla/permisos/' + id + '/estado', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: estado })
+    }).then(r => r.json()).then(r => { if (r.error) alert(r.error); });
+  }
+</script>

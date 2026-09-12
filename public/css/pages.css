@@ -1610,3 +1610,50 @@
   .trip-grid { grid-template-columns: 1fr; }
   .trip-col-specs { border-left: none; padding-left: 0; border-top: 1px solid var(--color-border); padding-top: var(--space-3); }
 }
+
+/* ═══ PLANILLA — sub-navegación compartida (views/partials/planilla-subnav.hbs) ═══ */
+.pln-subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.pln-subnav-item {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 13.5px; font-weight: 600;
+  text-decoration: none; transition: all .15s;
+}
+.pln-subnav-item:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.pln-subnav-item i { width: 16px; height: 16px; }
+.pln-subnav-item.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+
+/* ═══ PLANILLA — buscador inteligente (autocompletado) ═══ */
+.pln-buscador { position: relative; max-width: 480px; }
+.pln-buscador input { padding-left: 38px; }
+.pln-buscador .pln-buscador-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--color-text-secondary); }
+.pln-sugerencias {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--color-surface);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  max-height: 320px; overflow-y: auto; z-index: 40; display: none;
+}
+.pln-sugerencias.show { display: block; }
+.pln-sugerencia-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--color-border); }
+.pln-sugerencia-item:last-child { border-bottom: none; }
+.pln-sugerencia-item:hover { background: var(--color-bg-hover, rgba(0,0,0,.04)); }
+.pln-sugerencia-nombre { font-weight: 600; }
+.pln-sugerencia-meta { font-size: 12px; color: var(--color-text-secondary); }
+.pln-sugerencia-vacio { padding: 14px; color: var(--color-text-secondary); font-size: 13px; text-align: center; }
+
+/* ═══ PLANILLA — genéricos: tarjetas de resumen, estado, tabs ═══ */
+.pln-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0 22px; }
+.pln-stat-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px 16px; }
+.pln-stat-card label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--color-text-secondary); margin-bottom: 4px; }
+.pln-stat-card span { font-size: 19px; font-weight: 700; }
+.pln-year-heading { font-size: 15px; font-weight: 700; margin: 22px 0 10px; color: var(--color-text-secondary); }
+.pln-periodo-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 10px; text-decoration: none; color: inherit;
+  transition: border-color .15s;
+}
+.pln-periodo-card:hover { border-color: var(--color-accent); }
+.pln-periodo-nombre { font-weight: 700; }
+.pln-periodo-metrics { display: flex; gap: 18px; font-size: 12.5px; color: var(--color-text-secondary); flex-wrap: wrap; }
+.pln-filtros-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: flex-end; }
+.pln-filtros-row .form-group { margin-bottom: 0; min-width: 150px; }
+.text-right { text-align: right; }
+

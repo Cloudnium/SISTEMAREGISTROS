@@ -1,0 +1,189 @@
+<!-- VIEW: planilla/trabajador-periodo.hbs -->
+{{> planilla-subnav}}
+
+<a href="/planilla/periodos/{{periodo.id}}" class="btn btn-ghost btn-sm" style="margin-bottom:14px"><i data-lucide="arrow-left"></i> {{periodo.etiqueta}}</a>
+
+<div class="card" style="padding:20px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+    <div>
+      <h2 style="margin:0 0 4px">{{roster.personal.nombres}} {{roster.personal.apellidos}}
+        <span class="badge {{#if periodoAbierto}}badge-warning{{else}}badge-success{{/if}}">{{periodo.estado}}</span>
+      </h2>
+      <div class="text-muted">DNI {{roster.personal.dni}} · {{cargoMostrar}}{{#if roster.area}} · {{roster.area}}{{/if}} · {{periodo.etiqueta}}</div>
+    </div>
+    <a href="/planilla/periodos/{{periodo.id}}/trabajador/{{roster.id}}/imprimir" class="btn btn-ghost btn-sm" target="_blank"><i data-lucide="printer"></i> Imprimir boleta</a>
+  </div>
+</div>
+
+<div class="pln-stat-grid">
+  <div class="pln-stat-card"><label>Sueldo base</label><span>{{formatSoles totales.sueldo}}</span>
+    {{#if puedeEditar}}<button class="btn btn-ghost btn-sm" style="margin-top:4px;padding:2px 8px" onclick="editarSueldo()">Editar</button>{{/if}}
+  </div>
+  <div class="pln-stat-card"><label>Bonos</label><span>{{formatSoles totales.bonos}}</span></div>
+  <div class="pln-stat-card"><label>Total ingresos</label><span>{{formatSoles totales.totalIngresos}}</span></div>
+  <div class="pln-stat-card"><label>Descuentos cobrados</label><span>{{formatSoles totales.descuentos}}</span></div>
+  <div class="pln-stat-card"><label>Neto a pagar</label><span style="color:var(--color-accent)">{{formatSoles totales.neto}}</span></div>
+</div>
+
+<div class="card" style="padding:22px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h3 style="margin:0">Bonos e ingresos de este periodo</h3>
+    {{#if puedeEditar}}<button class="btn btn-primary btn-sm" onclick="document.getElementById('plnModalBono').style.display='flex'"><i data-lucide="plus"></i> Agregar bono</button>{{/if}}
+  </div>
+  {{#if bonos.length}}
+  <table class="table">
+    <thead><tr><th>Concepto</th><th>Descripción</th><th>Fecha</th><th class="text-right">Importe</th>{{#if puedeEditar}}<th></th>{{/if}}</tr></thead>
+    <tbody>
+      {{#each bonos}}
+      <tr>
+        <td>{{concepto}}</td><td>{{#if descripcion}}{{descripcion}}{{else}}—{{/if}}</td>
+        <td>{{formatDate fecha}}</td><td class="text-right">{{formatSoles importe}}</td>
+        {{#if ../puedeEditar}}<td>
+          <form method="POST" action="/planilla/periodos/{{../periodo.id}}/trabajador/{{../roster.id}}/bonos/{{id}}/eliminar" onsubmit="return confirm('¿Eliminar este bono?')">
+            <button type="submit" class="btn btn-ghost btn-sm"><i data-lucide="trash-2"></i></button>
+          </form>
+        </td>{{/if}}
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="text-muted" style="margin:0">Sin bonos registrados en este periodo.</p>
+  {{/if}}
+</div>
+
+<div class="card" style="padding:22px;margin-bottom:18px">
+  <h3 style="margin:0 0 12px">Descuentos pendientes — decide cuánto cobrar en {{periodo.etiqueta}}</h3>
+  {{#if descuentosConDecision.length}}
+  <table class="table">
+    <thead><tr><th>Concepto</th><th>Origen</th><th class="text-right">Saldo disponible</th><th class="text-right">A cobrar este periodo</th><th>¿Cobrado?</th>{{#if puedeEditar}}<th></th>{{/if}}</tr></thead>
+    <tbody>
+      {{#each descuentosConDecision}}
+      <tr>
+        <td>{{concepto.nombre}}</td>
+        <td>{{#if origen_codigo}}{{origen_codigo}}{{else}}—{{/if}}</td>
+        <td class="text-right">{{formatSoles saldo}}{{#if cobroEnEstePeriodo}}{{#if cobroEnEstePeriodo.cobrado}} <small class="text-muted">(ya incluye este cobro)</small>{{/if}}{{/if}}</td>
+        <td class="text-right">
+          {{#if ../puedeEditar}}
+          <input type="number" class="form-control pln-input-cobro" style="width:110px;display:inline-block" step="0.01" min="0"
+                 id="plnImporte-{{id}}" value="{{#if cobroEnEstePeriodo}}{{cobroEnEstePeriodo.importe}}{{else}}0{{/if}}" />
+          {{else}}
+          {{#if cobroEnEstePeriodo}}{{formatSoles cobroEnEstePeriodo.importe}}{{else}}S/ 0.00{{/if}}
+          {{/if}}
+        </td>
+        <td>
+          {{#if ../puedeEditar}}
+          <label style="display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="plnCobrado-{{id}}" {{#if cobroEnEstePeriodo}}{{#if cobroEnEstePeriodo.cobrado}}checked{{/if}}{{/if}} />
+            Cobrado
+          </label>
+          {{else}}
+          {{#if cobroEnEstePeriodo.cobrado}}<span class="badge badge-success">Cobrado</span>{{else}}<span class="badge badge-warning">Pendiente</span>{{/if}}
+          {{/if}}
+        </td>
+        {{#if ../puedeEditar}}<td><button class="btn btn-primary btn-sm" onclick="guardarCobro('{{id}}')">Guardar</button></td>{{/if}}
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{#if puedeEditar}}
+  <p class="text-muted" style="margin:10px 0 0;font-size:12px">Si dejas el importe en 0 o no marcas "Cobrado", el descuento no afecta el neto de este periodo y sigue pendiente para el siguiente.</p>
+  {{/if}}
+  {{else}}
+  <p class="text-muted" style="margin:0">Este trabajador no tiene descuentos pendientes.</p>
+  {{/if}}
+</div>
+
+<div class="card" style="padding:22px">
+  <h3 style="margin:0 0 12px">Vacaciones y permisos en {{periodo.etiqueta}}</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div>
+      <div class="text-muted" style="font-size:12px;text-transform:uppercase;margin-bottom:6px">Vacaciones</div>
+      {{#each vacaciones}}
+      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">{{desde}} — {{hasta}} ({{dias}} día{{#unless (eq dias 1)}}s{{/unless}})</div>
+      {{else}}<p class="text-muted">Sin vacaciones en este periodo.</p>{{/each}}
+    </div>
+    <div>
+      <div class="text-muted" style="font-size:12px;text-transform:uppercase;margin-bottom:6px">Permisos</div>
+      {{#each permisos}}
+      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">{{formatDate fecha}} — {{#if dia_completo}}Día completo{{else}}{{hora_inicio}} a {{hora_fin}}{{/if}}{{#if motivo}} ({{motivo}}){{/if}}</div>
+      {{else}}<p class="text-muted">Sin permisos en este periodo.</p>{{/each}}
+    </div>
+  </div>
+</div>
+
+{{#if puedeEditar}}
+<div class="modal-backdrop" id="plnModalSueldo" style="display:none">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="banknote"></i> Editar sueldo de este periodo</div>
+      <button class="modal-close" onclick="document.getElementById('plnModalSueldo').style.display='none'"><i data-lucide="x"></i></button>
+    </div>
+    <form method="POST" action="/planilla/periodos/{{periodo.id}}/trabajador/{{roster.id}}/sueldo">
+      <div class="modal-body">
+        <p class="modal-hint">Esto solo afecta la planilla de {{periodo.etiqueta}}. El sueldo actual del trabajador en TRABAJADORES no cambia.</p>
+        <div class="form-group">
+          <label class="form-label-pers">Sueldo base (S/)</label>
+          <input type="number" name="sueldo_base" class="form-control" step="0.01" min="0" value="{{roster.sueldo_base}}" required />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('plnModalSueldo').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="plnModalBono" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="plus-circle"></i> Agregar bono</div>
+      <button class="modal-close" onclick="document.getElementById('plnModalBono').style.display='none'"><i data-lucide="x"></i></button>
+    </div>
+    <form method="POST" action="/planilla/periodos/{{periodo.id}}/trabajador/{{roster.id}}/bonos">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label-pers">Concepto</label>
+          <input type="text" name="concepto" class="form-control" placeholder="Ej: Bono productividad" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Descripción <small class="text-muted">(opcional)</small></label>
+          <input type="text" name="descripcion" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Importe (S/)</label>
+          <input type="number" name="importe" class="form-control" step="0.01" min="0.01" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Fecha</label>
+          <input type="date" name="fecha" class="form-control" value="{{today}}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Observación</label>
+          <textarea name="observacion" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('plnModalBono').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function editarSueldo() { document.getElementById('plnModalSueldo').style.display = 'flex'; }
+  function guardarCobro(descuentoId) {
+    var importe = document.getElementById('plnImporte-' + descuentoId).value || 0;
+    var cobrado = document.getElementById('plnCobrado-' + descuentoId).checked;
+    fetch('/planilla/descuentos/' + descuentoId + '/cobro', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ periodo_id: '{{periodo.id}}', importe: importe, cobrado: cobrado })
+    }).then(r => r.json()).then(r => {
+      if (r.error) { alert(r.error); return; }
+      location.reload();
+    });
+  }
+</script>
+{{/if}}

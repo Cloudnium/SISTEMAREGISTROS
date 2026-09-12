@@ -1,9 +1,16 @@
 <!-- VIEW: planilla/index.hbs -->
 
+<div class="pln-subnav">
+  <a href="/planilla" class="pln-subnav-item active"><i data-lucide="wallet"></i> Resumen</a>
+  <a href="/planilla/periodos" class="pln-subnav-item"><i data-lucide="calendar-range"></i> Periodos</a>
+  <a href="/planilla/vacaciones" class="pln-subnav-item"><i data-lucide="umbrella"></i> Vacaciones y Permisos</a>
+  <a href="/planilla/reportes" class="pln-subnav-item"><i data-lucide="bar-chart-3"></i> Reportes</a>
+</div>
+
 <div class="pln-aviso">
   <i data-lucide="info"></i>
-  <span>Los bonos y descuentos quedan <b>pendientes</b> hasta que los marques como cobrados.
-  Si no cobras uno, sigue apareciendo aquí (pasa automáticamente al siguiente pago).</span>
+  <span>Los ingresos y descuentos quedan <b>pendientes</b> hasta que se incluyen en un periodo generado (o los marcas cobrados a mano).
+  Si no se cobran, siguen apareciendo aquí (pasan automáticamente al siguiente pago).</span>
 </div>
 
 {{#if personal.length}}
@@ -79,7 +86,11 @@
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label-pers">Concepto</label>
-        <input type="text" class="form-control" id="plnConcepto" placeholder="Ej: Adelanto de sueldo" />
+        <select class="form-control" id="plnCategoriaConcepto"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Detalle (opcional)</label>
+        <input type="text" class="form-control" id="plnConcepto" placeholder="Ej: viaje a Lima, cuota 2 de 3..." />
       </div>
       <div class="form-group">
         <label class="form-label-pers">Monto (S/)</label>
@@ -94,6 +105,15 @@
 </div>
 
 <style>
+.pln-subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.pln-subnav-item {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  border-radius: var(--radius-md); border: 1px solid var(--color-border);
+  background: var(--color-surface); color: var(--text-secondary); font-size: var(--text-sm);
+  font-weight: 600; text-decoration: none;
+}
+.pln-subnav-item i { width: 16px; height: 16px; }
+.pln-subnav-item.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
 .pln-aviso {
   display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-bottom: 20px;
   background: var(--color-accent-light); border-radius: var(--radius-md); font-size: var(--text-sm); color: var(--text-secondary);
@@ -122,6 +142,9 @@
 <div class="ma-toast" id="plnToast"></div>
 
 <script>
+var CONCEPTOS_INGRESO = {{{json conceptosIngreso}}};
+var CONCEPTOS_DESCUENTO = {{{json conceptosDescuento}}};
+
 var Planilla = (function () {
   var personalActual = null, tipoActual = null;
 
@@ -156,7 +179,11 @@ var Planilla = (function () {
 
   function abrirMovimiento(personalId, tipo) {
     personalActual = personalId; tipoActual = tipo;
-    document.getElementById('plnModalTitulo').textContent = tipo === 'bono' ? 'Agregar bono' : 'Agregar descuento';
+    document.getElementById('plnModalTitulo').textContent = tipo === 'bono' ? 'Agregar ingreso' : 'Agregar descuento';
+    var opciones = tipo === 'bono' ? CONCEPTOS_INGRESO : CONCEPTOS_DESCUENTO;
+    document.getElementById('plnCategoriaConcepto').innerHTML = opciones.map(function (c) {
+      return '<option value="' + c.clave + '">' + c.nombre + '</option>';
+    }).join('');
     document.getElementById('plnConcepto').value = '';
     document.getElementById('plnMonto').value = '';
     document.getElementById('plnModalMov').style.display = 'flex';
@@ -165,13 +192,14 @@ var Planilla = (function () {
     document.getElementById('plnModalMov').style.display = 'none';
   }
   function guardarMovimiento() {
+    var categoriaConcepto = document.getElementById('plnCategoriaConcepto').value;
     var concepto = document.getElementById('plnConcepto').value.trim();
     var monto = document.getElementById('plnMonto').value;
-    if (!concepto || !monto) { toast('Completa concepto y monto.', 'error'); return; }
+    if (!categoriaConcepto || !monto) { toast('Selecciona el concepto e ingresa el monto.', 'error'); return; }
     fetch('/planilla/' + personalActual + '/movimiento', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: tipoActual, concepto: concepto, monto: monto })
+      body: JSON.stringify({ tipo: tipoActual, categoria_concepto: categoriaConcepto, concepto: concepto, monto: monto })
     }).then(function (r) { return r.json(); }).then(function (r) {
       if (r.error) { toast(r.error, 'error'); return; }
       cerrarMovimiento();
