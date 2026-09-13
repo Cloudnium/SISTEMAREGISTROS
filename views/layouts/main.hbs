@@ -25,6 +25,15 @@
   <link rel="stylesheet" href="/css/chat-widget.css" />
 </head>
 <body>
+  <script>
+    // Aplica el estado guardado del sidebar (contraído/expandido) antes de
+    // pintar, para que no haya parpadeo al cargar cada página.
+    try {
+      if (localStorage.getItem('sidebarCollapsed') === '1' && window.innerWidth >= 1024) {
+        document.body.classList.add('sidebar-collapsed');
+      }
+    } catch (e) {}
+  </script>
 
   {{> sidebar}}
 

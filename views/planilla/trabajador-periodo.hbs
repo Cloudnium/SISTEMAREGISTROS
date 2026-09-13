@@ -106,7 +106,23 @@
     <div>
       <div class="text-muted" style="font-size:12px;text-transform:uppercase;margin-bottom:6px">Permisos</div>
       {{#each permisos}}
-      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">{{formatDate fecha}} — {{#if dia_completo}}Día completo{{else}}{{hora_inicio}} a {{hora_fin}}{{/if}}{{#if motivo}} ({{motivo}}){{/if}}</div>
+      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">
+        {{formatDate fecha}} — {{#if dia_completo}}Día completo{{else}}{{hora_inicio}} a {{hora_fin}}{{/if}}{{#if motivo}} ({{motivo}}){{/if}}
+        {{#if con_goce}}
+        <span class="badge badge-success" style="margin-left:6px">Con goce</span>
+        {{else}}
+        <span class="badge badge-warning" style="margin-left:6px">Sin goce</span>
+        {{#if descuento}}
+        <span class="text-muted" style="font-size:12px"> — descuento generado: saldo {{formatSoles descuento.saldo}} de {{formatSoles descuento.importe_original}}</span>
+        {{else}}
+        {{#if ../puedeEditar}}
+        <button type="button" class="btn btn-ghost btn-sm" style="padding:2px 8px;margin-left:4px" onclick="generarDescuentoPermiso('{{id}}')"><i data-lucide="minus-circle"></i> Generar descuento</button>
+        {{else}}
+        <span class="text-muted" style="font-size:12px"> — sin descuento asociado</span>
+        {{/if}}
+        {{/if}}
+        {{/if}}
+      </div>
       {{else}}<p class="text-muted">Sin permisos en este periodo.</p>{{/each}}
     </div>
   </div>
@@ -174,6 +190,16 @@
 
 <script>
   function editarSueldo() { document.getElementById('plnModalSueldo').style.display = 'flex'; }
+  function generarDescuentoPermiso(permisoId) {
+    var monto = prompt('¿Cuánto se le va a descontar por este permiso sin goce? (S/)');
+    if (!monto) return;
+    var montoNum = parseFloat(monto);
+    if (isNaN(montoNum) || montoNum <= 0) { alert('Monto inválido.'); return; }
+    fetch('/planilla/permisos/' + permisoId + '/generar-descuento', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monto: montoNum })
+    }).then(r => r.json()).then(r => { if (r.error) { alert(r.error); return; } location.reload(); });
+  }
   function guardarCobro(descuentoId) {
     var importe = document.getElementById('plnImporte-' + descuentoId).value || 0;
     var cobrado = document.getElementById('plnCobrado-' + descuentoId).checked;

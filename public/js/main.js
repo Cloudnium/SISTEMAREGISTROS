@@ -7,6 +7,18 @@
 // ─── Estado del sidebar ───
 let sidebarOpen = false;
 
+// ─── Contraer/expandir sidebar a solo íconos (escritorio) ───
+function toggleSidebarCollapse() {
+  const collapsed = !document.body.classList.contains('sidebar-collapsed');
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+  const icon = document.getElementById('sidebarToggleIcon');
+  const btn = document.getElementById('sidebarToggleBtn');
+  if (icon) icon.setAttribute('data-lucide', collapsed ? 'panel-left-open' : 'panel-left-close');
+  if (btn) btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
@@ -35,6 +47,16 @@ function closeSidebar() {
 document.addEventListener('DOMContentLoaded', function () {
   const overlay = document.getElementById('sidebarOverlay');
   if (overlay) overlay.addEventListener('click', closeSidebar);
+
+  // Sincroniza el ícono/tooltip del botón contraer con el estado ya
+  // aplicado (el estado en sí se aplica antes, en un script inline en
+  // el <head>/<body>, para evitar parpadeo al cargar la página).
+  if (document.body.classList.contains('sidebar-collapsed')) {
+    const icon = document.getElementById('sidebarToggleIcon');
+    const btn = document.getElementById('sidebarToggleBtn');
+    if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
+    if (btn) btn.title = 'Expandir menú';
+  }
 
   // Cierra sidebar al navegar (en móvil)
   document.querySelectorAll('.sidebar-nav-item').forEach(function (item) {

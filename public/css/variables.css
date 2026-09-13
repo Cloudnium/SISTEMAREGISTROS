@@ -57,6 +57,7 @@
 
   /* ─── LAYOUT ─── */
   --sidebar-width:     240px;
+  --sidebar-collapsed-width: 76px;
   --topbar-height:     60px;
   --content-max-width: 1200px;
 

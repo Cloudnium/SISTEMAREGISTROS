@@ -93,7 +93,7 @@ async function obtenerVacacionesPermisosDelPeriodo(personalId, mes, anio) {
       `select=id,fecha_inicio,fecha_fin,dias,estado,observacion&personal_id=eq.${personalId}` +
       `&fecha_inicio=lte.${finPeriodo}&fecha_fin=gte.${inicioPeriodo}&order=fecha_inicio.asc`),
     db.select('planilla_permisos',
-      `select=id,fecha,hora_inicio,hora_fin,dia_completo,con_goce,motivo,estado,tipo:planilla_tipos_permiso(nombre)&personal_id=eq.${personalId}` +
+      `select=id,fecha,hora_inicio,hora_fin,dia_completo,con_goce,motivo,estado,tipo:planilla_tipos_permiso(nombre),descuento:planilla_descuentos(importe_original,saldo)&personal_id=eq.${personalId}` +
       `&fecha=gte.${inicioPeriodo}&fecha=lte.${finPeriodo}&order=fecha.asc`)
   ]);
   const vacaciones = (vac || []).map(v => ({ ...v, ...diasEnPeriodo(v.fecha_inicio, v.fecha_fin, mes, anio) }));
@@ -682,6 +682,40 @@ router.post('/permisos/:id/estado', requirePlanillaEditar, async (req, res) => {
   if (!['Pendiente', 'Aprobado', 'Rechazado', 'Cancelado'].includes(estado)) return res.status(400).json({ error: 'Estado inválido.' });
   await db.update('planilla_permisos', `id=eq.${req.params.id}`, { estado });
   await registrarAuditoria({ usuario: req.session.user, accion: 'actualizar_estado_permiso', entidad: 'permiso', entidad_id: req.params.id, valor_nuevo: { estado } });
+  res.json({ ok: true });
+});
+
+// Genera (retroactivamente) el descuento de un permiso "sin goce" que se
+// registró sin indicar monto en su momento, o que se creó antes de que
+// existiera esta función.
+router.post('/permisos/:id/generar-descuento', requirePlanillaEditar, async (req, res) => {
+  const montoNum = parseFloat(req.body.monto);
+  if (isNaN(montoNum) || montoNum <= 0) return res.status(400).json({ error: 'Ingresa un monto válido (mayor a 0).' });
+
+  const { data: rows } = await db.select('planilla_permisos', `select=*&id=eq.${req.params.id}&limit=1`);
+  const permiso = rows && rows[0];
+  if (!permiso) return res.status(404).json({ error: 'Permiso no encontrado.' });
+  if (permiso.con_goce) return res.status(400).json({ error: 'Este permiso es con goce de haber; no corresponde generarle un descuento.' });
+  if (permiso.descuento_id) return res.status(400).json({ error: 'Este permiso ya tiene un descuento asociado.' });
+
+  const { data: conceptoRows } = await db.select('planilla_conceptos_descuento', `select=id&clave=eq.permiso_sin_goce&limit=1`);
+  const concepto_id = conceptoRows && conceptoRows[0] && conceptoRows[0].id;
+  if (!concepto_id) return res.status(400).json({ error: 'Falta el concepto "Permiso sin goce de haber" en el catálogo. Ejecuta PLANILLA_PERMISO_DESCUENTO_MIGRATION.sql.' });
+
+  const { data: descuentoRows, error } = await db.insert('planilla_descuentos', {
+    personal_id: permiso.personal_id, concepto_id,
+    origen_codigo: 'Permiso sin goce — ' + new Date(permiso.fecha).toLocaleDateString('es-PE'),
+    importe_original: montoNum, saldo: montoNum, fecha: permiso.fecha,
+    observacion: permiso.motivo || permiso.observacion || null, creado_por: req.session.user.id
+  });
+  if (error) return res.status(400).json({ error: 'No se pudo generar el descuento: ' + error.message });
+
+  const descuentoId = descuentoRows && descuentoRows[0] && descuentoRows[0].id;
+  await db.update('planilla_permisos', `id=eq.${req.params.id}`, { descuento_id: descuentoId });
+  await registrarAuditoria({
+    usuario: req.session.user, accion: 'generar_descuento_permiso', entidad: 'permiso',
+    entidad_id: req.params.id, valor_nuevo: { descuento_id: descuentoId, monto: montoNum }
+  });
   res.json({ ok: true });
 });
 

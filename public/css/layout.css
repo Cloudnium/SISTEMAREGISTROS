@@ -9,23 +9,34 @@ body { display: flex; overflow-x: hidden; }
 /* ══ SIDEBAR ══ */
 .sidebar {
   width: var(--sidebar-width);
-  min-height: 100vh; min-height: 100dvh;
+  height: calc(100vh - 24px); height: calc(100dvh - 24px);
   background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column;
-  position: fixed; left: 0; top: 0; bottom: 0;
+  position: fixed; left: 12px; top: 12px;
   z-index: 300;
-  transition: transform var(--transition-base);
-  will-change: transform;
+  transition: transform var(--transition-base), width var(--transition-base);
+  will-change: transform, width;
   overflow-y: auto; overflow-x: hidden;
 }
 
-/* ── Marca ── */
+/* ── Barra superior (botón contraer/expandir) ── */
 .sidebar-brand {
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  display: flex; align-items: center; justify-content: flex-end;
 }
+.sidebar-toggle-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  background: none; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  color: var(--text-secondary); cursor: pointer; transition: all var(--transition-fast);
+}
+.sidebar-toggle-btn:hover { background: var(--color-accent-light); color: var(--color-accent); border-color: var(--color-accent); }
+.sidebar-toggle-btn svg { width: 17px; height: 17px; }
 .sidebar-logo-text { display: flex; align-items: center; gap: var(--space-3); }
 .sidebar-logo-icon {
   width: 34px; height: 34px;
@@ -113,20 +124,23 @@ body { display: flex; overflow-x: hidden; }
 
 /* ══ MAIN WRAPPER ══ */
 .main-wrapper {
-  margin-left: var(--sidebar-width);
+  margin-left: calc(var(--sidebar-width) + 24px);
   flex: 1; display: flex; flex-direction: column;
   min-height: 100vh; min-height: 100dvh; min-width: 0;
+  transition: margin-left var(--transition-base);
 }
 
 /* ══ TOPBAR ══ */
 .topbar {
   height: var(--topbar-height);
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 1px 0 var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   display: flex; align-items: center;
   padding: 0 var(--space-6); gap: var(--space-4);
-  position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+  position: sticky; top: 12px; z-index: 50; flex-shrink: 0;
+  margin: 0 12px 0 0;
 }
 .topbar-menu-btn {
   display: none; background: none; border: none;
@@ -155,12 +169,31 @@ body { display: flex; overflow-x: hidden; }
 }
 
 /* ══ RESPONSIVE ══ */
+
+/* ── Escritorio: sidebar contraíble a solo íconos ── */
+@media (min-width: 1024px) {
+  body.sidebar-collapsed .sidebar { width: var(--sidebar-collapsed-width, 76px); }
+  body.sidebar-collapsed .main-wrapper { margin-left: calc(var(--sidebar-collapsed-width, 76px) + 24px); }
+
+  body.sidebar-collapsed .sidebar-nav-item span,
+  body.sidebar-collapsed .sidebar-section-label,
+  body.sidebar-collapsed .sidebar-user-info,
+  body.sidebar-collapsed .sidebar-version { display: none; }
+
+  body.sidebar-collapsed .sidebar-brand { justify-content: center; }
+  body.sidebar-collapsed .sidebar-toggle-btn svg { transform: rotate(180deg); }
+  body.sidebar-collapsed .sidebar-nav-item { justify-content: center; padding: var(--space-3); }
+  body.sidebar-collapsed .sidebar-user { justify-content: center; padding: var(--space-4) var(--space-3); }
+  body.sidebar-collapsed .sidebar-footer { justify-content: center; padding: var(--space-4) var(--space-3); }
+}
+
 @media (max-width: 1023px) {
-  .sidebar { transform: translateX(-100%); box-shadow: var(--shadow-lg); }
+  .sidebar { transform: translateX(calc(-100% - 24px)); box-shadow: var(--shadow-lg); }
   .sidebar.open { transform: translateX(0); }
+  .sidebar-toggle-btn { display: none; } /* contraer a solo-íconos no aplica en móvil/tablet: se usa el overlay */
   .main-wrapper { margin-left: 0; }
+  .topbar { margin: 0 12px; padding: 0 var(--space-4); gap: var(--space-3); }
   .topbar-menu-btn { display: flex; }
-  .topbar { padding: 0 var(--space-4); gap: var(--space-3); }
   .topbar-title { font-size: var(--text-base); }
   .main-content { padding: var(--space-5); }
   .topbar-greeting { display: none; }
@@ -168,7 +201,8 @@ body { display: flex; overflow-x: hidden; }
 
 @media (max-width: 639px) {
   :root { --sidebar-width: 280px; }
-  .topbar { padding: 0 var(--space-3); }
+  .sidebar { left: 8px; top: 8px; height: calc(100vh - 16px); height: calc(100dvh - 16px); }
+  .topbar { margin: 0 8px; top: 8px; padding: 0 var(--space-3); }
   .topbar-title { font-size: var(--text-sm); }
   .topbar-subtitle { display: none; }
   .main-content { padding: var(--space-4) var(--space-3); }
