@@ -1,13 +1,33 @@
 <!-- VIEW: dashboard/index.hbs -->
-<div class="dashboard-empty">
-  <div class="dashboard-empty-icon">
-    <i data-lucide="layout-dashboard"></i>
+<div class="dash-widgets">
+
+  <div class="dash-clock-card">
+    <div>
+      <div class="dash-clock-time" id="dashClockTime">--:--:--</div>
+      <div class="dash-clock-date">
+        <span id="dashClockDate">Cargando fecha...</span>
+        <i data-lucide="calendar"></i>
+      </div>
+    </div>
+    <div class="dash-clock-icon"><i data-lucide="calendar-days"></i></div>
   </div>
-  <h2 class="dashboard-empty-title">Panel Principal</h2>
-  <p class="dashboard-empty-text">
-    El dashboard está listo para recibir tus módulos.<br />
-    Usa la barra lateral para navegar por el sistema.
-  </p>
+
+  <div class="dash-stat-row">
+    <div class="dash-stat-card">
+      <div class="dash-stat-label">Personal</div>
+      <div class="dash-stat-value">{{totalPersonal}}</div>
+      <div class="dash-stat-sub">Número de personal activo</div>
+    </div>
+
+    <div class="dash-stat-card {{#if alertasInventario}}dash-stat-alert{{/if}}">
+      <div class="dash-stat-label">Alertas de Inventario</div>
+      <div class="dash-stat-value {{#if alertasInventario}}dash-stat-value-alert{{/if}}">{{alertasInventario}}</div>
+      <div class="dash-stat-sub {{#if alertasInventario}}dash-stat-sub-alert{{/if}}">
+        {{#if alertasInventario}}Artículos con stock crítico{{else}}Sin artículos con stock crítico{{/if}}
+      </div>
+    </div>
+  </div>
+
   <div class="dashboard-quick-access">
     <a href="/combustible" class="quick-card">
       <div class="quick-card-icon" style="--card-color:#f97316;"><i data-lucide="fuel"></i></div>
@@ -22,4 +42,26 @@
       <span>Inventario</span>
     </a>
   </div>
+
 </div>
+
+<script>
+  var DASH_MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var DASH_DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+  function capitalizar(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function actualizarReloj() {
+    var ahora = new Date();
+    var hh = String(ahora.getHours()).padStart(2, '0');
+    var mm = String(ahora.getMinutes()).padStart(2, '0');
+    var ss = String(ahora.getSeconds()).padStart(2, '0');
+    document.getElementById('dashClockTime').textContent = hh + ':' + mm + ':' + ss;
+
+    var texto = capitalizar(DASH_DIAS[ahora.getDay()]) + ', ' + ahora.getDate() + ' de ' +
+      capitalizar(DASH_MESES[ahora.getMonth()]) + ' de ' + ahora.getFullYear();
+    document.getElementById('dashClockDate').textContent = texto;
+  }
+  actualizarReloj();
+  setInterval(actualizarReloj, 1000);
+</script>

@@ -49,6 +49,63 @@
   color: var(--color-accent);
   box-shadow: var(--shadow-md);
 }
+
+/* ─── DASHBOARD — widgets (reloj, indicadores) ─── */
+.dash-widgets { display: flex; flex-direction: column; gap: var(--space-5); max-width: 720px; margin: 0 auto; }
+
+.dash-clock-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-8) var(--space-8);
+  min-height: 148px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-5);
+}
+.dash-clock-time {
+  font-family: var(--font-body);
+  font-size: 3.25rem; font-weight: 700; color: var(--text-primary);
+  letter-spacing: 1px; line-height: 1.2; font-variant-numeric: tabular-nums;
+}
+.dash-clock-date {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin-top: var(--space-3); color: var(--text-secondary); font-size: var(--text-base);
+}
+.dash-clock-date svg { width: 16px; height: 16px; opacity: .6; }
+.dash-clock-icon {
+  width: 64px; height: 64px; flex-shrink: 0;
+  background: var(--color-accent-light);
+  border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-accent);
+}
+.dash-clock-icon svg { width: 30px; height: 30px; }
+
+.dash-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.dash-stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5) var(--space-6);
+  overflow: hidden;
+}
+.dash-stat-label { font-size: var(--text-sm); color: var(--text-secondary); font-weight: 600; margin-bottom: var(--space-2); }
+.dash-stat-value { font-family: var(--font-body); font-size: 2.25rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.dash-stat-sub { font-size: var(--text-sm); color: var(--text-muted); margin-top: var(--space-2); }
+
+.dash-stat-alert {
+  background: linear-gradient(180deg, var(--color-error-light) 0%, var(--color-surface) 55%);
+  border-color: rgba(239,68,68,0.25);
+}
+.dash-stat-value-alert { color: var(--color-error); }
+.dash-stat-sub-alert { color: var(--color-error); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .dash-clock-card { flex-direction: row; padding: var(--space-5); }
+  .dash-clock-time { font-size: 2rem; }
+  .dash-stat-row { grid-template-columns: 1fr; }
+}
 .quick-card-icon {
   width: 52px; height: 52px;
   border-radius: var(--radius-lg);
