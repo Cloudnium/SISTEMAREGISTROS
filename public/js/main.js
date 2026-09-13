@@ -4,6 +4,27 @@
 // detección de dispositivo
 // =============================================
 
+// ─── Modo nocturno ───
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  try { localStorage.setItem('theme', next); } catch (e) {}
+  actualizarBotonTema(next === 'dark');
+}
+function actualizarBotonTema(esOscuro) {
+  const icon = document.getElementById('themeToggleIcon');
+  const label = document.getElementById('themeToggleLabel');
+  const btn = document.getElementById('themeToggleBtn');
+  const switchEl = document.getElementById('themeSwitch');
+  if (icon) icon.setAttribute('data-lucide', esOscuro ? 'sun' : 'moon');
+  if (label) label.textContent = esOscuro ? 'Modo claro' : 'Modo nocturno';
+  if (btn) btn.title = esOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo nocturno';
+  if (switchEl) switchEl.classList.toggle('on', esOscuro);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 // ─── Estado del sidebar ───
 let sidebarOpen = false;
 
@@ -47,6 +68,13 @@ function closeSidebar() {
 document.addEventListener('DOMContentLoaded', function () {
   const overlay = document.getElementById('sidebarOverlay');
   if (overlay) overlay.addEventListener('click', closeSidebar);
+
+  // Sincroniza el botón de modo nocturno con el estado ya aplicado
+  // (el estado en sí se aplica antes, en un script inline en el
+  // <head>, para evitar parpadeo al cargar la página).
+  actualizarBotonTema(document.documentElement.getAttribute('data-theme') === 'dark');
+  const themeBtn = document.getElementById('themeToggleBtn');
+  if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
   // Sincroniza el ícono/tooltip del botón contraer con el estado ya
   // aplicado (el estado en sí se aplica antes, en un script inline en

@@ -79,3 +79,44 @@
   --transition-base: 250ms ease;
   --transition-slow: 400ms ease;
 }
+
+/* ══════════════════════════════════════════
+   MODO NOCTURNO — mismas variables, valores oscuros.
+   Se activa poniendo data-theme="dark" en <html>
+   (ver public/js/main.js: toggleTheme()).
+══════════════════════════════════════════ */
+html[data-theme="dark"] {
+  /* ─── FONDOS Y SUPERFICIES ─── */
+  --color-bg:           #0e0f17;
+  --color-surface:      #171925;
+  --color-surface-2:    #20222f;
+  --color-border:       #2b2e40;
+  --color-border-light: #3c3f57;
+
+  /* ─── ACENTO PRINCIPAL ─── */
+  --color-accent:       #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-accent-light: rgba(99,102,241,0.18);
+
+  /* ─── COLORES DE ESTADO (misma tonalidad, más visibles sobre fondo oscuro) ─── */
+  --color-success:       #34d399;
+  --color-success-light: rgba(16,185,129,0.16);
+  --color-error:         #f87171;
+  --color-error-light:   rgba(239,68,68,0.16);
+  --color-warning:       #fbbf24;
+  --color-warning-light: rgba(245,158,11,0.16);
+  --color-info:          #60a5fa;
+  --color-info-light:    rgba(59,130,246,0.16);
+
+  /* ─── TEXTO ─── */
+  --text-primary:   #f1f2f8;
+  --text-secondary: #b7bad2;
+  --text-muted:     #7d81a0;
+  --text-on-accent: #ffffff;
+
+  /* ─── SOMBRAS (negras, sin tinte morado, para que se vean bien en oscuro) ─── */
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-md:     0 4px 14px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.3);
+  --shadow-lg:     0 10px 28px rgba(0,0,0,0.5), 0 4px 10px rgba(0,0,0,0.35);
+  --shadow-accent: 0 4px 14px rgba(99,102,241,0.45);
+}

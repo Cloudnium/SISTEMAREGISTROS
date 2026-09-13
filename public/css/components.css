@@ -60,6 +60,7 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: background-color var(--transition-base), border-color var(--transition-base);
 }
 .card-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -114,7 +115,8 @@
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   color: var(--text-primary); font-size: var(--text-sm);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+              background-color var(--transition-base), color var(--transition-base);
   width: 100%; min-height: 44px;
   box-shadow: var(--shadow-sm);
 }

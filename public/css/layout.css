@@ -17,7 +17,8 @@ body { display: flex; overflow-x: hidden; }
   display: flex; flex-direction: column;
   position: fixed; left: 12px; top: 12px;
   z-index: 300;
-  transition: transform var(--transition-base), width var(--transition-base);
+  transition: transform var(--transition-base), width var(--transition-base),
+              background-color var(--transition-base), border-color var(--transition-base);
   will-change: transform, width;
   overflow-y: auto; overflow-x: hidden;
 }
@@ -107,6 +108,40 @@ body { display: flex; overflow-x: hidden; }
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
+/* ── Modo nocturno ── */
+.sidebar-theme {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.sidebar-theme-row {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md); background: none; border: none; cursor: pointer;
+  font-family: inherit; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 500;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.sidebar-theme-row:hover { background: var(--color-accent-light); color: var(--color-accent); }
+.sidebar-theme-row-left { display: flex; align-items: center; gap: var(--space-3); }
+.sidebar-theme-row svg { width: 18px; height: 18px; flex-shrink: 0; stroke-width: 2; }
+
+.theme-switch {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0;
+  background: var(--color-border-light); border-radius: var(--radius-full);
+  transition: background-color var(--transition-base);
+}
+.theme-switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
+  background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform var(--transition-base);
+}
+.theme-switch.on { background: var(--color-accent); }
+.theme-switch.on .theme-switch-knob { transform: translateX(18px); }
+
+body.sidebar-collapsed .sidebar-theme-row #themeToggleLabel,
+body.sidebar-collapsed .theme-switch { display: none; }
+body.sidebar-collapsed .sidebar-theme-row { justify-content: center; }
+
 /* ── Footer ── */
 .sidebar-footer {
   padding: var(--space-4) var(--space-6);
@@ -141,6 +176,7 @@ body { display: flex; overflow-x: hidden; }
   padding: 0 var(--space-6); gap: var(--space-4);
   position: sticky; top: 12px; z-index: 50; flex-shrink: 0;
   margin: 0 12px 0 0;
+  transition: background-color var(--transition-base), border-color var(--transition-base);
 }
 .topbar-menu-btn {
   display: none; background: none; border: none;

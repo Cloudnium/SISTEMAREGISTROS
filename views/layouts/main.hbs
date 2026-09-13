@@ -23,6 +23,16 @@
   <link rel="stylesheet" href="/css/components.css" />
   <link rel="stylesheet" href="/css/pages.css" />
   <link rel="stylesheet" href="/css/chat-widget.css" />
+
+  <script>
+    // Aplica el modo nocturno guardado ANTES de pintar la página, para
+    // que no haya parpadeo (flash de tema claro) al cargar cada pantalla.
+    try {
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <script>
