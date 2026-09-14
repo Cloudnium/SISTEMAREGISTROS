@@ -86,32 +86,32 @@
    (ver public/js/main.js: toggleTheme()).
 ══════════════════════════════════════════ */
 html[data-theme="dark"] {
-  /* ─── FONDOS Y SUPERFICIES ─── */
-  --color-bg:           #0e0f17;
-  --color-surface:      #171925;
-  --color-surface-2:    #20222f;
-  --color-border:       #2b2e40;
-  --color-border-light: #3c3f57;
+  /* ─── FONDOS Y SUPERFICIES (basado en #111B21) ─── */
+  --color-bg:           #0B1418;
+  --color-surface:      #111B21;
+  --color-surface-2:    #1B2A32;
+  --color-border:       #24343D;
+  --color-border-light: #33454F;
 
   /* ─── ACENTO PRINCIPAL ─── */
   --color-accent:       #6366f1;
   --color-accent-hover: #818cf8;
-  --color-accent-light: rgba(99,102,241,0.18);
+  --color-accent-light: rgba(99,102,241,0.20);
 
   /* ─── COLORES DE ESTADO (misma tonalidad, más visibles sobre fondo oscuro) ─── */
   --color-success:       #34d399;
-  --color-success-light: rgba(16,185,129,0.16);
+  --color-success-light: rgba(16,185,129,0.18);
   --color-error:         #f87171;
-  --color-error-light:   rgba(239,68,68,0.16);
+  --color-error-light:   rgba(239,68,68,0.18);
   --color-warning:       #fbbf24;
-  --color-warning-light: rgba(245,158,11,0.16);
+  --color-warning-light: rgba(245,158,11,0.18);
   --color-info:          #60a5fa;
-  --color-info-light:    rgba(59,130,246,0.16);
+  --color-info-light:    rgba(59,130,246,0.18);
 
   /* ─── TEXTO ─── */
-  --text-primary:   #f1f2f8;
-  --text-secondary: #b7bad2;
-  --text-muted:     #7d81a0;
+  --text-primary:   #E9EDEF;
+  --text-secondary: #A6B4BC;
+  --text-muted:     #7C8B94;
   --text-on-accent: #ffffff;
 
   /* ─── SOMBRAS (negras, sin tinte morado, para que se vean bien en oscuro) ─── */

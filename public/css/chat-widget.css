@@ -179,8 +179,8 @@
 }
 /* Modo nocturno: mismo fondo/imagen, solo cambia el velo de color */
 [data-theme="dark"] .chatw-mensajes {
-  --chatw-tint: rgba(10,11,18,0.6);
-  background-color: #14151d;
+  --chatw-tint: rgba(11,20,24,0.55);
+  background-color: #0B1418;
 }
 .chatw-msg { display: flex; flex-direction: column; max-width: 80%; }
 .chatw-msg-mio   { align-self: flex-end;   align-items: flex-end; }
