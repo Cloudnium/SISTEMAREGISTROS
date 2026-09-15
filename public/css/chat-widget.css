@@ -110,6 +110,8 @@
 .chatw-contacto-bottom { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .chatw-contacto-preview { font-size: var(--text-xs); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chatw-contacto-preview.chatw-unread { color: var(--text-primary); font-weight: 600; }
+.chatw-contacto-preview.chatw-typing-active { color: var(--color-accent); font-weight: 600; }
+.chatw-typing-preview { font-style: normal; }
 .chatw-badge-mini {
   background: var(--color-accent); color: white;
   font-size: 0.6rem; font-weight: 700;
@@ -127,6 +129,7 @@
 .chatw-conv-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .chatw-conv-name   { font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); }
 .chatw-conv-status { font-size: 0.67rem; color: var(--text-muted); }
+.chatw-conv-status.chatw-status-typing { color: var(--color-accent); font-weight: 600; }
 
 /* ── Info panel del grupo ── */
 .chatw-grupo-info {
@@ -179,7 +182,7 @@
 }
 /* Modo nocturno: mismo fondo/imagen, solo cambia el velo de color */
 [data-theme="dark"] .chatw-mensajes {
-  --chatw-tint: rgba(11,20,24,0.55);
+  --chatw-tint: rgba(17,27,33,0.78);
   background-color: #0B1418;
 }
 .chatw-msg { display: flex; flex-direction: column; max-width: 80%; }
@@ -196,7 +199,7 @@
   font-size: 0.62rem; color: var(--text-muted); margin-top: 2px; padding: 0 4px;
   display: inline-flex; align-items: center; gap: 3px;
 }
-.chatw-check { color: var(--text-muted); flex-shrink: 0; }
+.chatw-check { color: var(--text-muted); flex-shrink: 0; margin: 0 3px; vertical-align: -1px; }
 .chatw-check.chatw-check-leido { color: #34b7f1; }
 
 /* ── Input de mensaje ── */

@@ -110,9 +110,25 @@ const ChatWidget = (function () {
         const iconExtra = esGrupo
           ? '<span class="chatw-tipo-badge">Grupo</span>'
           : (c.enLinea ? '<span class="chatw-dot"></span>' : '');
-        const preview = c.ultimoMensaje
-          ? esc(c.ultimoMensaje.substring(0,38)) + (c.ultimoMensaje.length > 38 ? '…' : '')
-          : '<em>Sin mensajes aún</em>';
+
+        const escribiendoAhora = esGrupo
+          ? (c.escribiendoNombres && c.escribiendoNombres.length > 0)
+          : !!c.escribiendo;
+
+        let preview;
+        if (escribiendoAhora) {
+          const texto = esGrupo
+            ? esc(c.escribiendoNombres.join(', ')) + (c.escribiendoNombres.length > 1 ? ' están escribiendo…' : ' está escribiendo…')
+            : 'Escribiendo…';
+          preview = '<em class="chatw-typing-preview">' + texto + '</em>';
+        } else if (c.ultimoMensaje) {
+          const leido = esGrupo ? c.ultimoLeidoPorTodos : c.ultimoLeido;
+          const checkPreview = c.ultimoEsMio ? renderChecks(leido) : '';
+          preview = checkPreview + esc(c.ultimoMensaje.substring(0,38)) + (c.ultimoMensaje.length > 38 ? '…' : '');
+        } else {
+          preview = '<em>Sin mensajes aún</em>';
+        }
+
         return (
           '<div class="chatw-contacto" onclick="ChatWidget.seleccionar(\'' + c.id + '\')">' +
             '<div class="chatw-avatar chatw-avatar-' + (esGrupo ? 'grupo' : 'user') + '">' +
@@ -125,7 +141,7 @@ const ChatWidget = (function () {
                 '<span class="chatw-contacto-time">' + hora(c.ultimaFecha) + '</span>' +
               '</div>' +
               '<div class="chatw-contacto-bottom">' +
-                '<span class="chatw-contacto-preview' + (c.noLeidos > 0 ? ' chatw-unread' : '') + '">' + preview + '</span>' +
+                '<span class="chatw-contacto-preview' + (c.noLeidos > 0 ? ' chatw-unread' : '') + (escribiendoAhora ? ' chatw-typing-active' : '') + '">' + preview + '</span>' +
                 (c.noLeidos > 0 ? '<span class="chatw-badge-mini">'+c.noLeidos+'</span>' : '') +
               '</div>' +
             '</div>' +
@@ -168,7 +184,7 @@ const ChatWidget = (function () {
       '</div>' +
       '<div class="chatw-conv-info">' +
         '<span class="chatw-conv-name">' + esc(c.nombre) + '</span>' +
-        '<span class="chatw-conv-status">' +
+        '<span class="chatw-conv-status" id="chatwConvStatusText">' +
           (esGrupo ? 'Grupo de chat' : (c.enLinea ? 'En línea' : 'Desconectado')) +
         '</span>' +
       '</div>';
@@ -269,7 +285,7 @@ const ChatWidget = (function () {
       const nombreRemitente = esGrupo && !esMio && m.usuarios
         ? '<span class="chatw-msg-remitente">' + esc(m.usuarios.nombre) + '</span>'
         : '';
-      const checks = esMio && !esGrupo ? renderChecks(m.leido) : '';
+      const checks = esMio ? renderChecks(esGrupo ? m.leidoPorTodos : m.leido) : '';
       return (
         '<div class="chatw-msg ' + (esMio ? 'chatw-msg-mio' : 'chatw-msg-otro') + '">' +
           nombreRemitente +
@@ -474,9 +490,46 @@ const ChatWidget = (function () {
       actualizarBadge(data.totalNoLeidos || 0);
       window._contactosCache = contactos;
       if (abierto && !conversacionActiva) cargarContactos();
+
+      // Actualiza el "Escribiendo..." del encabezado de la conversación abierta
+      if (conversacionActiva) {
+        const activo = contactos.find(function (c) { return c.id === conversacionActiva.id; });
+        actualizarEstadoEscribiendo(activo);
+      }
     }).catch(function(){});
 
     if (abierto && conversacionActiva) cargarMensajes(true);
+  }
+
+  function actualizarEstadoEscribiendo(c) {
+    const statusEl = document.getElementById('chatwConvStatusText');
+    if (!statusEl || !c) return;
+    const esGrupo = c.tipo === 'grupo';
+    if (esGrupo && c.escribiendoNombres && c.escribiendoNombres.length > 0) {
+      statusEl.textContent = c.escribiendoNombres.join(', ') +
+        (c.escribiendoNombres.length > 1 ? ' están escribiendo…' : ' está escribiendo…');
+      statusEl.classList.add('chatw-status-typing');
+    } else if (!esGrupo && c.escribiendo) {
+      statusEl.textContent = 'Escribiendo…';
+      statusEl.classList.add('chatw-status-typing');
+    } else {
+      statusEl.textContent = esGrupo ? 'Grupo de chat' : (c.enLinea ? 'En línea' : 'Desconectado');
+      statusEl.classList.remove('chatw-status-typing');
+    }
+  }
+
+  // ══════════════════════════════════════
+  // AVISAR "ESTOY ESCRIBIENDO" (con throttle, cada 1.5s como máximo)
+  // ══════════════════════════════════════
+  let ultimoAvisoEscribiendo = 0;
+  function notificarEscribiendo() {
+    if (!conversacionActiva) return;
+    const ahora = Date.now();
+    if (ahora - ultimoAvisoEscribiendo < 1500) return;
+    ultimoAvisoEscribiendo = ahora;
+    const esGrupo = conversacionActiva.tipo === 'grupo';
+    post('/chat/escribiendo', esGrupo ? { grupo_id: conversacionActiva.id } : { destinatario_id: conversacionActiva.id })
+      .catch(function(){});
   }
 
   function heartbeat() {
@@ -497,6 +550,10 @@ const ChatWidget = (function () {
         cerrarEmojis();
       }
     });
+
+    // Avisa "escribiendo..." mientras el usuario teclea en el chat
+    const inputMsg = document.getElementById('chatwInput');
+    if (inputMsg) inputMsg.addEventListener('input', notificarEscribiendo);
 
     heartbeat();
     setInterval(heartbeat, HEARTBEAT_MS);

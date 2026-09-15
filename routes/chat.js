@@ -14,6 +14,49 @@ const ONLINE_SEG = 20; // segundos para considerar "en línea"
 const fechaOnline = () => new Date(Date.now() - ONLINE_SEG * 1000).toISOString();
 
 // ══════════════════════════════════════════
+// "ESCRIBIENDO..." — estado en memoria (no necesita tabla ni socket)
+// Clave: 'u:'+destinatarioId (chat 1 a 1) o 'g:'+grupoId (grupo)
+// Valor: Map<usuarioId, { nombre, expiraEn }>
+// Cada vez que el usuario teclea, el frontend llama a /chat/escribiendo
+// y refresca su "expiraEn"; si no llega un nuevo aviso en TYPING_TTL_MS,
+// se considera que dejó de escribir (se limpia solo).
+// ══════════════════════════════════════════
+const escribiendoMap = new Map();
+const TYPING_TTL_MS = 4000;
+
+function marcarEscribiendo(key, usuarioId, nombre) {
+  if (!escribiendoMap.has(key)) escribiendoMap.set(key, new Map());
+  escribiendoMap.get(key).set(usuarioId, { nombre, expiraEn: Date.now() + TYPING_TTL_MS });
+}
+function limpiarExpirados(mapa) {
+  const ahora = Date.now();
+  for (const [uid, info] of mapa.entries()) if (info.expiraEn < ahora) mapa.delete(uid);
+}
+function estaEscribiendo(key, usuarioId) {
+  const m = escribiendoMap.get(key);
+  if (!m) return false;
+  limpiarExpirados(m);
+  return m.has(usuarioId);
+}
+function nombresEscribiendo(key, excluirId) {
+  const m = escribiendoMap.get(key);
+  if (!m) return [];
+  limpiarExpirados(m);
+  const out = [];
+  for (const [uid, info] of m.entries()) if (uid !== excluirId) out.push(info.nombre);
+  return out;
+}
+
+router.post('/escribiendo', requireAuth, async (req, res) => {
+  const { destinatario_id, grupo_id } = req.body;
+  const miId = req.session.user.id;
+  const miNombre = req.session.user.nombre || 'Alguien';
+  if (destinatario_id) marcarEscribiendo('u:' + destinatario_id, miId, miNombre);
+  else if (grupo_id) marcarEscribiendo('g:' + grupo_id, miId, miNombre);
+  res.json({ ok: true });
+});
+
+// ══════════════════════════════════════════
 // HEARTBEAT — marca usuario como activo
 // ══════════════════════════════════════════
 router.post('/heartbeat', requireAuth, async (req, res) => {
@@ -63,6 +106,9 @@ router.get('/contactos', requireAuth, async (req, res) => {
       enLinea: !!(u.ultima_actividad && u.ultima_actividad > limite),
       ultimoMensaje: ultimo ? ultimo.contenido : null,
       ultimaFecha:   ultimo ? ultimo.creado_en : null,
+      ultimoEsMio:   ultimo ? ultimo.remitente_id === miId : false,
+      ultimoLeido:   ultimo ? !!ultimo.leido : false,
+      escribiendo:   estaEscribiendo('u:' + miId, u.id),
       noLeidos
     };
   });
@@ -94,14 +140,18 @@ router.get('/contactos', requireAuth, async (req, res) => {
   // igual que ya se hace en los chats 1-a-1 (que si funcionaban bien).
   if (grupos.length > 0) {
     for (const g of grupos) {
-      const { data: msgs } = await db.select('chat_grupo_mensajes',
-        `select=id,contenido,creado_en,remitente_id&grupo_id=eq.${g.id}&order=creado_en.desc`);
-      const { data: lectura } = await db.select('chat_grupo_lecturas',
-        `select=ultimo_leido_en&grupo_id=eq.${g.id}&usuario_id=eq.${miId}&limit=1`);
+      const [{ data: msgs }, { data: lectura }, { data: miembrosGrupo }] = await Promise.all([
+        db.select('chat_grupo_mensajes', `select=id,contenido,creado_en,remitente_id&grupo_id=eq.${g.id}&order=creado_en.desc`),
+        db.select('chat_grupo_lecturas', `select=ultimo_leido_en&grupo_id=eq.${g.id}&usuario_id=eq.${miId}&limit=1`),
+        db.select('chat_grupo_miembros', `select=usuario_id&grupo_id=eq.${g.id}`)
+      ]);
+
+      g.escribiendoNombres = nombresEscribiendo('g:' + g.id, miId);
 
       if (msgs && msgs.length > 0) {
         g.ultimoMensaje = msgs[0].contenido;
         g.ultimaFecha   = msgs[0].creado_en;
+        g.ultimoEsMio   = msgs[0].remitente_id === miId;
 
         const desdeMs = (lectura && lectura[0])
           ? new Date(lectura[0].ultimo_leido_en).getTime()
@@ -110,6 +160,26 @@ router.get('/contactos', requireAuth, async (req, res) => {
         g.noLeidos = msgs.filter(m =>
           m.remitente_id !== miId && new Date(m.creado_en).getTime() > desdeMs
         ).length;
+
+        // Si el ultimo mensaje es mio: ¿ya lo leyeron TODOS los demas
+        // miembros? (comparando la fecha del mensaje contra el
+        // "ultimo_leido_en" de cada uno — el mismo mecanismo que ya
+        // se usa para el contador de no leidos, solo que aplicado a
+        // cada miembro en vez de a mi mismo).
+        if (g.ultimoEsMio) {
+          const otrosIds = (miembrosGrupo || []).map(x => x.usuario_id).filter(id => id !== miId);
+          if (otrosIds.length === 0) {
+            g.ultimoLeidoPorTodos = true;
+          } else {
+            const { data: lecturasOtros } = await db.select('chat_grupo_lecturas',
+              `select=usuario_id,ultimo_leido_en&grupo_id=eq.${g.id}&usuario_id=in.(${otrosIds.join(',')})`);
+            const msgTime = new Date(msgs[0].creado_en).getTime();
+            g.ultimoLeidoPorTodos = otrosIds.every(uid => {
+              const l = (lecturasOtros || []).find(x => x.usuario_id === uid);
+              return l && new Date(l.ultimo_leido_en).getTime() >= msgTime;
+            });
+          }
+        }
       }
     }
   }
@@ -240,6 +310,24 @@ router.get('/grupos/:grupoId/mensajes', requireAuth, async (req, res) => {
     `select=id,grupo_id,remitente_id,contenido,creado_en,usuarios(nombre)&grupo_id=eq.${grupoId}&order=creado_en.asc`);
   if (error) return res.status(500).json({ error: error.message });
 
+  // Para los mensajes MIOS: ¿los leyeron TODOS los demas miembros?
+  // (se compara la fecha de cada mensaje contra el "ultimo_leido_en"
+  // de cada uno de los demas miembros del grupo)
+  const { data: miembrosGrupo } = await db.select('chat_grupo_miembros', `select=usuario_id&grupo_id=eq.${grupoId}`);
+  const otrosIds = (miembrosGrupo || []).map(m => m.usuario_id).filter(id => id !== miId);
+  let watermarks = {};
+  if (otrosIds.length > 0) {
+    const { data: lecturasOtros } = await db.select('chat_grupo_lecturas',
+      `select=usuario_id,ultimo_leido_en&grupo_id=eq.${grupoId}&usuario_id=in.(${otrosIds.join(',')})`);
+    (lecturasOtros || []).forEach(l => { watermarks[l.usuario_id] = new Date(l.ultimo_leido_en).getTime(); });
+  }
+  const mensajesConLeido = (mensajes || []).map(m => {
+    if (m.remitente_id !== miId) return m;
+    const msgTime = new Date(m.creado_en).getTime();
+    const leidoPorTodos = otrosIds.length === 0 ? true : otrosIds.every(uid => (watermarks[uid] || 0) >= msgTime);
+    return { ...m, leidoPorTodos };
+  });
+
   // Actualiza mi lectura al mensaje más reciente
   await db.update('chat_grupo_lecturas',
     `grupo_id=eq.${grupoId}&usuario_id=eq.${miId}`,
@@ -255,7 +343,7 @@ router.get('/grupos/:grupoId/mensajes', requireAuth, async (req, res) => {
     });
   }
 
-  res.json({ mensajes: mensajes || [] });
+  res.json({ mensajes: mensajesConLeido || [] });
 });
 
 // Enviar mensaje a un grupo
