@@ -190,6 +190,14 @@ const ChatWidget = (function () {
       '</div>';
 
     if (esGrupo) cargarInfoGrupo(c.id);
+
+    // Limpia de inmediato los mensajes de la conversación anterior (si no,
+    // se ven un instante los mensajes del chat previo mientras carga el
+    // nuevo, que se ve raro visualmente).
+    const cont = document.getElementById('chatwMensajes');
+    cont.innerHTML = '<div class="chatw-msgs-loading"><i data-lucide="loader-2"></i></div>';
+    if (window.lucide) lucide.createIcons();
+
     cargarMensajes();
     document.getElementById('chatwInput').focus();
   }
@@ -254,7 +262,10 @@ const ChatWidget = (function () {
     get(url).then(function(data) {
       const msgs  = data.mensajes || [];
       const firma = msgs.map(function(m) {
-        return m.id + ':' + (m.leido ? 1 : 0);
+        const reacc = (m.reacciones || []).map(function (r) {
+          return r.emoji + r.count + (r.mia ? 1 : 0);
+        }).join(',');
+        return m.id + ':' + (m.leido ? 1 : 0) + ':' + (m.leidoPorTodos ? 1 : 0) + ':' + reacc;
       }).join('|');
 
       if (!silencioso || firma !== ultimaFirma) {
