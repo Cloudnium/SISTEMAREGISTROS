@@ -199,6 +199,59 @@
   font-size: 0.62rem; color: var(--text-muted); margin-top: 2px; padding: 0 4px;
   display: inline-flex; align-items: center; gap: 3px;
 }
+
+/* ── Reacciones a mensajes (estilo WhatsApp) ── */
+.chatw-msg-row { display: flex; align-items: center; gap: 5px; }
+.chatw-msg-mio .chatw-msg-row { flex-direction: row-reverse; }
+
+.chatw-react-trigger {
+  opacity: 0; pointer-events: none;
+  width: 25px; height: 25px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--color-border); padding: 0;
+  background: var(--color-surface); color: var(--text-secondary); cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: opacity .15s, background-color .15s, color .15s, border-color .15s;
+}
+.chatw-msg:hover .chatw-react-trigger { opacity: 1; pointer-events: auto; }
+.chatw-react-trigger:hover { background: var(--color-accent-light); color: var(--color-accent); border-color: var(--color-accent); }
+/* En celulares/tablets no existe "hover" real al tocar, así que el botón
+   queda siempre visible (tenue) para poder tocarlo directamente */
+@media (hover: none) {
+  .chatw-react-trigger { opacity: 0.55; pointer-events: auto; }
+}
+
+.chatw-reactions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; padding: 0 4px; }
+.chatw-msg-mio .chatw-reactions { justify-content: flex-end; }
+.chatw-reaction-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-full); padding: 1px 7px; font-size: 0.75rem;
+  cursor: pointer; line-height: 1.6; color: var(--text-secondary);
+  transition: background-color .15s, border-color .15s;
+}
+.chatw-reaction-pill span { font-size: 0.66rem; font-weight: 700; }
+.chatw-reaction-pill:hover { background: var(--color-surface-2); }
+.chatw-reaction-pill-mia { border-color: var(--color-accent); background: var(--color-accent-light); color: var(--color-accent); }
+
+.chatw-reaction-picker {
+  position: fixed; z-index: 500;
+  display: flex; align-items: center; gap: 1px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-full); box-shadow: var(--shadow-lg);
+  padding: 4px 5px;
+}
+.chatw-reaction-picker button {
+  background: none; border: none; cursor: pointer;
+  font-size: 1.3rem; line-height: 1; padding: 4px 5px;
+  border-radius: 50%; transition: transform .12s ease, background-color .12s;
+}
+.chatw-reaction-picker button:hover { background: var(--color-surface-2); transform: scale(1.25); }
+.chatw-reaction-picker .chatw-reaction-more {
+  font-size: 1.05rem; font-weight: 700; color: var(--text-secondary);
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
 .chatw-check { color: var(--text-muted); flex-shrink: 0; margin: 0 3px; vertical-align: -1px; }
 .chatw-check.chatw-check-leido { color: #34b7f1; }
 

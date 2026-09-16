@@ -57,6 +57,53 @@ router.post('/escribiendo', requireAuth, async (req, res) => {
 });
 
 // ══════════════════════════════════════════
+// REACCIONES con emoji (estilo WhatsApp)
+// Un usuario tiene como máximo una reacción por mensaje: si vuelve a
+// tocar el mismo emoji se la quita; si toca uno distinto, se reemplaza.
+// ══════════════════════════════════════════
+async function obtenerReacciones(mensajeIds, tipo, miId) {
+  if (!mensajeIds || !mensajeIds.length) return {};
+  const { data } = await db.select('chat_reacciones',
+    `select=mensaje_id,emoji,usuario_id,usuarios(nombre)&mensaje_id=in.(${mensajeIds.join(',')})&mensaje_tipo=eq.${tipo}`);
+  const porMensaje = {};
+  (data || []).forEach(r => {
+    if (!porMensaje[r.mensaje_id]) porMensaje[r.mensaje_id] = {};
+    const grupo = porMensaje[r.mensaje_id];
+    if (!grupo[r.emoji]) grupo[r.emoji] = { emoji: r.emoji, count: 0, mia: false, nombres: [] };
+    grupo[r.emoji].count++;
+    grupo[r.emoji].nombres.push(r.usuarios ? r.usuarios.nombre : 'Alguien');
+    if (r.usuario_id === miId) grupo[r.emoji].mia = true;
+  });
+  const resultado = {};
+  Object.keys(porMensaje).forEach(mid => { resultado[mid] = Object.values(porMensaje[mid]); });
+  return resultado;
+}
+
+router.post('/reaccionar', requireAuth, async (req, res) => {
+  const { mensaje_id, mensaje_tipo, emoji } = req.body;
+  if (!mensaje_id || !['individual', 'grupo'].includes(mensaje_tipo) || !emoji) {
+    return res.status(400).json({ error: 'Datos inválidos.' });
+  }
+  const miId = req.session.user.id;
+
+  const { data: existente } = await db.select('chat_reacciones',
+    `select=id,emoji&mensaje_id=eq.${mensaje_id}&mensaje_tipo=eq.${mensaje_tipo}&usuario_id=eq.${miId}&limit=1`);
+
+  if (existente && existente[0]) {
+    if (existente[0].emoji === emoji) {
+      await db.delete('chat_reacciones', `id=eq.${existente[0].id}`);
+      return res.json({ ok: true, accion: 'quitada' });
+    }
+    await db.update('chat_reacciones', `id=eq.${existente[0].id}`, { emoji, creado_en: new Date().toISOString() });
+    return res.json({ ok: true, accion: 'actualizada' });
+  }
+
+  const { error } = await db.insert('chat_reacciones', { mensaje_id, mensaje_tipo, usuario_id: miId, emoji });
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ ok: true, accion: 'agregada' });
+});
+
+// ══════════════════════════════════════════
 // HEARTBEAT — marca usuario como activo
 // ══════════════════════════════════════════
 router.post('/heartbeat', requireAuth, async (req, res) => {
@@ -211,7 +258,11 @@ router.get('/conversacion/:userId', requireAuth, async (req, res) => {
   await db.update('chat_mensajes',
     `destinatario_id=eq.${miId}&remitente_id=eq.${otroId}&leido=eq.false`,
     { leido: true });
-  res.json({ mensajes: mensajes || [] });
+
+  const reacciones = await obtenerReacciones((mensajes || []).map(m => m.id), 'individual', miId);
+  const mensajesConReacciones = (mensajes || []).map(m => ({ ...m, reacciones: reacciones[m.id] || [] }));
+
+  res.json({ mensajes: mensajesConReacciones });
 });
 
 // ══════════════════════════════════════════
@@ -343,7 +394,10 @@ router.get('/grupos/:grupoId/mensajes', requireAuth, async (req, res) => {
     });
   }
 
-  res.json({ mensajes: mensajesConLeido || [] });
+  const reaccionesGrupo = await obtenerReacciones(mensajesConLeido.map(m => m.id), 'grupo', miId);
+  const mensajesFinal = mensajesConLeido.map(m => ({ ...m, reacciones: reaccionesGrupo[m.id] || [] }));
+
+  res.json({ mensajes: mensajesFinal || [] });
 });
 
 // Enviar mensaje a un grupo

@@ -92,6 +92,17 @@
 
         <!-- Panel de emojis (oculto por defecto) -->
         <div class="chatw-emoji-panel" id="chatwEmojiPanel" style="display:none"></div>
+
+        <!-- Picker flotante de reacciones rápidas (aparece junto al mensaje) -->
+        <div class="chatw-reaction-picker" id="chatwReactionPicker" style="display:none">
+          <button type="button" onclick="ChatWidget.reaccionarRapido('👍')">👍</button>
+          <button type="button" onclick="ChatWidget.reaccionarRapido('❤️')">❤️</button>
+          <button type="button" onclick="ChatWidget.reaccionarRapido('😂')">😂</button>
+          <button type="button" onclick="ChatWidget.reaccionarRapido('😮')">😮</button>
+          <button type="button" onclick="ChatWidget.reaccionarRapido('😢')">😢</button>
+          <button type="button" onclick="ChatWidget.reaccionarRapido('🙏')">🙏</button>
+          <button type="button" class="chatw-reaction-more" onclick="ChatWidget.masEmojisReaccion(event)" title="Más emojis">+</button>
+        </div>
       </form>
     </div>
 

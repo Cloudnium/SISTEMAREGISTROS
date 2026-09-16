@@ -280,17 +280,43 @@ const ChatWidget = (function () {
     const miId = window.CHATW_USER_ID;
     const abajo = cont.scrollTop + cont.clientHeight >= cont.scrollHeight - 40;
 
+    const tipoReaccion = esGrupo ? 'grupo' : 'individual';
+
     cont.innerHTML = msgs.map(function(m) {
       const esMio = m.remitente_id === miId;
       const nombreRemitente = esGrupo && !esMio && m.usuarios
         ? '<span class="chatw-msg-remitente">' + esc(m.usuarios.nombre) + '</span>'
         : '';
       const checks = esMio ? renderChecks(esGrupo ? m.leidoPorTodos : m.leido) : '';
+
+      const trigger =
+        '<button type="button" class="chatw-react-trigger" title="Reaccionar" ' +
+          'onclick="ChatWidget.abrirPickerReaccion(event,\'' + m.id + '\',\'' + tipoReaccion + '\')">' +
+          '<svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6">' +
+            '<circle cx="10" cy="10" r="8"/><path d="M6.5 11.5s1 2 3.5 2 3.5-2 3.5-2" stroke-linecap="round"/>' +
+            '<circle cx="7" cy="7.5" r=".9" fill="currentColor" stroke="none"/><circle cx="13" cy="7.5" r=".9" fill="currentColor" stroke="none"/>' +
+          '</svg>' +
+        '</button>';
+
+      const pills = (m.reacciones || []).length
+        ? '<div class="chatw-reactions">' + m.reacciones.map(function(r) {
+            return '<button type="button" class="chatw-reaction-pill' + (r.mia ? ' chatw-reaction-pill-mia' : '') + '" ' +
+              'title="' + esc(r.nombres.join(', ')) + '" ' +
+              'onclick="ChatWidget.reaccionar(\'' + m.id + '\',\'' + tipoReaccion + '\',\'' + r.emoji + '\')">' +
+              r.emoji + (r.count > 1 ? ' <span>' + r.count + '</span>' : '') +
+            '</button>';
+          }).join('') + '</div>'
+        : '';
+
       return (
         '<div class="chatw-msg ' + (esMio ? 'chatw-msg-mio' : 'chatw-msg-otro') + '">' +
           nombreRemitente +
-          '<span class="chatw-msg-bubble">' + esc(m.contenido) + '</span>' +
+          '<div class="chatw-msg-row">' +
+            '<span class="chatw-msg-bubble">' + esc(m.contenido) + '</span>' +
+            trigger +
+          '</div>' +
           '<span class="chatw-msg-time">' + hora(m.creado_en) + checks + '</span>' +
+          pills +
         '</div>'
       );
     }).join('');
@@ -361,24 +387,42 @@ const ChatWidget = (function () {
     '🍕','🍔','🍟','🍦','☕','🎵','🎶','💻','📱','📷'
   ];
 
+  // 'insertar' → el panel completo de emojis escribe en el input (uso normal).
+  // 'reaccionar' → el panel completo se abrió desde el "+" del picker rápido
+  // de reacciones; elegir un emoji ahí reacciona al mensaje en vez de escribir.
+  let modoEmojiPanel = 'insertar';
+
+  function construirPanelEmojis() {
+    const panel = document.getElementById('chatwEmojiPanel');
+    if (!panel.dataset.built) {
+      panel.innerHTML = EMOJIS.map(function(em) {
+        return '<button type="button" class="chatw-emoji-item" onclick="ChatWidget.clicEmojiPanel(\'' + em + '\')">' + em + '</button>';
+      }).join('');
+      panel.dataset.built = '1';
+    }
+  }
+
   function toggleEmojis(e) {
     e.stopPropagation();
     const panel = document.getElementById('chatwEmojiPanel');
     const visible = panel.style.display !== 'none';
     if (visible) { cerrarEmojis(); return; }
-
-    // Construye la grilla si aún no tiene contenido
-    if (!panel.dataset.built) {
-      panel.innerHTML = EMOJIS.map(function(em) {
-        return '<button type="button" class="chatw-emoji-item" onclick="ChatWidget.insertarEmoji(\'' + em + '\')">' + em + '</button>';
-      }).join('');
-      panel.dataset.built = '1';
-    }
+    modoEmojiPanel = 'insertar';
+    construirPanelEmojis();
     panel.style.display = 'grid';
   }
 
   function cerrarEmojis() {
     document.getElementById('chatwEmojiPanel').style.display = 'none';
+  }
+
+  function clicEmojiPanel(emoji) {
+    if (modoEmojiPanel === 'reaccionar') {
+      reaccionarRapido(emoji);
+      cerrarEmojis();
+    } else {
+      insertarEmoji(emoji);
+    }
   }
 
   function insertarEmoji(emoji) {
@@ -389,6 +433,64 @@ const ChatWidget = (function () {
     input.selectionStart = input.selectionEnd = pos + emoji.length;
     input.focus();
     // No cierra el panel para poder insertar varios emojis seguidos
+  }
+
+  // ══════════════════════════════════════
+  // REACCIONES A MENSAJES (estilo WhatsApp)
+  // ══════════════════════════════════════
+  let reaccionObjetivo = null; // { mensajeId, tipo }
+
+  function abrirPickerReaccion(e, mensajeId, tipo) {
+    e.stopPropagation();
+    cerrarEmojis();
+    reaccionObjetivo = { mensajeId: mensajeId, tipo: tipo };
+
+    const picker = document.getElementById('chatwReactionPicker');
+    const rect   = e.currentTarget.getBoundingClientRect();
+    const anchoPicker = 252;
+
+    let left = rect.left - 100;
+    if (left < 8) left = 8;
+    if (left + anchoPicker > window.innerWidth) left = window.innerWidth - anchoPicker - 8;
+
+    let top = rect.top - 46;
+    if (top < 8) top = rect.bottom + 6; // si no cabe arriba, se muestra abajo del botón
+
+    picker.style.left = left + 'px';
+    picker.style.top  = top + 'px';
+    picker.style.display = 'flex';
+  }
+
+  function cerrarPickerReaccion() {
+    const picker = document.getElementById('chatwReactionPicker');
+    if (picker) picker.style.display = 'none';
+    reaccionObjetivo = null;
+  }
+
+  function masEmojisReaccion(e) {
+    e.stopPropagation();
+    if (!reaccionObjetivo) return;
+    document.getElementById('chatwReactionPicker').style.display = 'none';
+    modoEmojiPanel = 'reaccionar';
+    construirPanelEmojis();
+    document.getElementById('chatwEmojiPanel').style.display = 'grid';
+  }
+
+  function reaccionarRapido(emoji) {
+    if (!reaccionObjetivo) return;
+    enviarReaccion(reaccionObjetivo.mensajeId, reaccionObjetivo.tipo, emoji);
+    cerrarPickerReaccion();
+  }
+
+  // Reaccionar tocando directamente una "pastilla" de reacción ya puesta
+  function reaccionar(mensajeId, tipo, emoji) {
+    enviarReaccion(mensajeId, tipo, emoji);
+  }
+
+  function enviarReaccion(mensajeId, tipo, emoji) {
+    post('/chat/reaccionar', { mensaje_id: mensajeId, mensaje_tipo: tipo, emoji: emoji })
+      .then(function () { cargarMensajes(true); })
+      .catch(function () {});
   }
 
   // ══════════════════════════════════════
@@ -549,6 +651,13 @@ const ChatWidget = (function () {
       if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
         cerrarEmojis();
       }
+      // Cierra el picker rápido de reacciones al hacer clic fuera de él
+      // (y fuera de cualquier botón "reaccionar" de un mensaje)
+      const reactPicker = document.getElementById('chatwReactionPicker');
+      if (reactPicker && reactPicker.style.display !== 'none' &&
+          !reactPicker.contains(e.target) && !e.target.closest('.chatw-react-trigger')) {
+        cerrarPickerReaccion();
+      }
     });
 
     // Avisa "escribiendo..." mientras el usuario teclea en el chat
@@ -563,9 +672,11 @@ const ChatWidget = (function () {
 
   return {
     init, toggle, volverALista, seleccionar,
-    enviarMensaje, toggleEmojis, insertarEmoji,
+    enviarMensaje, toggleEmojis, insertarEmoji, clicEmojiPanel,
     abrirModalGrupo, cerrarModalGrupo, crearGrupo,
-    eliminarGrupo, toggleInfoGrupo
+    eliminarGrupo, toggleInfoGrupo,
+    abrirPickerReaccion, cerrarPickerReaccion, reaccionarRapido,
+    reaccionar, masEmojisReaccion
   };
 
 })();
