@@ -93,10 +93,10 @@ html[data-theme="dark"] {
   --color-border:       #24343D;
   --color-border-light: #33454F;
 
-  /* ─── ACENTO PRINCIPAL ─── */
-  --color-accent:       #6366f1;
-  --color-accent-hover: #818cf8;
-  --color-accent-light: rgba(99,102,241,0.20);
+  /* ─── ACENTO PRINCIPAL (morado, no azul/índigo) ─── */
+  --color-accent:       #A855F7;
+  --color-accent-hover: #C084FC;
+  --color-accent-light: rgba(168,85,247,0.20);
 
   /* ─── COLORES DE ESTADO (misma tonalidad, más visibles sobre fondo oscuro) ─── */
   --color-success:       #34d399;
@@ -105,8 +105,8 @@ html[data-theme="dark"] {
   --color-error-light:   rgba(239,68,68,0.18);
   --color-warning:       #fbbf24;
   --color-warning-light: rgba(245,158,11,0.18);
-  --color-info:          #60a5fa;
-  --color-info-light:    rgba(59,130,246,0.18);
+  --color-info:          #C084FC;
+  --color-info-light:    rgba(168,85,247,0.18);
 
   /* ─── TEXTO ─── */
   --text-primary:   #E9EDEF;
@@ -118,5 +118,5 @@ html[data-theme="dark"] {
   --shadow-sm:     0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25);
   --shadow-md:     0 4px 14px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.3);
   --shadow-lg:     0 10px 28px rgba(0,0,0,0.5), 0 4px 10px rgba(0,0,0,0.35);
-  --shadow-accent: 0 4px 14px rgba(99,102,241,0.45);
+  --shadow-accent: 0 4px 14px rgba(168,85,247,0.45);
 }

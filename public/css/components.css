@@ -27,7 +27,7 @@
 }
 
 .btn-ghost {
-  background: white; color: var(--text-secondary);
+  background: var(--color-surface); color: var(--text-secondary);
   border-color: var(--color-border);
   box-shadow: var(--shadow-sm);
 }
@@ -125,8 +125,11 @@
   box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
 }
 .form-control::placeholder { color: var(--text-muted); }
-.form-control option { background: white; color: var(--text-primary); }
+.form-control option { background: var(--color-surface); color: var(--text-primary); }
 input[type="date"].form-control { color-scheme: light; }
+html[data-theme="dark"] input[type="date"].form-control,
+html[data-theme="dark"] input[type="time"].form-control,
+html[data-theme="dark"] input[type="datetime-local"].form-control { color-scheme: dark; }
 
 .form-hint { font-size: var(--text-xs); color: var(--text-muted); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
@@ -183,7 +186,7 @@ input[type="date"].form-control { color-scheme: light; }
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal {
-  background: white;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   width: 100%; max-width: 620px;
@@ -192,6 +195,7 @@ input[type="date"].form-control { color-scheme: light; }
   box-shadow: 0 20px 60px rgba(99,102,241,0.15), 0 8px 24px rgba(0,0,0,0.08);
   animation: slideUp 0.25s ease;
   margin: auto;
+  transition: background-color var(--transition-base), border-color var(--transition-base);
 }
 .modal-sm { max-width: 460px; }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
