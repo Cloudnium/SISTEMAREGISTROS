@@ -107,6 +107,7 @@ TRUNCATE TABLE
   public.chat_grupo_miembros,
   public.chat_grupos,
   public.chat_mensajes,
+  public.chat_reacciones,
   -- Configuración de secciones (Desarrollador)
   public.configuracion_secciones
 RESTART IDENTITY CASCADE;

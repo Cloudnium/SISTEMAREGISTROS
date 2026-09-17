@@ -106,27 +106,32 @@ async function obtenerVacacionesPermisosDelPeriodo(personalId, mes, anio) {
 
 router.get('/', (req, res) => res.redirect('/planilla/resumen'));
 
-router.get('/resumen', (req, res) => {
+router.get('/resumen', async (req, res) => {
+  const trabajadores = await listaTrabajadoresResumen();
   res.render('planilla/resumen', {
     layout: 'main', title: 'Planilla — Resumen',
     pageTitle: 'Planilla', pageSubtitle: 'Consulta rápida de cualquier trabajador',
-    seccionActiva: 'resumen'
+    seccionActiva: 'resumen', trabajadores
   });
 });
 
-// Buscador inteligente (autocompletado, se filtra mientras se escribe)
-router.get('/resumen/buscar', async (req, res) => {
-  const q = (req.query.q || '').trim();
-  if (q.length < 1) return res.json({ resultados: [] });
-  const filtro = filtroBusquedaTrabajador(q);
-  if (!filtro) return res.json({ resultados: [] });
-  const { data, error } = await db.select('personal_tripulantes',
-    `select=id,nombres,apellidos,dni,categoria,tipo,cargo,area,activo&${filtro}&order=apellidos.asc&limit=10`);
-  if (error) return res.status(500).json({ error: error.message });
-  const resultados = (data || []).map(p => ({
+async function listaTrabajadoresResumen(filtro) {
+  const query = filtro
+    ? `select=id,nombres,apellidos,dni,categoria,tipo,cargo,area,activo&${filtro}&order=apellidos.asc&limit=50`
+    : 'select=id,nombres,apellidos,dni,categoria,tipo,cargo,area,activo&order=apellidos.asc&limit=300';
+  const { data } = await db.select('personal_tripulantes', query);
+  return (data || []).map(p => ({
     id: p.id, nombreCompleto: `${p.nombres} ${p.apellidos}`, dni: p.dni,
     cargoMostrar: cargoMostrarDe(p), area: p.area || '', activo: p.activo
   }));
+}
+
+// Buscador inteligente (se filtra mientras se escribe). Sin texto,
+// devuelve la lista completa de trabajadores.
+router.get('/resumen/buscar', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  const filtro = q.length ? filtroBusquedaTrabajador(q) : null;
+  const resultados = await listaTrabajadoresResumen(filtro);
   res.json({ resultados });
 });
 
@@ -663,8 +668,12 @@ router.post('/permisos', requirePlanillaEditar, async (req, res) => {
     p_monto_descuento: descontar ? montoNum : null,
     p_usuario_id: req.session.user.id
   });
-  if (error) { req.flash('error', 'Error al registrar el permiso: ' + error.message); }
-  else {
+  if (error) {
+    const msg = error.message.includes('FALTA_CONCEPTO_PERMISO_SIN_GOCE')
+      ? 'Falta ejecutar una migración de base de datos (PLANILLA_FIX_CONCEPTO_PERMISO_MIGRATION.sql) antes de poder generar descuentos por permisos sin goce.'
+      : 'Error al registrar el permiso: ' + error.message;
+    req.flash('error', msg);
+  } else {
     const permisoId = Array.isArray(data) ? data[0] : data;
     await registrarAuditoria({
       usuario: req.session.user, accion: 'registrar_permiso', entidad: 'permiso',

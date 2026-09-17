@@ -3,24 +3,62 @@
 
 <div class="card" style="padding:26px">
   <h3 style="margin:0 0 6px">Buscar trabajador</h3>
-  <p class="text-muted" style="margin:0 0 16px">Escribe un nombre, apellido o DNI. Al seleccionarlo verás su ficha completa e histórico de planillas.</p>
+  <p class="text-muted" style="margin:0 0 16px">Escribe un nombre, apellido o DNI para filtrar la lista. Selecciona a alguien para ver su ficha completa e histórico de planillas.</p>
 
-  <div class="pln-buscador">
+  <div class="pln-buscador" style="max-width:none">
     <i data-lucide="search" class="pln-buscador-icon"></i>
     <input type="text" id="plnBuscarInput" class="form-control" placeholder="Ej: Juan, Pérez, 45678123..." autocomplete="off" />
-    <div class="pln-sugerencias" id="plnBuscarLista"></div>
   </div>
 
-  <div class="empty-state" style="margin-top:40px">
-    <i data-lucide="user-search" style="width:48px;height:48px;opacity:.35"></i>
-    <p>Busca a un trabajador para ver su información y su histórico de planillas.</p>
+  <div class="pln-lista-trabajadores" id="plnListaTrabajadores" style="margin-top:18px">
+    {{#each trabajadores}}
+    <div class="pln-trabajador-row" onclick="window.location.href='/planilla/resumen/{{id}}'">
+      <div class="pln-trabajador-nombre">{{nombreCompleto}}{{#unless activo}} <span class="badge badge-neutral">Inactivo</span>{{/unless}}</div>
+      <div class="pln-trabajador-meta">{{cargoMostrar}}{{#if area}} · {{area}}{{/if}}</div>
+      <div class="pln-trabajador-dni">DNI {{dni}}</div>
+    </div>
+    {{else}}
+    <div class="empty-state">
+      <i data-lucide="users"></i>
+      <p>Todavía no hay trabajadores registrados en TRABAJADORES.</p>
+    </div>
+    {{/each}}
   </div>
 </div>
 
-<script src="/js/planilla-buscador.js"></script>
 <script>
-  PlanillaBuscador.iniciar({
-    inputId: 'plnBuscarInput', listaId: 'plnBuscarLista',
-    onSeleccionar: function (t) { window.location.href = '/planilla/resumen/' + t.id; }
-  });
+  (function () {
+    var input = document.getElementById('plnBuscarInput');
+    var cont  = document.getElementById('plnListaTrabajadores');
+    var timeoutId = null;
+
+    function esc(s) {
+      var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML;
+    }
+
+    function render(lista) {
+      if (!lista.length) {
+        cont.innerHTML = '<div class="empty-state"><i data-lucide="user-x"></i><p>Sin coincidencias para esa búsqueda.</p></div>';
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+      cont.innerHTML = lista.map(function (t) {
+        return '<div class="pln-trabajador-row" onclick="window.location.href=\'/planilla/resumen/' + t.id + '\'">' +
+          '<div class="pln-trabajador-nombre">' + esc(t.nombreCompleto) + (t.activo === false ? ' <span class="badge badge-neutral">Inactivo</span>' : '') + '</div>' +
+          '<div class="pln-trabajador-meta">' + esc(t.cargoMostrar) + (t.area ? ' · ' + esc(t.area) : '') + '</div>' +
+          '<div class="pln-trabajador-dni">DNI ' + esc(t.dni) + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    input.addEventListener('input', function () {
+      var q = input.value.trim();
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(function () {
+        fetch('/planilla/resumen/buscar?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { render(data.resultados || []); });
+      }, 220);
+    });
+  })();
 </script>
