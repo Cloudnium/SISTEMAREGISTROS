@@ -121,5 +121,13 @@
   <p>No hay planillas para imprimir.</p>
   {{/each}}
 
+  <script>
+    // Abre directamente el diálogo de impresión/PDF del navegador al
+    // cargar, sin que haga falta un clic adicional en el botón.
+    window.addEventListener('load', function () {
+      setTimeout(function () { window.print(); }, 250);
+    });
+  </script>
+
 </body>
 </html>

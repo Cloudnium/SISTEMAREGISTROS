@@ -134,6 +134,7 @@ INSERT INTO public.planilla_conceptos_descuento (clave, nombre, es_sistema) VALU
   ('prestamo',  'Préstamo',           false),
   ('falta',     'Falta',              false),
   ('uniforme',  'Uniforme',           true),
+  ('permiso_sin_goce', 'Permiso sin goce de haber', true),
   ('equipo',    'Equipo',             false),
   ('dano',      'Daño',               false),
   ('afp',       'AFP',                false),

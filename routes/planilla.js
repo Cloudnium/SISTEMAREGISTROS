@@ -18,6 +18,7 @@
 // =============================================
 const express = require('express');
 const router  = express.Router();
+const XLSX = require('xlsx');
 const { db }  = require('../config/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { usuarioActualFresco } = require('../utils/permisos');
@@ -746,7 +747,8 @@ router.post('/permisos/:id/eliminar', requirePlanillaEditar, async (req, res) =>
 
 // ═══════════════════════════════════════════════
 // 35. REPORTES (con filtros y exportación)
-// Nota: la exportación se genera como CSV (Excel lo abre nativamente).
+// Nota: la exportación se genera como un libro de Excel real (.xlsx,
+// librería "xlsx"/SheetJS), con una hoja por cada tipo de reporte.
 // Para PDF, se usa "Imprimir" del navegador (Guardar como PDF), igual
 // que en el resto del sistema — no se agregó una librería nueva de PDF
 // para no cambiar de tecnología sin necesidad.
@@ -915,18 +917,34 @@ router.get('/reportes', async (req, res) => {
   });
 });
 
-function aCSV(headers, rows) {
-  const esc = v => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  return [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
-}
+// Genera UN solo libro de Excel con todos los reportes, cada uno en su
+// propia hoja (Reporte General, Bonos, Descuentos, Uniformes,
+// Vacaciones, Permisos — y, si hay un trabajador filtrado, también su
+// Histórico), respetando los mismos filtros que se ven en pantalla.
+router.get('/reportes/exportar.xlsx', async (req, res) => {
+  const filtros = leerFiltrosReporte(req.query);
+  const hojas = [
+    { tipo: 'general',     nombre: 'Reporte General' },
+    { tipo: 'bonos',       nombre: 'Bonos' },
+    { tipo: 'descuentos',  nombre: 'Descuentos' },
+    { tipo: 'uniformes',   nombre: 'Uniformes' },
+    { tipo: 'vacaciones',  nombre: 'Vacaciones' },
+    { tipo: 'permisos',    nombre: 'Permisos' }
+  ];
+  if (filtros.personalId) hojas.push({ tipo: 'historico-trabajador', nombre: 'Histórico trabajador' });
 
-router.get('/reportes/exportar.csv', async (req, res) => {
-  const tipo = req.query.tipo || 'general';
-  const reporte = await generarReporte(tipo, leerFiltrosReporte(req.query));
-  const csv = aCSV(reporte.headers, reporte.rows);
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="reporte-planilla-${tipo}.csv"`);
-  res.send('\uFEFF' + csv);
+  const wb = XLSX.utils.book_new();
+  for (const h of hojas) {
+    const reporte = await generarReporte(h.tipo, filtros);
+    const ws = XLSX.utils.aoa_to_sheet([reporte.headers, ...reporte.rows]);
+    ws['!cols'] = reporte.headers.map(() => ({ wch: 22 }));
+    XLSX.utils.book_append_sheet(wb, ws, h.nombre.substring(0, 31)); // Excel limita el nombre de hoja a 31 caracteres
+  }
+
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="reportes-planilla.xlsx"');
+  res.send(buffer);
 });
 
 // ═══════════════════════════════════════════════
