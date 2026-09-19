@@ -146,6 +146,12 @@ INSERT INTO public.planilla_tipos_permiso (nombre) VALUES
   ('Médico'), ('Personal'), ('Trámite'), ('Estudios'), ('Otro')
 ON CONFLICT (nombre) DO NOTHING;
 
+-- La sección "Uniformes" de Inventario es fija/del sistema — sin esto,
+-- desaparecería del todo al limpiar (bug que ya existía, corregido acá).
+INSERT INTO public.inventario_categorias (clave, nombre, icono, tipo, orden, es_sistema)
+VALUES ('uniformes', 'Uniformes', 'shirt', 'uniformes', 1, true)
+ON CONFLICT (clave) DO NOTHING;
+
 COMMIT;
 
 -- ── Verificación final ──
@@ -159,4 +165,5 @@ SELECT
   (SELECT COUNT(*) FROM public.buses)                  AS buses_restantes,
   (SELECT COUNT(*) FROM public.personal_tripulantes)   AS personal_restante,
   (SELECT COUNT(*) FROM public.planilla_periodos)      AS periodos_restantes,
+  (SELECT COUNT(*) FROM public.inventario_categorias WHERE clave = 'uniformes') AS seccion_uniformes_ok,
   (SELECT COUNT(*) FROM public.usuarios WHERE agencia_id IS NOT NULL) AS usuarios_con_agencia_huerfana;

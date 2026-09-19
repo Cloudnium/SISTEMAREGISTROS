@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Historial de Movimientos — Uniformes</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 0; padding: 24px; font-size: 12px; }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .hi-sub { color: #555; margin-bottom: 14px; }
+  .hi-resumen { display: flex; gap: 14px; margin-bottom: 16px; }
+  .hi-card { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; }
+  .hi-card label { display: block; font-size: 10px; text-transform: uppercase; color: #777; }
+  .hi-card span { font-size: 18px; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 5px 7px; border-bottom: 1px solid #ddd; font-size: 11px; }
+  th { background: #f3f3f3; text-transform: uppercase; font-size: 9.5px; color: #555; }
+  td.num { text-align: right; }
+  .badge { padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+  .badge-entrada { background: #d1fae5; color: #047857; }
+  .badge-salida { background: #fee2e2; color: #b91c1c; }
+  .badge-mod { background: #e5e7eb; color: #374151; }
+  .hi-emision { margin-top: 14px; font-size: 10px; color: #888; text-align: right; }
+</style>
+</head>
+<body>
+
+  <h1>Historial de Movimientos — Uniformes</h1>
+  <div class="hi-sub">
+    {{#if filtros.desde}}Desde {{filtros.desde}} {{/if}}{{#if filtros.hasta}}hasta {{filtros.hasta}}{{/if}}
+    {{#unless filtros.desde}}{{#unless filtros.hasta}}Todo el historial{{/unless}}{{/unless}}
+  </div>
+
+  <div class="hi-resumen">
+    <div class="hi-card"><label>Total movimientos</label><span>{{totalMovimientos}}</span></div>
+    <div class="hi-card"><label>Unidades ingresadas</label><span style="color:#047857">+{{unidadesIngresadas}}</span></div>
+    <div class="hi-card"><label>Unidades salidas</label><span style="color:#b91c1c">-{{unidadesSalidas}}</span></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Fecha</th><th>Hora</th><th>Producto</th><th>Tipo</th><th>Motivo</th><th class="num">Cantidad</th><th>Stock</th><th>Usuario</th></tr>
+    </thead>
+    <tbody>
+      {{#each movimientos}}
+      <tr>
+        <td>{{fechaMostrar}}</td>
+        <td>{{horaMostrar}}</td>
+        <td>{{producto}}</td>
+        <td><span class="badge {{#if (eq tipo 'ingreso')}}badge-entrada{{else}}{{#if (eq tipo 'entrega')}}badge-salida{{else}}badge-mod{{/if}}{{/if}}">{{tipoMostrar}}</span></td>
+        <td>{{motivo}}</td>
+        <td class="num">{{#if signoCantidad}}{{#if (gt signoCantidad 0)}}+{{/if}}{{signoCantidad}}{{else}}—{{/if}}</td>
+        <td>{{#if stockAnterior}}{{stockAnterior}} → {{stockNuevo}}{{else}}{{stockNuevo}}{{/if}}</td>
+        <td>{{usuario}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="8" style="text-align:center;color:#999">Sin movimientos para estos filtros.</td></tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div class="hi-emision">Emitido el {{fechaEmision}}</div>
+
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () { window.print(); }, 250);
+    });
+  </script>
+
+</body>
+</html>

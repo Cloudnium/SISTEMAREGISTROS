@@ -11,7 +11,7 @@
       </h2>
       <div class="text-muted">DNI {{roster.personal.dni}} · {{cargoMostrar}}{{#if roster.area}} · {{roster.area}}{{/if}} · {{periodo.etiqueta}}</div>
     </div>
-    <a href="/planilla/periodos/{{periodo.id}}/trabajador/{{roster.id}}/imprimir" class="btn btn-ghost btn-sm"><i data-lucide="printer"></i> Imprimir boleta</a>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="imprimirBoletaAqui()"><i data-lucide="printer"></i> Imprimir boleta</button>
   </div>
 </div>
 
@@ -127,6 +127,17 @@
     </div>
   </div>
 </div>
+
+<!-- Iframe oculto para imprimir la boleta sin navegar ni abrir otra ventana:
+     se le carga la boleta adentro y ella misma dispara el diálogo de
+     impresión/PDF al terminar de cargar (ver boleta.hbs). -->
+<iframe id="plnPrintFrame" style="position:fixed;top:-9999px;left:-9999px;width:900px;height:1200px;border:0" title="Impresión de boleta"></iframe>
+<script>
+  function imprimirBoletaAqui() {
+    document.getElementById('plnPrintFrame').src =
+      '/planilla/periodos/{{periodo.id}}/trabajador/{{roster.id}}/imprimir';
+  }
+</script>
 
 {{#if puedeEditar}}
 <div class="modal-backdrop" id="plnModalSueldo" style="display:none">

@@ -15,17 +15,24 @@
 
 <div class="page-header">
   <div></div>
-  {{#if puedeGestionarInventario}}
+  <div class="inv-acciones">
     {{#if esUniformes}}
-    <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevo()">
-      <i data-lucide="plus"></i> Nuevo Uniforme
-    </button>
-    {{else}}
-    <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevoItem()">
-      <i data-lucide="plus"></i> Nuevo Ítem
+    <button type="button" class="btn btn-ghost" onclick="Inv.abrirHistorial()">
+      <i data-lucide="history"></i> Historial
     </button>
     {{/if}}
-  {{/if}}
+    {{#if puedeGestionarInventario}}
+      {{#if esUniformes}}
+      <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevo()">
+        <i data-lucide="plus"></i> Nuevo Uniforme
+      </button>
+      {{else}}
+      <button type="button" class="btn btn-primary" onclick="Inv.abrirNuevoItem()">
+        <i data-lucide="plus"></i> Nuevo Ítem
+      </button>
+      {{/if}}
+    {{/if}}
+  </div>
 </div>
 
 {{#if esUniformes}}
@@ -176,6 +183,10 @@
         <label class="form-label-pers">Cantidad a agregar</label>
         <input type="number" class="form-control" id="invStockCantidad" min="1" value="1" />
       </div>
+      <div class="form-group">
+        <label class="form-label-pers">Motivo <small class="text-muted">(opcional)</small></label>
+        <input type="text" class="form-control" id="invStockMotivo" placeholder="Ej: Compra a proveedor, Ajuste manual de stock..." />
+      </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-ghost" onclick="Inv.cerrarStock()">Cancelar</button>
@@ -218,6 +229,71 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: Historial de movimientos de Uniformes ═══ -->
+<div class="modal-backdrop" id="invModalHistorial" style="display:none">
+  <div class="modal" style="max-width:920px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="history"></i> Historial de Movimientos — Uniformes</div>
+      <button class="modal-close" onclick="Inv.cerrarHistorial()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="inv-hist-filtros">
+        <div class="form-group">
+          <label class="form-label-pers">Desde</label>
+          <input type="date" id="invHistDesde" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Hasta</label>
+          <input type="date" id="invHistHasta" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Producto</label>
+          <select id="invHistProducto" class="form-control">
+            <option value="">Todos los productos</option>
+            {{#each uniformes}}<option value="{{id}}">{{nombre}}</option>{{/each}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label-pers">Tipo</label>
+          <select id="invHistTipo" class="form-control">
+            <option value="todos">Todos</option>
+            <option value="ingreso">Entradas</option>
+            <option value="entrega">Salidas</option>
+            <option value="modificacion">Modificaciones</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="Inv.buscarHistorial()"><i data-lucide="search"></i></button>
+      </div>
+
+      <div class="inv-hist-resumen">
+        <div class="inv-hist-card inv-hist-card-total"><label>Total movimientos</label><span id="invHistTotal">0</span></div>
+        <div class="inv-hist-card inv-hist-card-in"><label>Unidades ingresadas</label><span id="invHistIngresadas">+0</span></div>
+        <div class="inv-hist-card inv-hist-card-out"><label>Unidades salidas</label><span id="invHistSalidas">-0</span></div>
+      </div>
+
+      <div class="table-wrapper" style="max-height:340px">
+        <table class="table">
+          <thead>
+            <tr><th>Fecha</th><th>Hora</th><th>Producto</th><th>Tipo</th><th>Motivo</th><th class="text-right">Cantidad</th><th>Stock</th><th>Usuario</th></tr>
+          </thead>
+          <tbody id="invHistTbody">
+            <tr><td colspan="8" class="text-muted" style="text-align:center;padding:20px">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <span class="text-muted" id="invHistContador" style="font-size:12.5px">0 movimientos encontrados</span>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn btn-ghost" onclick="Inv.cerrarHistorial()"><i data-lucide="x"></i> Cerrar</button>
+        <button type="button" class="btn btn-ghost" onclick="Inv.exportarHistorialExcel()" style="color:#047857;border-color:#047857"><i data-lucide="file-spreadsheet"></i> Excel</button>
+        <button type="button" class="btn btn-ghost" onclick="Inv.imprimirHistorial()" style="color:#b91c1c;border-color:#b91c1c"><i data-lucide="file-down"></i> PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+<iframe id="invHistPrintFrame" style="position:fixed;top:-9999px;left:-9999px;width:900px;height:1200px;border:0" title="Impresión de historial"></iframe>
+
 <!-- ═══ MODAL: Nueva / Editar sección (solo autorizados) ═══ -->
 {{#if puedeGestionarInventario}}
 <div class="modal-backdrop" id="invModalSeccion" style="display:none">
@@ -228,19 +304,38 @@
     </div>
     <form id="invSeccionForm" method="POST" action="/inventario/categorias">
       <div class="modal-body">
+        {{#if tiposDisponibles.length}}
         <div class="form-group">
-          <label class="form-label-pers">Nombre de la sección</label>
-          <input type="text" name="nombre" id="invSeccionNombre" class="form-control" placeholder="Ej: Repuestos" required />
+          <label class="form-label-pers">Tipo de sección</label>
+          <select name="tipo" id="invSeccionTipo" class="form-control" required onchange="Inv.alElegirTipoSeccion()">
+            <option value="" disabled selected>Elige una opción...</option>
+            {{#each tiposDisponibles}}
+            <option value="{{tipo}}" data-icono="{{icono}}">{{nombre}}</option>
+            {{/each}}
+          </select>
+          <p class="form-hint">Se irán agregando más tipos de sección (con su propio formato) más adelante.</p>
         </div>
         <div class="form-group">
           <label class="form-label-pers">Ícono</label>
-          <input type="text" name="icono" id="invSeccionIcono" class="form-control" placeholder="package" value="package" />
-          <p class="form-hint">Nombre de un ícono de <a href="https://lucide.dev/icons" target="_blank" rel="noopener">lucide.dev/icons</a> (ej. <code>wrench</code>, <code>shirt</code>, <code>box</code>, <code>droplet</code>).</p>
+          <input type="hidden" name="icono" id="invSeccionIcono" value="package" />
+          <div class="inv-icon-grid">
+            {{#each iconosDisponibles}}
+            <button type="button" class="inv-icon-opcion" data-icono="{{this}}" onclick="Inv.elegirIconoSeccion('{{this}}')" title="{{this}}">
+              <i data-lucide="{{this}}"></i>
+            </button>
+            {{/each}}
+          </div>
         </div>
+        {{else}}
+        <div class="empty-state">
+          <i data-lucide="check-circle"></i>
+          <p>Ya creaste todas las secciones disponibles por ahora. Se irán agregando más tipos más adelante.</p>
+        </div>
+        {{/if}}
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-ghost" onclick="Inv.cerrarNuevaSeccion()">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Guardar</button>
+        {{#if tiposDisponibles.length}}<button type="submit" class="btn btn-primary">Guardar</button>{{/if}}
       </div>
     </form>
   </div>
@@ -326,6 +421,28 @@
 .inv-tab i { width: 16px; height: 16px; }
 .inv-tab.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
 .inv-tab-nueva { border-style: dashed; color: var(--text-muted); }
+.inv-icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px; }
+.inv-icon-opcion {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; aspect-ratio: 1; border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border); background: var(--color-surface);
+  color: var(--text-secondary); cursor: pointer; transition: all var(--transition-fast);
+}
+.inv-icon-opcion:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.inv-icon-opcion.activo { border-color: var(--color-accent); background: var(--color-accent-light); color: var(--color-accent); }
+.inv-icon-opcion svg { width: 18px; height: 18px; }
+
+.inv-hist-filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+.inv-hist-filtros .form-group { margin-bottom: 0; min-width: 140px; }
+.inv-hist-resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.inv-hist-card { border-radius: var(--radius-md); padding: 12px 16px; border: 1px solid var(--color-border); }
+.inv-hist-card label { display: block; font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px; }
+.inv-hist-card span { font-size: 19px; font-weight: 700; }
+.inv-hist-card-total { background: var(--color-accent-light); }
+.inv-hist-card-in { background: var(--color-success-light); }
+.inv-hist-card-in span { color: var(--color-success); }
+.inv-hist-card-out { background: var(--color-error-light); }
+.inv-hist-card-out span { color: var(--color-error); }
 </style>
 
 <script>
@@ -371,15 +488,17 @@ var Inv = (function () {
     uniformeActualId = id;
     document.getElementById('invStockNombre').textContent = nombre;
     document.getElementById('invStockCantidad').value = 1;
+    document.getElementById('invStockMotivo').value = '';
     document.getElementById('invModalStock').style.display = 'flex';
   }
   function cerrarStock() { document.getElementById('invModalStock').style.display = 'none'; }
   function confirmarStock() {
     var cantidad = document.getElementById('invStockCantidad').value;
+    var motivo = document.getElementById('invStockMotivo').value;
     if (!cantidad || Number(cantidad) <= 0) { toast('Ingresa una cantidad válida.', 'error'); return; }
     fetch('/inventario/uniformes/' + uniformeActualId + '/stock', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cantidad: cantidad })
+      body: JSON.stringify({ cantidad: cantidad, motivo: motivo })
     }).then(function (r) { return r.json(); }).then(function (r) {
       if (r.error) { toast(r.error, 'error'); return; }
       toast('Stock actualizado.', 'ok');
@@ -413,15 +532,92 @@ var Inv = (function () {
     });
   }
 
+  // ── Historial de movimientos (Uniformes) ──
+  function abrirHistorial() {
+    document.getElementById('invModalHistorial').style.display = 'flex';
+    buscarHistorial();
+  }
+  function cerrarHistorial() { document.getElementById('invModalHistorial').style.display = 'none'; }
+
+  function paramsHistorial() {
+    var p = new URLSearchParams();
+    var desde = document.getElementById('invHistDesde').value;
+    var hasta = document.getElementById('invHistHasta').value;
+    var producto = document.getElementById('invHistProducto').value;
+    var tipo = document.getElementById('invHistTipo').value;
+    if (desde) p.set('desde', desde);
+    if (hasta) p.set('hasta', hasta);
+    if (producto) p.set('uniforme_id', producto);
+    if (tipo) p.set('tipo', tipo);
+    return p;
+  }
+
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+  function buscarHistorial() {
+    var tbody = document.getElementById('invHistTbody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-muted" style="text-align:center;padding:20px">Cargando...</td></tr>';
+    fetch('/inventario/uniformes/historial?' + paramsHistorial().toString(), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        document.getElementById('invHistTotal').textContent = data.totalMovimientos;
+        document.getElementById('invHistIngresadas').textContent = '+' + data.unidadesIngresadas;
+        document.getElementById('invHistSalidas').textContent = '-' + data.unidadesSalidas;
+        document.getElementById('invHistContador').textContent = data.totalMovimientos + ' movimiento' + (data.totalMovimientos === 1 ? '' : 's') + ' encontrado' + (data.totalMovimientos === 1 ? '' : 's');
+
+        if (!data.movimientos.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="text-muted" style="text-align:center;padding:20px">Sin movimientos para estos filtros.</td></tr>';
+          return;
+        }
+        var badgeClase = { ingreso: 'badge-success', entrega: 'badge-error', modificacion: 'badge-neutral' };
+        tbody.innerHTML = data.movimientos.map(function (m) {
+          var cantidadTxt = m.signoCantidad ? (m.signoCantidad > 0 ? '+' : '') + m.signoCantidad : '—';
+          var stockTxt = m.stockAnterior != null ? (m.stockAnterior + ' → ' + m.stockNuevo) : (m.stockNuevo != null ? m.stockNuevo : '—');
+          return '<tr>' +
+            '<td>' + m.fechaMostrar + '</td>' +
+            '<td>' + m.horaMostrar + '</td>' +
+            '<td><b>' + escHtml(m.producto) + '</b></td>' +
+            '<td><span class="badge ' + (badgeClase[m.tipo] || 'badge-neutral') + '">' + m.tipoMostrar + '</span></td>' +
+            '<td>' + escHtml(m.motivo) + '</td>' +
+            '<td class="text-right">' + cantidadTxt + '</td>' +
+            '<td>' + stockTxt + '</td>' +
+            '<td>' + escHtml(m.usuario) + '</td>' +
+          '</tr>';
+        }).join('');
+      });
+  }
+
+  function exportarHistorialExcel() {
+    window.location.href = '/inventario/uniformes/historial/exportar.xlsx?' + paramsHistorial().toString();
+  }
+
+  function imprimirHistorial() {
+    document.getElementById('invHistPrintFrame').src = '/inventario/uniformes/historial/imprimir?' + paramsHistorial().toString();
+  }
+
   // ── Secciones ──
   function abrirNuevaSeccion() {
     var form = document.getElementById('invSeccionForm');
     if (!form) return;
     form.reset();
-    document.getElementById('invSeccionIcono').value = 'package';
+    elegirIconoSeccion('package');
     document.getElementById('invModalSeccion').style.display = 'flex';
   }
   function cerrarNuevaSeccion() { document.getElementById('invModalSeccion').style.display = 'none'; }
+
+  function alElegirTipoSeccion() {
+    var select = document.getElementById('invSeccionTipo');
+    var opcion = select.options[select.selectedIndex];
+    var iconoSugerido = opcion && opcion.getAttribute('data-icono');
+    if (iconoSugerido) elegirIconoSeccion(iconoSugerido);
+  }
+
+  function elegirIconoSeccion(nombreIcono) {
+    document.getElementById('invSeccionIcono').value = nombreIcono;
+    Array.prototype.forEach.call(document.querySelectorAll('.inv-icon-opcion'), function (btn) {
+      btn.classList.toggle('activo', btn.getAttribute('data-icono') === nombreIcono);
+    });
+  }
 
   // ── Ítems genéricos ──
   function abrirNuevoItem() {
@@ -478,7 +674,8 @@ var Inv = (function () {
 
   return {
     abrirNuevo, abrirEditar, cerrarForm, abrirStock, cerrarStock, confirmarStock, abrirEntrega, cerrarEntrega, confirmarEntrega,
-    abrirNuevaSeccion, cerrarNuevaSeccion,
+    abrirNuevaSeccion, cerrarNuevaSeccion, alElegirTipoSeccion, elegirIconoSeccion,
+    abrirHistorial, cerrarHistorial, buscarHistorial, exportarHistorialExcel, imprimirHistorial,
     abrirNuevoItem, abrirEditarItem, cerrarFormItem, abrirMovItem, cerrarMovItem, confirmarMovItem
   };
 })();

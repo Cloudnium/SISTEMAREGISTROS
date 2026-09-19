@@ -10,10 +10,27 @@
 // =============================================
 const express = require('express');
 const router  = express.Router();
+const XLSX = require('xlsx');
 const { registrarAuditoria } = require('../utils/auditoria');
 const { db }  = require('../config/supabase');
 const { requireAuth } = require('../middleware/auth');
 const { usuarioActualFresco } = require('../utils/permisos');
+
+// Catálogo de tipos de sección que se pueden crear desde "Nueva sección".
+// "Uniformes" no aparece aquí porque ya existe como sección fija del
+// sistema. Cuando definamos el formato de un tipo nuevo, se agrega una
+// línea aquí (y su propio formulario/tabla si necesita campos propios).
+const CATALOGO_TIPOS_SECCION = [
+  { tipo: 'repuestos', nombre: 'Repuestos', icono: 'wrench' }
+  // Próximos tipos se agregan aquí, ej:
+  // { tipo: 'herramientas', nombre: 'Herramientas', icono: 'hammer' },
+];
+
+// Íconos seleccionables al crear o editar una sección (de lucide.dev/icons)
+const ICONOS_DISPONIBLES = [
+  'package', 'box', 'wrench', 'hammer', 'cog', 'shirt',
+  'droplet', 'battery', 'zap', 'layers', 'archive', 'truck'
+];
 
 // Se re-valida siempre contra la base de datos (no contra la sesión
 // cacheada), igual que en Códigos de Autorización y Programación, para
@@ -27,7 +44,7 @@ async function requireInventarioAutorizado(req, res, next) {
 
 router.get('/', requireAuth, async (req, res) => {
   const [{ data: categorias }, { data: uniformes }, { data: personal }] = await Promise.all([
-    db.select('inventario_categorias', 'select=id,clave,nombre,icono,orden,es_sistema,activo&activo=eq.true&order=orden.asc,nombre.asc'),
+    db.select('inventario_categorias', 'select=id,clave,nombre,icono,tipo,orden,es_sistema,activo&activo=eq.true&order=orden.asc,nombre.asc'),
     db.select('inventario_uniformes', 'select=id,nombre,descripcion,precio,stock,activo&order=nombre.asc'),
     db.select('personal_tripulantes', 'select=id,nombres,apellidos,categoria,tipo,cargo&activo=eq.true&order=apellidos.asc')
   ]);
@@ -35,6 +52,8 @@ router.get('/', requireAuth, async (req, res) => {
   const seccion = req.query.seccion || 'uniformes';
   const listaCategorias = categorias || [];
   const categoriaActiva = listaCategorias.find(c => c.clave === seccion) || listaCategorias[0] || null;
+  const tiposYaCreados = new Set(listaCategorias.map(c => c.tipo));
+  const tiposDisponibles = CATALOGO_TIPOS_SECCION.filter(t => !tiposYaCreados.has(t.tipo));
 
   let items = [];
   if (categoriaActiva && categoriaActiva.clave !== 'uniformes') {
@@ -48,6 +67,8 @@ router.get('/', requireAuth, async (req, res) => {
     pageTitle: 'Inventario', pageSubtitle: 'Almacén por secciones: uniformes, repuestos y lo que se vaya agregando',
     categorias: listaCategorias,
     categoriaActiva,
+    tiposDisponibles,
+    iconosDisponibles: ICONOS_DISPONIBLES,
     esUniformes: !categoriaActiva || categoriaActiva.clave === 'uniformes',
     uniformes: uniformes || [],
     items,
@@ -59,37 +80,44 @@ router.get('/', requireAuth, async (req, res) => {
 
 // ─── Crear nueva sección de almacén — SOLO autorizados ──
 router.post('/categorias', requireAuth, requireInventarioAutorizado, async (req, res) => {
-  const { nombre, icono } = req.body;
-  if (!nombre || !nombre.trim()) {
-    req.flash('error', 'Indica el nombre de la sección.');
+  const { tipo, icono } = req.body;
+  const catalogoEntry = CATALOGO_TIPOS_SECCION.find(t => t.tipo === tipo);
+  if (!catalogoEntry) {
+    req.flash('error', 'Selecciona un tipo de sección válido.');
     return res.redirect('/inventario');
   }
-  const clave = nombre.trim().toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
-    .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const { data: yaExiste } = await db.select('inventario_categorias', `select=id&clave=eq.${catalogoEntry.tipo}&limit=1`);
+  if (yaExiste && yaExiste.length) {
+    req.flash('error', 'Esa sección ya existe.');
+    return res.redirect('/inventario');
+  }
+
+  const iconoElegido = ICONOS_DISPONIBLES.includes(icono) ? icono : catalogoEntry.icono;
   const { data: max } = await db.select('inventario_categorias', 'select=orden&order=orden.desc&limit=1');
   const siguienteOrden = (max && max[0] ? max[0].orden : 0) + 1;
 
   const { error } = await db.insert('inventario_categorias', {
-    clave: clave || ('seccion-' + Date.now()),
-    nombre: nombre.trim(),
-    icono: icono && icono.trim() !== '' ? icono.trim() : 'package',
+    clave: catalogoEntry.tipo,
+    nombre: catalogoEntry.nombre,
+    tipo: catalogoEntry.tipo,
+    icono: iconoElegido,
     orden: siguienteOrden,
     es_sistema: false,
     activo: true
   });
   if (error) req.flash('error', error.message.includes('duplicate') ? 'Ya existe una sección con ese nombre.' : ('Error al crear la sección: ' + error.message));
   else       req.flash('success', 'Sección creada.');
-  res.redirect('/inventario?seccion=' + clave);
+  res.redirect('/inventario?seccion=' + catalogoEntry.tipo);
 });
 
-// ─── Editar sección (nombre/ícono) — SOLO autorizados ──
+// ─── Editar sección (ícono) — SOLO autorizados ──
 router.post('/categorias/:id/editar', requireAuth, requireInventarioAutorizado, async (req, res) => {
-  const { nombre, icono } = req.body;
-  const { error } = await db.update('inventario_categorias', `id=eq.${req.params.id}`, {
-    nombre: nombre && nombre.trim() !== '' ? nombre.trim() : undefined,
-    icono: icono && icono.trim() !== '' ? icono.trim() : undefined
-  });
+  const { icono } = req.body;
+  if (!ICONOS_DISPONIBLES.includes(icono)) {
+    req.flash('error', 'Selecciona un ícono válido.');
+    return res.redirect('/inventario');
+  }
+  const { error } = await db.update('inventario_categorias', `id=eq.${req.params.id}`, { icono });
   if (error) req.flash('error', 'Error al actualizar la sección: ' + error.message);
   else       req.flash('success', 'Sección actualizada.');
   res.redirect('/inventario');
@@ -194,14 +222,35 @@ router.post('/uniformes/:id/editar', requireAuth, requireInventarioAutorizado, a
     req.flash('error', 'Indica el nombre del uniforme.');
     return res.redirect('/inventario');
   }
+
+  const { data: filas } = await db.select('inventario_uniformes', `select=*&id=eq.${req.params.id}&limit=1`);
+  const antes = filas && filas[0];
+  if (!antes) { req.flash('error', 'Uniforme no encontrado.'); return res.redirect('/inventario'); }
+
+  const nuevoPrecio = precio && precio !== '' ? parseFloat(precio) : 0;
+  const nuevoActivo = activo === 'on' || activo === true;
+
   const { error } = await db.update('inventario_uniformes', `id=eq.${req.params.id}`, {
     nombre: nombre.trim(),
     descripcion: descripcion && descripcion.trim() !== '' ? descripcion.trim() : null,
-    precio: precio && precio !== '' ? parseFloat(precio) : 0,
-    activo: activo === 'on' || activo === true
+    precio: nuevoPrecio,
+    activo: nuevoActivo
   });
-  if (error) req.flash('error', 'Error al actualizar: ' + error.message);
-  else       req.flash('success', 'Uniforme actualizado.');
+  if (error) { req.flash('error', 'Error al actualizar: ' + error.message); return res.redirect('/inventario'); }
+
+  // Deja registrado en el historial qué cambió exactamente (si cambió algo)
+  const cambios = [];
+  if (antes.nombre !== nombre.trim()) cambios.push(`Nombre: "${antes.nombre}" → "${nombre.trim()}"`);
+  if (Number(antes.precio) !== nuevoPrecio) cambios.push(`Precio: S/ ${Number(antes.precio).toFixed(2)} → S/ ${nuevoPrecio.toFixed(2)}`);
+  if (antes.activo !== nuevoActivo) cambios.push(nuevoActivo ? 'Reactivado' : 'Desactivado');
+  if (cambios.length) {
+    await db.insert('inventario_uniformes_movimientos', {
+      uniforme_id: req.params.id, tipo: 'modificacion', cantidad: 0, usuario_id: req.session.user.id,
+      stock_anterior: antes.stock, stock_nuevo: antes.stock, motivo: cambios.join('; ')
+    });
+  }
+
+  req.flash('success', 'Uniforme actualizado.');
   res.redirect('/inventario');
 });
 
@@ -214,13 +263,16 @@ router.post('/uniformes/:id/stock', requireAuth, async (req, res) => {
   const actual = filas && filas[0];
   if (!actual) return res.status(404).json({ error: 'Uniforme no encontrado.' });
 
-  const { error } = await db.update('inventario_uniformes', `id=eq.${req.params.id}`, {
-    stock: (actual.stock || 0) + cantidad
-  });
+  const stockAnterior = actual.stock || 0;
+  const stockNuevo = stockAnterior + cantidad;
+
+  const { error } = await db.update('inventario_uniformes', `id=eq.${req.params.id}`, { stock: stockNuevo });
   if (error) return res.status(500).json({ error: error.message });
 
+  const motivo = (req.body.motivo && req.body.motivo.trim()) || 'Ingreso de stock';
   await db.insert('inventario_uniformes_movimientos', {
-    uniforme_id: req.params.id, tipo: 'ingreso', cantidad, usuario_id: req.session.user.id
+    uniforme_id: req.params.id, tipo: 'ingreso', cantidad, usuario_id: req.session.user.id,
+    stock_anterior: stockAnterior, stock_nuevo: stockNuevo, motivo
   });
 
   res.json({ ok: true });
@@ -251,6 +303,103 @@ router.post('/uniformes/:id/entregar', requireAuth, async (req, res) => {
     entidad_id: req.params.id, valor_nuevo: { personal_id, cantidad: cant, descuento_id: data }
   });
   res.json({ ok: true, descuento_id: data });
+});
+
+// ══════════════════════════════════════════
+// HISTORIAL DE MOVIMIENTOS DE UNIFORMES
+// Entradas (ingreso de stock), Salidas (entrega a trabajador) y
+// Modificaciones (cambios de nombre/precio/estado), con el stock
+// antes → después de cada movimiento puntual, quién lo hizo y cuándo.
+// ══════════════════════════════════════════
+async function obtenerHistorialUniformes(query) {
+  const { desde, hasta, uniforme_id, tipo } = query;
+  let filtro = 'select=id,tipo,cantidad,stock_anterior,stock_nuevo,motivo,observacion,creado_en,' +
+    'uniforme:inventario_uniformes(nombre),usuario:usuarios(nombre)' +
+    '&order=creado_en.desc&limit=1000';
+  if (desde) filtro += `&creado_en=gte.${desde}T00:00:00`;
+  if (hasta) filtro += `&creado_en=lte.${hasta}T23:59:59`;
+  if (uniforme_id) filtro += `&uniforme_id=eq.${uniforme_id}`;
+  if (tipo && tipo !== 'todos') filtro += `&tipo=eq.${tipo}`;
+
+  const { data } = await db.select('inventario_uniformes_movimientos', filtro);
+  const filas = data || [];
+
+  const etiquetaTipo = { ingreso: 'Entrada', entrega: 'Salida', modificacion: 'Modificación' };
+  const motivoPorDefecto = { ingreso: 'Ingreso de stock', entrega: 'Entrega a trabajador', modificacion: 'Modificación' };
+
+  const movimientos = filas.map(m => {
+    const f = new Date(m.creado_en);
+    return {
+      fecha: m.creado_en,
+      fechaMostrar: f.toLocaleDateString('es-PE'),
+      horaMostrar: f.toLocaleTimeString('es-PE'),
+      producto: m.uniforme ? m.uniforme.nombre : '—',
+      tipo: m.tipo,
+      tipoMostrar: etiquetaTipo[m.tipo] || m.tipo,
+      motivo: m.motivo || motivoPorDefecto[m.tipo] || '—',
+      signoCantidad: m.tipo === 'entrega' ? -m.cantidad : (m.tipo === 'ingreso' ? m.cantidad : 0),
+      stockAnterior: m.stock_anterior,
+      stockNuevo: m.stock_nuevo,
+      usuario: m.usuario ? m.usuario.nombre : '—'
+    };
+  });
+
+  return {
+    movimientos,
+    totalMovimientos: movimientos.length,
+    unidadesIngresadas: filas.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + (m.cantidad || 0), 0),
+    unidadesSalidas: filas.filter(m => m.tipo === 'entrega').reduce((s, m) => s + (m.cantidad || 0), 0)
+  };
+}
+
+router.get('/uniformes/historial', requireAuth, async (req, res) => {
+  const resultado = await obtenerHistorialUniformes(req.query);
+  res.json(resultado);
+});
+
+router.get('/uniformes/historial/exportar.xlsx', requireAuth, async (req, res) => {
+  const { movimientos, totalMovimientos, unidadesIngresadas, unidadesSalidas } = await obtenerHistorialUniformes(req.query);
+
+  const wb = XLSX.utils.book_new();
+
+  const wsResumen = XLSX.utils.aoa_to_sheet([
+    ['Historial de Movimientos de Uniformes'],
+    ['Generado el', new Date().toLocaleString('es-PE')],
+    [],
+    ['Total de movimientos', totalMovimientos],
+    ['Unidades ingresadas', unidadesIngresadas],
+    ['Unidades salidas', unidadesSalidas]
+  ]);
+  wsResumen['!cols'] = [{ wch: 26 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+  const filasDetalle = [['Fecha', 'Hora', 'Producto', 'Tipo', 'Motivo', 'Cantidad', 'Stock anterior', 'Stock nuevo', 'Usuario']];
+  movimientos.forEach(m => {
+    filasDetalle.push([
+      m.fechaMostrar, m.horaMostrar,
+      m.producto, m.tipoMostrar, m.motivo, m.signoCantidad,
+      m.stockAnterior != null ? m.stockAnterior : '', m.stockNuevo != null ? m.stockNuevo : '',
+      m.usuario
+    ]);
+  });
+  const wsDetalle = XLSX.utils.aoa_to_sheet(filasDetalle);
+  wsDetalle['!cols'] = filasDetalle[0].map(() => ({ wch: 18 }));
+  XLSX.utils.book_append_sheet(wb, wsDetalle, 'Movimientos');
+
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="historial-uniformes.xlsx"');
+  res.send(buffer);
+});
+
+router.get('/uniformes/historial/imprimir', requireAuth, async (req, res) => {
+  const resultado = await obtenerHistorialUniformes(req.query);
+  res.render('inventario/historial-imprimir', {
+    layout: false,
+    ...resultado,
+    filtros: req.query,
+    fechaEmision: new Date().toLocaleString('es-PE')
+  });
 });
 
 module.exports = router;
