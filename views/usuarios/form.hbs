@@ -65,7 +65,7 @@
       </div>
     </div>
 
-    <div class="form-section-label">Permisos sobre boletos vendidos</div>
+    <div class="form-section-label">Permisos del usuario</div>
     <div class="form-row form-permisos-row">
       <label class="form-check-label">
         <input type="checkbox" name="puede_anular" class="form-check"
@@ -96,6 +96,11 @@
         <input type="checkbox" name="puede_gestionar_inventario" class="form-check"
                {{#if usuario}}{{#if usuario.puede_gestionar_inventario}}checked{{/if}}{{/if}} />
         <span>Puede gestionar Inventario (crear/editar catálogo y precios)</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_restar_stock" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_restar_stock}}checked{{/if}}{{/if}} />
+        <span>Puede restar stock manualmente (por defecto solo admin/desarrollador)</span>
       </label>
       <label class="form-check-label">
         <input type="checkbox" name="puede_ver_planilla" class="form-check"

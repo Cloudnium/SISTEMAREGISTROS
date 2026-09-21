@@ -62,6 +62,11 @@
               <button type="button" class="btn btn-ghost btn-sm" onclick="Inv.abrirStock('{{id}}', '{{nombre}}')">
                 <i data-lucide="plus-circle"></i> Stock
               </button>
+              {{#if ../puedeRestarStock}}
+              <button type="button" class="btn btn-ghost btn-sm" onclick="Inv.abrirRestarStock('{{id}}', '{{nombre}}', {{stock}})" style="color:var(--color-error);border-color:var(--color-error)">
+                <i data-lucide="minus-circle"></i> Stock
+              </button>
+              {{/if}}
               <button type="button" class="btn btn-ghost btn-sm" onclick="Inv.abrirEntrega('{{id}}', '{{nombre}}', {{stock}})">
                 <i data-lucide="shirt"></i> Entregar
               </button>
@@ -195,6 +200,31 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: Restar stock (admin/desarrollador o con permiso) ═══ -->
+<div class="modal-backdrop" id="invModalRestarStock" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="minus-circle"></i> Restar stock — <span id="invRestarStockNombre"></span></div>
+      <button class="modal-close" onclick="Inv.cerrarRestarStock()"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="text-muted" style="margin:0 0 12px;font-size:12.5px">Stock disponible: <b id="invRestarStockDisp"></b></p>
+      <div class="form-group">
+        <label class="form-label-pers">Cantidad a restar</label>
+        <input type="number" class="form-control" id="invRestarStockCantidad" min="1" value="1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Motivo <small class="text-muted">(opcional)</small></label>
+        <input type="text" class="form-control" id="invRestarStockMotivo" placeholder="Ej: Producto dañado, merma, corrección de inventario..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-ghost" onclick="Inv.cerrarRestarStock()">Cancelar</button>
+      <button type="button" class="btn btn-primary" style="background:var(--color-error);border-color:var(--color-error)" onclick="Inv.confirmarRestarStock()">Restar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL: Entregar a personal (todos) ═══ -->
 <div class="modal-backdrop" id="invModalEntrega" style="display:none">
   <div class="modal" style="max-width:420px">
@@ -258,7 +288,8 @@
           <select id="invHistTipo" class="form-control">
             <option value="todos">Todos</option>
             <option value="ingreso">Entradas</option>
-            <option value="entrega">Salidas</option>
+            <option value="entrega">Salidas (entregas)</option>
+            <option value="salida_manual">Salidas (manual)</option>
             <option value="modificacion">Modificaciones</option>
           </select>
         </div>
@@ -506,6 +537,31 @@ var Inv = (function () {
     });
   }
 
+  var uniformeRestarId = null;
+  function abrirRestarStock(id, nombre, stockDisp) {
+    uniformeRestarId = id;
+    document.getElementById('invRestarStockNombre').textContent = nombre;
+    document.getElementById('invRestarStockDisp').textContent = stockDisp;
+    document.getElementById('invRestarStockCantidad').value = 1;
+    document.getElementById('invRestarStockCantidad').max = stockDisp;
+    document.getElementById('invRestarStockMotivo').value = '';
+    document.getElementById('invModalRestarStock').style.display = 'flex';
+  }
+  function cerrarRestarStock() { document.getElementById('invModalRestarStock').style.display = 'none'; }
+  function confirmarRestarStock() {
+    var cantidad = document.getElementById('invRestarStockCantidad').value;
+    var motivo = document.getElementById('invRestarStockMotivo').value;
+    if (!cantidad || Number(cantidad) <= 0) { toast('Ingresa una cantidad válida.', 'error'); return; }
+    fetch('/inventario/uniformes/' + uniformeRestarId + '/stock/restar', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cantidad: cantidad, motivo: motivo })
+    }).then(function (r) { return r.json(); }).then(function (r) {
+      if (r.error) { toast(r.error, 'error'); return; }
+      toast('Stock actualizado.', 'ok');
+      setTimeout(function () { location.reload(); }, 500);
+    });
+  }
+
   function abrirEntrega(id, nombre, stockDisp) {
     uniformeActualId = id; stockDisponibleActual = stockDisp;
     document.getElementById('invEntregaNombre').textContent = nombre;
@@ -569,7 +625,7 @@ var Inv = (function () {
           tbody.innerHTML = '<tr><td colspan="8" class="text-muted" style="text-align:center;padding:20px">Sin movimientos para estos filtros.</td></tr>';
           return;
         }
-        var badgeClase = { ingreso: 'badge-success', entrega: 'badge-error', modificacion: 'badge-neutral' };
+        var badgeClase = { ingreso: 'badge-success', entrega: 'badge-error', salida_manual: 'badge-error', modificacion: 'badge-neutral' };
         tbody.innerHTML = data.movimientos.map(function (m) {
           var cantidadTxt = m.signoCantidad ? (m.signoCantidad > 0 ? '+' : '') + m.signoCantidad : '—';
           var stockTxt = m.stockAnterior != null ? (m.stockAnterior + ' → ' + m.stockNuevo) : (m.stockNuevo != null ? m.stockNuevo : '—');
@@ -673,7 +729,9 @@ var Inv = (function () {
   }
 
   return {
-    abrirNuevo, abrirEditar, cerrarForm, abrirStock, cerrarStock, confirmarStock, abrirEntrega, cerrarEntrega, confirmarEntrega,
+    abrirNuevo, abrirEditar, cerrarForm, abrirStock, cerrarStock, confirmarStock,
+    abrirRestarStock, cerrarRestarStock, confirmarRestarStock,
+    abrirEntrega, cerrarEntrega, confirmarEntrega,
     abrirNuevaSeccion, cerrarNuevaSeccion, alElegirTipoSeccion, elegirIconoSeccion,
     abrirHistorial, cerrarHistorial, buscarHistorial, exportarHistorialExcel, imprimirHistorial,
     abrirNuevoItem, abrirEditarItem, cerrarFormItem, abrirMovItem, cerrarMovItem, confirmarMovItem

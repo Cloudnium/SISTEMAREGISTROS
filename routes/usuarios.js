@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
   const {
     nombre, username, email, password, confirmar_password, rol, agencia_id,
     puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_reintegro, puede_crear_codigos,
-    puede_editar_precios, puede_programar, puede_gestionar_inventario, puede_ver_planilla, puede_editar_planilla
+    puede_editar_precios, puede_programar, puede_gestionar_inventario, puede_restar_stock, puede_ver_planilla, puede_editar_planilla
   } = req.body;
   if (!nombre || !username || !email || !password || !rol) {
     req.flash('error', 'Todos los campos son obligatorios.');
@@ -67,6 +67,7 @@ router.post('/', async (req, res) => {
       puede_habilitar: puede_habilitar === 'on',
       puede_reintegro: puede_reintegro === 'on',
       puede_gestionar_inventario: puede_gestionar_inventario === 'on',
+      puede_restar_stock: puede_restar_stock === 'on',
       puede_ver_planilla: puede_ver_planilla === 'on',
       puede_editar_planilla: puede_editar_planilla === 'on',
       puede_crear_codigos: puede_crear_codigos === 'on',
@@ -87,7 +88,7 @@ router.post('/', async (req, res) => {
 // ─── EDIT FORM ───
 router.get('/:id/editar', requireAdminToEdit, async (req, res) => {
   const { data, error } = await db.select('usuarios',
-    `select=id,nombre,username,email,rol,activo,agencia_id,puede_anular,puede_postergar,puede_reservar,puede_habilitar,puede_reintegro,puede_crear_codigos,puede_editar_precios,puede_programar,puede_gestionar_inventario,puede_ver_planilla,puede_editar_planilla&id=eq.${req.params.id}&limit=1`);
+    `select=id,nombre,username,email,rol,activo,agencia_id,puede_anular,puede_postergar,puede_reservar,puede_habilitar,puede_reintegro,puede_crear_codigos,puede_editar_precios,puede_programar,puede_gestionar_inventario,puede_restar_stock,puede_ver_planilla,puede_editar_planilla&id=eq.${req.params.id}&limit=1`);
   if (error) {
     console.error('editar usuario - error de BD:', error);
     req.flash('error', 'Error al leer el usuario desde la base de datos: ' + error.message +
@@ -111,7 +112,7 @@ router.post('/:id/editar', requireAdminToEdit, async (req, res) => {
   const {
     nombre, username, email, password, confirmar_password, rol, activo, agencia_id,
     puede_anular, puede_postergar, puede_reservar, puede_habilitar, puede_reintegro, puede_crear_codigos,
-    puede_editar_precios, puede_programar, puede_gestionar_inventario, puede_ver_planilla, puede_editar_planilla
+    puede_editar_precios, puede_programar, puede_gestionar_inventario, puede_restar_stock, puede_ver_planilla, puede_editar_planilla
   } = req.body;
   try {
     const updates = {
@@ -123,6 +124,7 @@ router.post('/:id/editar', requireAdminToEdit, async (req, res) => {
       puede_habilitar: puede_habilitar === 'on',
       puede_reintegro: puede_reintegro === 'on',
       puede_gestionar_inventario: puede_gestionar_inventario === 'on',
+      puede_restar_stock: puede_restar_stock === 'on',
       puede_ver_planilla: puede_ver_planilla === 'on',
       puede_editar_planilla: puede_editar_planilla === 'on',
       puede_crear_codigos: puede_crear_codigos === 'on',

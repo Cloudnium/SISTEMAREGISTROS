@@ -46,7 +46,7 @@
         <td>{{fechaMostrar}}</td>
         <td>{{horaMostrar}}</td>
         <td>{{producto}}</td>
-        <td><span class="badge {{#if (eq tipo 'ingreso')}}badge-entrada{{else}}{{#if (eq tipo 'entrega')}}badge-salida{{else}}badge-mod{{/if}}{{/if}}">{{tipoMostrar}}</span></td>
+        <td><span class="badge {{#if (eq tipo 'ingreso')}}badge-entrada{{else}}{{#if (eq tipo 'modificacion')}}badge-mod{{else}}badge-salida{{/if}}{{/if}}">{{tipoMostrar}}</span></td>
         <td>{{motivo}}</td>
         <td class="num">{{#if signoCantidad}}{{#if (gt signoCantidad 0)}}+{{/if}}{{signoCantidad}}{{else}}—{{/if}}</td>
         <td>{{#if stockAnterior}}{{stockAnterior}} → {{stockNuevo}}{{else}}{{stockNuevo}}{{/if}}</td>

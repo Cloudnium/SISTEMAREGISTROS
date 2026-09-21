@@ -42,12 +42,27 @@ async function requireInventarioAutorizado(req, res, next) {
   res.redirect('/inventario');
 }
 
+// Restar stock a mano queda reservado a admin/desarrollador por defecto;
+// otros roles necesitan el permiso puede_restar_stock explícito.
+async function requireRestarStock(req, res, next) {
+  const u = await usuarioActualFresco(req.session.user);
+  if (u && ((u.rol === 'admin' || u.rol === 'desarrollador') || u.puede_restar_stock === true)) {
+    req.usuarioFresco = u;
+    return next();
+  }
+  res.status(403).json({ error: 'No tienes permiso para restar stock manualmente.' });
+}
+
 router.get('/', requireAuth, async (req, res) => {
-  const [{ data: categorias }, { data: uniformes }, { data: personal }] = await Promise.all([
+  const [{ data: categorias }, { data: uniformes }, { data: personal }, usuarioFresco] = await Promise.all([
     db.select('inventario_categorias', 'select=id,clave,nombre,icono,tipo,orden,es_sistema,activo&activo=eq.true&order=orden.asc,nombre.asc'),
     db.select('inventario_uniformes', 'select=id,nombre,descripcion,precio,stock,activo&order=nombre.asc'),
-    db.select('personal_tripulantes', 'select=id,nombres,apellidos,categoria,tipo,cargo&activo=eq.true&order=apellidos.asc')
+    db.select('personal_tripulantes', 'select=id,nombres,apellidos,categoria,tipo,cargo&activo=eq.true&order=apellidos.asc'),
+    usuarioActualFresco(req.session.user)
   ]);
+  const puedeRestarStock = !!(usuarioFresco && (
+    usuarioFresco.rol === 'admin' || usuarioFresco.rol === 'desarrollador' || usuarioFresco.puede_restar_stock === true
+  ));
 
   const seccion = req.query.seccion || 'uniformes';
   const listaCategorias = categorias || [];
@@ -70,6 +85,7 @@ router.get('/', requireAuth, async (req, res) => {
     tiposDisponibles,
     iconosDisponibles: ICONOS_DISPONIBLES,
     esUniformes: !categoriaActiva || categoriaActiva.clave === 'uniformes',
+    puedeRestarStock,
     uniformes: uniformes || [],
     items,
     personal: (personal || []).map(p => ({
@@ -203,15 +219,25 @@ router.post('/uniformes', requireAuth, requireInventarioAutorizado, async (req, 
     req.flash('error', 'Indica el nombre del uniforme (ej. talla y prenda).');
     return res.redirect('/inventario');
   }
-  const { error } = await db.insert('inventario_uniformes', {
+  const stockInicial = stock && stock !== '' ? parseInt(stock) : 0;
+  const { data, error } = await db.insert('inventario_uniformes', {
     nombre: nombre.trim(),
     descripcion: descripcion && descripcion.trim() !== '' ? descripcion.trim() : null,
     precio: precio && precio !== '' ? parseFloat(precio) : 0,
-    stock: stock && stock !== '' ? parseInt(stock) : 0,
+    stock: stockInicial,
     activo: true, creado_en: new Date().toISOString()
   });
-  if (error) req.flash('error', 'Error al registrar: ' + error.message);
-  else       req.flash('success', 'Uniforme registrado en el catálogo.');
+  if (error) { req.flash('error', 'Error al registrar: ' + error.message); return res.redirect('/inventario'); }
+
+  const nuevoId = data && data[0] && data[0].id;
+  if (nuevoId && stockInicial > 0) {
+    await db.insert('inventario_uniformes_movimientos', {
+      uniforme_id: nuevoId, tipo: 'ingreso', cantidad: stockInicial, usuario_id: req.session.user.id,
+      stock_anterior: 0, stock_nuevo: stockInicial, motivo: 'Stock inicial (creación del uniforme)'
+    });
+  }
+
+  req.flash('success', 'Uniforme registrado en el catálogo.');
   res.redirect('/inventario');
 });
 
@@ -278,6 +304,37 @@ router.post('/uniformes/:id/stock', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Restar stock manualmente — admin/desarrollador, u otros con el
+//     permiso puede_restar_stock explícito ──
+router.post('/uniformes/:id/stock/restar', requireAuth, requireRestarStock, async (req, res) => {
+  const cantidad = parseInt(req.body.cantidad);
+  if (!cantidad || cantidad <= 0) return res.status(400).json({ error: 'Ingresa una cantidad válida.' });
+
+  const { data: filas } = await db.select('inventario_uniformes', `select=stock&id=eq.${req.params.id}&limit=1`);
+  const actual = filas && filas[0];
+  if (!actual) return res.status(404).json({ error: 'Uniforme no encontrado.' });
+
+  const stockAnterior = actual.stock || 0;
+  if (cantidad > stockAnterior) return res.status(400).json({ error: 'No puedes restar más de lo que hay en stock (disponible: ' + stockAnterior + ').' });
+  const stockNuevo = stockAnterior - cantidad;
+
+  const { error } = await db.update('inventario_uniformes', `id=eq.${req.params.id}`, { stock: stockNuevo });
+  if (error) return res.status(500).json({ error: error.message });
+
+  const motivo = (req.body.motivo && req.body.motivo.trim()) || 'Salida manual de stock';
+  await db.insert('inventario_uniformes_movimientos', {
+    uniforme_id: req.params.id, tipo: 'salida_manual', cantidad, usuario_id: req.session.user.id,
+    stock_anterior: stockAnterior, stock_nuevo: stockNuevo, motivo
+  });
+
+  await registrarAuditoria({
+    usuario: req.session.user, accion: 'restar_stock_uniforme', entidad: 'uniforme',
+    entidad_id: req.params.id, valor_anterior: { stock: stockAnterior }, valor_nuevo: { stock: stockNuevo, motivo }
+  });
+
+  res.json({ ok: true });
+});
+
 // ─── Entregar a personal — CUALQUIER usuario (genera descuento de planilla) ──
 router.post('/uniformes/:id/entregar', requireAuth, async (req, res) => {
   const { personal_id, cantidad, observacion } = req.body;
@@ -324,8 +381,8 @@ async function obtenerHistorialUniformes(query) {
   const { data } = await db.select('inventario_uniformes_movimientos', filtro);
   const filas = data || [];
 
-  const etiquetaTipo = { ingreso: 'Entrada', entrega: 'Salida', modificacion: 'Modificación' };
-  const motivoPorDefecto = { ingreso: 'Ingreso de stock', entrega: 'Entrega a trabajador', modificacion: 'Modificación' };
+  const etiquetaTipo = { ingreso: 'Entrada', entrega: 'Salida', modificacion: 'Modificación', salida_manual: 'Salida' };
+  const motivoPorDefecto = { ingreso: 'Ingreso de stock', entrega: 'Entrega a trabajador', modificacion: 'Modificación', salida_manual: 'Salida manual de stock' };
 
   const movimientos = filas.map(m => {
     const f = new Date(m.creado_en);
@@ -337,7 +394,7 @@ async function obtenerHistorialUniformes(query) {
       tipo: m.tipo,
       tipoMostrar: etiquetaTipo[m.tipo] || m.tipo,
       motivo: m.motivo || motivoPorDefecto[m.tipo] || '—',
-      signoCantidad: m.tipo === 'entrega' ? -m.cantidad : (m.tipo === 'ingreso' ? m.cantidad : 0),
+      signoCantidad: (m.tipo === 'entrega' || m.tipo === 'salida_manual') ? -m.cantidad : (m.tipo === 'ingreso' ? m.cantidad : 0),
       stockAnterior: m.stock_anterior,
       stockNuevo: m.stock_nuevo,
       usuario: m.usuario ? m.usuario.nombre : '—'
@@ -348,7 +405,7 @@ async function obtenerHistorialUniformes(query) {
     movimientos,
     totalMovimientos: movimientos.length,
     unidadesIngresadas: filas.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + (m.cantidad || 0), 0),
-    unidadesSalidas: filas.filter(m => m.tipo === 'entrega').reduce((s, m) => s + (m.cantidad || 0), 0)
+    unidadesSalidas: filas.filter(m => m.tipo === 'entrega' || m.tipo === 'salida_manual').reduce((s, m) => s + (m.cantidad || 0), 0)
   };
 }
 
