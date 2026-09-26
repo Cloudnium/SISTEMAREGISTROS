@@ -53,18 +53,34 @@ function requireDesarrollador(req, res, next) {
 }
 
 // Bloquea el acceso directo por URL a una sección que el Desarrollador
-// ocultó, para quien no sea admin/desarrollador (el sidebar ya la
-// oculta, pero esto evita que alguien entre escribiendo la URL).
+// ocultó (el sidebar ya la oculta, pero esto evita que alguien entre
+// escribiendo la URL). SOLO el rol "desarrollador" ignora esta
+// restricción: el rol "admin" también queda sujeto a lo que el
+// Desarrollador configure en "Visibilidad de secciones".
 function requireSeccionVisible(clave) {
   return async (req, res, next) => {
     const rol = req.session && req.session.user && req.session.user.rol;
-    if (rol === 'admin' || rol === 'desarrollador') return next();
+    if (rol === 'desarrollador') return next();
     if (res.locals.secciones && res.locals.secciones[clave] === false) {
       req.flash('error', 'Esta sección no está disponible en este momento.');
       return res.redirect('/dashboard');
     }
     next();
   };
+}
+
+// Permite gestionar (ver/crear/editar/eliminar) el panel de
+// Estaciones / Placas del Dashboard: admin y desarrollador siempre
+// pueden; el resto de roles solo si tienen el permiso explícito
+// "puede_gestionar_estaciones_placas" activado por un administrador.
+function requireEstacionesPlacas(req, res, next) {
+  const user = req.session && req.session.user;
+  const rol  = user && user.rol;
+  if (rol === 'admin' || rol === 'desarrollador' || (user && user.puede_gestionar_estaciones_placas === true)) {
+    return next();
+  }
+  req.flash('error', 'No tienes permisos para gestionar Estaciones y Placas.');
+  res.redirect('/dashboard');
 }
 
 // Redirige al dashboard si ya tiene sesión activa (para el login)
@@ -90,6 +106,7 @@ module.exports = {
   requireAdminToDelete,
   requireDesarrollador,
   requireSeccionVisible,
+  requireEstacionesPlacas,
   redirectIfAuth,
   exposeUserRole
 };

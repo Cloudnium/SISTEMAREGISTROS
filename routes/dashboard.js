@@ -15,10 +15,14 @@ const { db } = require('../config/supabase');
 const UMBRAL_STOCK_CRITICO = 5;
 
 router.get('/', requireAuth, async (req, res) => {
-  const [{ data: personalActivo }, { data: itemsBajoStock }, { data: uniformesBajoStock }] = await Promise.all([
+  const puedeEstacionesPlacas = res.locals.puedeGestionarEstacionesPlacas;
+
+  const [{ data: personalActivo }, { data: itemsBajoStock }, { data: uniformesBajoStock }, estacionesRes, placasRes] = await Promise.all([
     db.select('personal_tripulantes', 'select=id&activo=eq.true'),
     db.select('inventario_items', `select=id&activo=eq.true&stock=lte.${UMBRAL_STOCK_CRITICO}`),
-    db.select('inventario_uniformes', `select=id&activo=eq.true&stock=lte.${UMBRAL_STOCK_CRITICO}`)
+    db.select('inventario_uniformes', `select=id&activo=eq.true&stock=lte.${UMBRAL_STOCK_CRITICO}`),
+    puedeEstacionesPlacas ? db.select('estaciones', 'select=id,nombre,activo&order=nombre.asc') : Promise.resolve({ data: [] }),
+    puedeEstacionesPlacas ? db.select('placas', 'select=id,numero,activo&order=numero.asc') : Promise.resolve({ data: [] })
   ]);
 
   res.render('dashboard/index', {
@@ -27,7 +31,10 @@ router.get('/', requireAuth, async (req, res) => {
     pageTitle: 'Panel Principal',
     pageSubtitle: 'Vista general de tu negocio en tiempo real',
     totalPersonal: (personalActivo || []).length,
-    alertasInventario: (itemsBajoStock || []).length + (uniformesBajoStock || []).length
+    alertasInventario: (itemsBajoStock || []).length + (uniformesBajoStock || []).length,
+    puedeEstacionesPlacas,
+    estaciones: estacionesRes.data || [],
+    placas: placasRes.data || []
   });
 });
 

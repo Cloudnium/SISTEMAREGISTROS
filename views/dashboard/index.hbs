@@ -28,20 +28,82 @@
     </div>
   </div>
 
-  <div class="dashboard-quick-access">
-    <a href="/combustible" class="quick-card">
-      <div class="quick-card-icon" style="--card-color:#f97316;"><i data-lucide="fuel"></i></div>
-      <span>Combustible</span>
-    </a>
-    <a href="/personal" class="quick-card">
-      <div class="quick-card-icon" style="--card-color:#3b82f6;"><i data-lucide="users"></i></div>
-      <span>Personal</span>
-    </a>
-    <a href="/inventario" class="quick-card">
-      <div class="quick-card-icon" style="--card-color:#10b981;"><i data-lucide="package"></i></div>
-      <span>Inventario</span>
-    </a>
+  {{#if puedeEstacionesPlacas}}
+  <div class="dash-catalog-row">
+
+    <!-- ═══ ESTACIONES ═══ -->
+    <div class="dash-catalog-card">
+      <div class="dash-catalog-header">
+        <h3><i data-lucide="fuel"></i> Estaciones</h3>
+      </div>
+
+      <form class="dash-catalog-form" onsubmit="return EstPlacas.agregar(event, 'estaciones')">
+        <input type="text" class="form-control" id="epNuevaEstacion"
+               placeholder="Nombre de la estación" maxlength="120" required />
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i data-lucide="plus"></i><span class="btn-label"> Agregar</span>
+        </button>
+      </form>
+
+      <div class="dash-catalog-list-label">Estaciones</div>
+      <ul class="dash-catalog-list" id="epListaEstaciones">
+        {{#each estaciones}}
+        <li class="dash-catalog-item" data-id="{{id}}" data-tipo="estaciones">
+          <span class="dash-catalog-item-name">{{nombre}}</span>
+          <span class="dash-catalog-item-actions">
+            <button type="button" class="btn-icon btn-icon-edit" title="Editar" onclick="EstPlacas.editar(this)">
+              <i data-lucide="pencil"></i>
+            </button>
+            <button type="button" class="btn-icon btn-icon-delete" title="Eliminar" onclick="EstPlacas.eliminar(this)">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </span>
+        </li>
+        {{/each}}
+      </ul>
+      <p class="dash-catalog-empty" id="epVacioEstaciones" {{#if estaciones.length}}style="display:none"{{/if}}>
+        Sin estaciones registradas.
+      </p>
+    </div>
+
+    <!-- ═══ PLACAS ═══ -->
+    <div class="dash-catalog-card">
+      <div class="dash-catalog-header">
+        <h3><i data-lucide="truck"></i> Placas</h3>
+      </div>
+
+      <form class="dash-catalog-form" onsubmit="return EstPlacas.agregar(event, 'placas')">
+        <input type="text" class="form-control" id="epNuevaPlaca"
+               placeholder="Número de placa" maxlength="20" required
+               oninput="this.value = this.value.toUpperCase()" />
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i data-lucide="plus"></i><span class="btn-label"> Agregar</span>
+        </button>
+      </form>
+
+      <div class="dash-catalog-list-label">Placas</div>
+      <ul class="dash-catalog-list" id="epListaPlacas">
+        {{#each placas}}
+        <li class="dash-catalog-item" data-id="{{id}}" data-tipo="placas">
+          <span class="dash-catalog-item-name">{{numero}}</span>
+          <span class="dash-catalog-item-actions">
+            <button type="button" class="btn-icon btn-icon-edit" title="Editar" onclick="EstPlacas.editar(this)">
+              <i data-lucide="pencil"></i>
+            </button>
+            <button type="button" class="btn-icon btn-icon-delete" title="Eliminar" onclick="EstPlacas.eliminar(this)">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </span>
+        </li>
+        {{/each}}
+      </ul>
+      <p class="dash-catalog-empty" id="epVacioPlacas" {{#if placas.length}}style="display:none"{{/if}}>
+        Sin placas registradas.
+      </p>
+    </div>
+
   </div>
+  {{/if}}
 
 </div>
 
@@ -64,4 +126,122 @@
   }
   actualizarReloj();
   setInterval(actualizarReloj, 1000);
+
+  // ═══════════════════════════════════════════
+  // Panel Estaciones / Placas (Dashboard)
+  // Registrar, editar y eliminar vía AJAX, sin
+  // recargar la página.
+  // ═══════════════════════════════════════════
+  var EstPlacas = (function () {
+    var URL_BASE = '/estaciones-placas/';
+    var CAMPO    = { estaciones: 'nombre', placas: 'numero' };
+    var LISTA_ID = { estaciones: 'epListaEstaciones', placas: 'epListaPlacas' };
+    var VACIO_ID = { estaciones: 'epVacioEstaciones', placas: 'epVacioPlacas' };
+    var INPUT_ID = { estaciones: 'epNuevaEstacion', placas: 'epNuevaPlaca' };
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function agregar(ev, tipo) {
+      ev.preventDefault();
+      var input = document.getElementById(INPUT_ID[tipo]);
+      var valor = input.value.trim();
+      if (!valor) return false;
+      if (tipo === 'placas') valor = valor.toUpperCase();
+
+      var body = {};
+      body[CAMPO[tipo]] = valor;
+
+      fetch(URL_BASE + tipo, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          if (!res.ok || res.data.error) { alert(res.data.error || 'No se pudo guardar.'); return; }
+          agregarFila(tipo, res.data.item);
+          input.value = '';
+        })
+        .catch(function () { alert('No se pudo guardar. Revisa tu conexión.'); });
+
+      return false;
+    }
+
+    function agregarFila(tipo, item) {
+      if (!item) return;
+      var lista = document.getElementById(LISTA_ID[tipo]);
+      var vacio = document.getElementById(VACIO_ID[tipo]);
+      if (vacio) vacio.style.display = 'none';
+
+      var li = document.createElement('li');
+      li.className = 'dash-catalog-item';
+      li.setAttribute('data-id', item.id);
+      li.setAttribute('data-tipo', tipo);
+      li.innerHTML =
+        '<span class="dash-catalog-item-name">' + escapeHtml(item[CAMPO[tipo]]) + '</span>' +
+        '<span class="dash-catalog-item-actions">' +
+          '<button type="button" class="btn-icon btn-icon-edit" title="Editar" onclick="EstPlacas.editar(this)"><i data-lucide="pencil"></i></button>' +
+          '<button type="button" class="btn-icon btn-icon-delete" title="Eliminar" onclick="EstPlacas.eliminar(this)"><i data-lucide="trash-2"></i></button>' +
+        '</span>';
+      lista.appendChild(li);
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function editar(btn) {
+      var li   = btn.closest('.dash-catalog-item');
+      var tipo = li.getAttribute('data-tipo');
+      var id   = li.getAttribute('data-id');
+      var span = li.querySelector('.dash-catalog-item-name');
+      var actual = span.textContent;
+
+      var nuevo = prompt(tipo === 'estaciones' ? 'Editar estación:' : 'Editar placa:', actual);
+      if (nuevo === null) return;
+      nuevo = nuevo.trim();
+      if (tipo === 'placas') nuevo = nuevo.toUpperCase();
+      if (!nuevo || nuevo === actual) return;
+
+      var body = {};
+      body[CAMPO[tipo]] = nuevo;
+
+      fetch(URL_BASE + tipo + '/' + id + '/editar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          if (!res.ok || res.data.error) { alert(res.data.error || 'No se pudo actualizar.'); return; }
+          span.textContent = nuevo;
+        })
+        .catch(function () { alert('No se pudo actualizar. Revisa tu conexión.'); });
+    }
+
+    function eliminar(btn) {
+      var li     = btn.closest('.dash-catalog-item');
+      var tipo   = li.getAttribute('data-tipo');
+      var id     = li.getAttribute('data-id');
+      var nombre = li.querySelector('.dash-catalog-item-name').textContent;
+
+      if (!confirm('¿Eliminar "' + nombre + '"?\nEsta acción no se puede deshacer.')) return;
+
+      fetch(URL_BASE + tipo + '/' + id + '/eliminar', { method: 'POST' })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          if (!res.ok || res.data.error) { alert(res.data.error || 'No se pudo eliminar.'); return; }
+          var lista = li.parentElement;
+          li.remove();
+          if (!lista.querySelector('.dash-catalog-item')) {
+            var vacio = document.getElementById(VACIO_ID[tipo]);
+            if (vacio) vacio.style.display = '';
+          }
+        })
+        .catch(function () { alert('No se pudo eliminar. Revisa tu conexión.'); });
+    }
+
+    return { agregar: agregar, editar: editar, eliminar: eliminar };
+  })();
 </script>

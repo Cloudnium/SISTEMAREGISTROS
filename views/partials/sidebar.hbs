@@ -42,13 +42,13 @@
       <i data-lucide="fuel"></i><span>Combustible</span>
     </a>
 
-    {{#if (or isAdmin isDesarrollador secciones.boletaje)}}
+    {{#if (or isDesarrollador secciones.boletaje)}}
     <a href="/boletaje" class="sidebar-nav-item {{#if (eq currentPath '/boletaje')}}active{{/if}}" title="Boletaje">
       <i data-lucide="ticket"></i><span>Boletaje</span>
     </a>
     {{/if}}
 
-    {{#if (or isAdmin isDesarrollador secciones.[consulta-documentos])}}
+    {{#if (or isDesarrollador secciones.[consulta-documentos])}}
     <a href="/consulta-documentos" class="sidebar-nav-item {{#if (eq currentPath '/consulta-documentos')}}active{{/if}}" title="Consulta de Documentos">
       <i data-lucide="file-search"></i><span>Consulta de Documentos</span>
     </a>
@@ -62,68 +62,76 @@
       <i data-lucide="package"></i><span>Inventario</span>
     </a>
 
-    {{#if (or isAdmin puedeVerPlanilla)}}
+    {{#if isDesarrollador}}
+    <a href="/planilla" class="sidebar-nav-item {{#if (eq currentPath '/planilla')}}active{{/if}}" title="Planilla">
+      <i data-lucide="wallet"></i><span>Planilla</span>
+    </a>
+    {{else}}
+    {{#if puedeVerPlanilla}}
+    {{#if secciones.planilla}}
     <a href="/planilla" class="sidebar-nav-item {{#if (eq currentPath '/planilla')}}active{{/if}}" title="Planilla">
       <i data-lucide="wallet"></i><span>Planilla</span>
     </a>
     {{/if}}
+    {{/if}}
+    {{/if}}
 
-    {{#if (or isAdmin isDesarrollador secciones.servicios)}}
+    {{#if (or isDesarrollador secciones.servicios)}}
     <a href="/servicios" class="sidebar-nav-item {{#if (eq currentPath '/servicios')}}active{{/if}}" title="Servicios">
       <i data-lucide="layout-grid"></i><span>Servicios</span>
     </a>
     {{/if}}
 
-    {{#if (or isAdmin isDesarrollador secciones.buses)}}
+    {{#if (or isDesarrollador secciones.buses)}}
     <a href="/buses" class="sidebar-nav-item {{#if (eq currentPath '/buses')}}active{{/if}}" title="Buses">
       <i data-lucide="bus"></i><span>Buses</span>
     </a>
     {{/if}}
 
-    {{#if (or isAdmin isDesarrollador secciones.ciudades)}}
+    {{#if (or isDesarrollador secciones.ciudades)}}
     <a href="/ciudades" class="sidebar-nav-item {{#if (eq currentPath '/ciudades')}}active{{/if}}" title="Ciudades / Agencias">
       <i data-lucide="map-pin"></i><span>Ciudades / Agencias</span>
     </a>
     {{/if}}
 
-    {{#if (or isAdmin isDesarrollador secciones.destinos)}}
+    {{#if (or isDesarrollador secciones.destinos)}}
     <a href="/destinos" class="sidebar-nav-item {{#if (eq currentPath '/destinos')}}active{{/if}}" title="Destinos">
       <i data-lucide="route"></i><span>Destinos</span>
     </a>
     {{/if}}
 
     <div class="sidebar-section-label">Administración</div>
-    {{#if (or isAdmin isDesarrollador secciones.comprobantes)}}
+    {{#if (or isDesarrollador secciones.comprobantes)}}
     <a href="/comprobantes" class="sidebar-nav-item {{#if (eq currentPath '/comprobantes')}}active{{/if}}" title="Comprobantes">
       <i data-lucide="receipt"></i><span>Comprobantes</span>
     </a>
     {{/if}}
     {{#if puedeCrearCodigos}}
-    {{#if (or isAdmin isDesarrollador secciones.codigos)}}
+    {{#if (or isDesarrollador secciones.codigos)}}
     <a href="/codigos" class="sidebar-nav-item {{#if (eq currentPath '/codigos')}}active{{/if}}" title="Códigos de Autorización">
       <i data-lucide="key-round"></i><span>Códigos de Autorización</span>
     </a>
     {{/if}}
     {{/if}}
     {{#if (or isAdmin user.puede_programar)}}
-    {{#if (or isAdmin isDesarrollador secciones.programacion)}}
+    {{#if (or isDesarrollador secciones.programacion)}}
     <a href="/programacion" class="sidebar-nav-item {{#if (eq currentPath '/programacion')}}active{{/if}}" title="Programación">
       <i data-lucide="calendar-clock"></i><span>Programación</span>
     </a>
     {{/if}}
     {{/if}}
     {{#if isAdmin}}
-    {{#if (or isAdmin isDesarrollador secciones.usuarios)}}
+    {{#if (or isDesarrollador secciones.usuarios)}}
     <a href="/usuarios" class="sidebar-nav-item {{#if (eq currentPath '/usuarios')}}active{{/if}}" title="Usuarios">
       <i data-lucide="shield-check"></i><span>Usuarios</span>
     </a>
     {{/if}}
-    {{#if (or isAdmin isDesarrollador secciones.empresas)}}
+    {{#if (or isDesarrollador secciones.empresas)}}
     <a href="/empresas" class="sidebar-nav-item {{#if (eq currentPath '/empresas')}}active{{/if}}" title="Empresas">
       <i data-lucide="building-2"></i><span>Empresas</span>
     </a>
     {{/if}}
-    {{#if (or isAdmin isDesarrollador secciones.[mapa-asientos])}}
+    {{#if (or isDesarrollador secciones.[mapa-asientos])}}
     <a href="/mapa-asientos" class="sidebar-nav-item {{#if (eq currentPath '/mapa-asientos')}}active{{/if}}" title="Mapa de Asientos">
       <i data-lucide="layout-dashboard"></i><span>Mapa de Asientos</span>
     </a>

@@ -161,6 +161,13 @@ app.use(async (req, res, next) => {
     (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') ||
     req.session.user.puede_ver_planilla === true || req.session.user.puede_editar_planilla === true
   ));
+  // Panel de Estaciones / Placas del Dashboard: admin/desarrollador
+  // siempre lo ven; el resto de roles solo si tienen el permiso
+  // explícito activado desde Usuarios.
+  res.locals.puedeGestionarEstacionesPlacas = !!(req.session.user && (
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') ||
+    req.session.user.puede_gestionar_estaciones_placas === true
+  ));
   // Secciones ocultadas por el Desarrollador (Combustible, Personal e
   // Inventario nunca se incluyen aquí — siempre quedan visibles)
   res.locals.secciones = await obtenerSecciones();
@@ -190,6 +197,7 @@ const consultaDocumentosRoutes = require('./routes/consulta-documentos');
 const chatRoutes = require('./routes/chat');
 const configuracionRoutes = require('./routes/configuracion');
 const planillaRoutes      = require('./routes/planilla');
+const estacionesPlacasRoutes = require('./routes/estaciones-placas');
 const { requireSeccionVisible } = require('./middleware/auth');
 
 app.use('/', authRoutes);
@@ -210,6 +218,7 @@ app.use('/codigos',        requireSeccionVisible('codigos'), codigosRoutes);
 app.use('/empresas',       requireSeccionVisible('empresas'), empresasRoutes);
 app.use('/consulta-documentos', requireSeccionVisible('consulta-documentos'), consultaDocumentosRoutes);
 app.use('/planilla',       requireSeccionVisible('planilla'), planillaRoutes);
+app.use('/estaciones-placas', estacionesPlacasRoutes);
 app.use('/configuracion',  configuracionRoutes);
 app.use('/chat', chatRoutes);
 
