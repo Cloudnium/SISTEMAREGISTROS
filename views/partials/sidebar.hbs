@@ -38,9 +38,13 @@
 
     <div class="sidebar-section-label">Módulos</div>
 
+    {{#if puedeVerCombustible}}
+    {{#if (or isDesarrollador secciones.combustible)}}
     <a href="/combustible" class="sidebar-nav-item {{#if (eq currentPath '/combustible')}}active{{/if}}" title="Combustible">
       <i data-lucide="fuel"></i><span>Combustible</span>
     </a>
+    {{/if}}
+    {{/if}}
 
     {{#if (or isDesarrollador secciones.boletaje)}}
     <a href="/boletaje" class="sidebar-nav-item {{#if (eq currentPath '/boletaje')}}active{{/if}}" title="Boletaje">
@@ -54,13 +58,21 @@
     </a>
     {{/if}}
 
+    {{#if puedeVerPersonal}}
+    {{#if (or isDesarrollador secciones.personal)}}
     <a href="/personal" class="sidebar-nav-item {{#if (eq currentPath '/personal')}}active{{/if}}" title="Personal">
       <i data-lucide="users"></i><span>Personal</span>
     </a>
+    {{/if}}
+    {{/if}}
 
+    {{#if puedeVerInventario}}
+    {{#if (or isDesarrollador secciones.inventario)}}
     <a href="/inventario" class="sidebar-nav-item {{#if (eq currentPath '/inventario')}}active{{/if}}" title="Inventario">
       <i data-lucide="package"></i><span>Inventario</span>
     </a>
+    {{/if}}
+    {{/if}}
 
     {{#if isDesarrollador}}
     <a href="/planilla" class="sidebar-nav-item {{#if (eq currentPath '/planilla')}}active{{/if}}" title="Planilla">

@@ -154,6 +154,18 @@ app.use(async (req, res, next) => {
   res.locals.puedeGestionarInventario = !!(req.session.user && (
     (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_gestionar_inventario === true
   ));
+  // Combustible / Personal / Inventario ya no son visibles para todos:
+  // admin/desarrollador siempre pueden (si la sección está visible);
+  // el resto necesita el permiso puntual correspondiente.
+  res.locals.puedeVerCombustible = !!(req.session.user && (
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_ver_combustible === true
+  ));
+  res.locals.puedeVerPersonal = !!(req.session.user && (
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_ver_personal === true
+  ));
+  res.locals.puedeVerInventario = !!(req.session.user && (
+    (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_ver_inventario === true
+  ));
   res.locals.puedeEditarPlanilla = !!(req.session.user && (
     (req.session.user.rol === 'admin' || req.session.user.rol === 'desarrollador') || req.session.user.puede_editar_planilla === true
   ));
@@ -169,7 +181,8 @@ app.use(async (req, res, next) => {
     req.session.user.puede_gestionar_estaciones_placas === true
   ));
   // Secciones ocultadas por el Desarrollador (Combustible, Personal e
-  // Inventario nunca se incluyen aquí — siempre quedan visibles)
+  // Inventario ahora también forman parte de este sistema: se pueden
+  // ocultar igual que las demás, ver SECCIONES en routes/configuracion.js)
   res.locals.secciones = await obtenerSecciones();
   next();
 });
@@ -198,15 +211,15 @@ const chatRoutes = require('./routes/chat');
 const configuracionRoutes = require('./routes/configuracion');
 const planillaRoutes      = require('./routes/planilla');
 const estacionesPlacasRoutes = require('./routes/estaciones-placas');
-const { requireSeccionVisible } = require('./middleware/auth');
+const { requireSeccionVisible, requireSeccionYPermiso } = require('./middleware/auth');
 
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/usuarios', requireSeccionVisible('usuarios'), usuariosRoutes);
-app.use('/combustible', combustibleRoutes);
-app.use('/personal',     personalRoutes);
+app.use('/combustible', requireSeccionYPermiso('combustible', 'puede_ver_combustible'), combustibleRoutes);
+app.use('/personal',     requireSeccionYPermiso('personal', 'puede_ver_personal'), personalRoutes);
 app.use('/boletaje',     requireSeccionVisible('boletaje'), boletajeRoutes);
-app.use('/inventario', inventarioRoutes);
+app.use('/inventario', requireSeccionYPermiso('inventario', 'puede_ver_inventario'), inventarioRoutes);
 app.use('/servicios',  requireSeccionVisible('servicios'), serviciosRoutes);
 app.use('/buses',      requireSeccionVisible('buses'), busesRoutes);
 app.use('/ciudades',      requireSeccionVisible('ciudades'), ciudadesRoutes);

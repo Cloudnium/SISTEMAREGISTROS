@@ -150,7 +150,10 @@ router.post('/login', redirectIfAuth, async (req, res) => {
       puede_gestionar_inventario: usuario.puede_gestionar_inventario === true,
       puede_ver_planilla: usuario.puede_ver_planilla === true,
       puede_editar_planilla: usuario.puede_editar_planilla === true,
-      puede_gestionar_estaciones_placas: usuario.puede_gestionar_estaciones_placas === true
+      puede_gestionar_estaciones_placas: usuario.puede_gestionar_estaciones_placas === true,
+      puede_ver_combustible: usuario.puede_ver_combustible === true,
+      puede_ver_personal: usuario.puede_ver_personal === true,
+      puede_ver_inventario: usuario.puede_ver_inventario === true
     };
 
     // Actualiza último acceso

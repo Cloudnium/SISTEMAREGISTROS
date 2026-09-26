@@ -93,6 +93,21 @@
         <span>Puede usar Reintegro</span>
       </label>
       <label class="form-check-label">
+        <input type="checkbox" name="puede_ver_combustible" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_ver_combustible}}checked{{/if}}{{/if}} />
+        <span>Puede ver Combustible</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_ver_personal" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_ver_personal}}checked{{/if}}{{/if}} />
+        <span>Puede ver Personal</span>
+      </label>
+      <label class="form-check-label">
+        <input type="checkbox" name="puede_ver_inventario" class="form-check"
+               {{#if usuario}}{{#if usuario.puede_ver_inventario}}checked{{/if}}{{/if}} />
+        <span>Puede ver Inventario</span>
+      </label>
+      <label class="form-check-label">
         <input type="checkbox" name="puede_gestionar_inventario" class="form-check"
                {{#if usuario}}{{#if usuario.puede_gestionar_inventario}}checked{{/if}}{{/if}} />
         <span>Puede gestionar Inventario (crear/editar catálogo y precios)</span>

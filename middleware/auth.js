@@ -69,6 +69,28 @@ function requireSeccionVisible(clave) {
   };
 }
 
+// Igual que requireSeccionVisible, pero además exige un permiso de
+// usuario explícito para roles distintos de admin/desarrollador.
+// Usado por Combustible, Personal e Inventario: ya no están siempre
+// visibles para todos — el Desarrollador puede ocultarlas (afecta
+// también a admin) y, si están visibles, cada usuario normal necesita
+// el permiso puntual (puede_ver_combustible, etc.) para entrar.
+function requireSeccionYPermiso(clave, campoPermiso) {
+  return async (req, res, next) => {
+    const user = req.session && req.session.user;
+    const rol  = user && user.rol;
+    if (rol === 'desarrollador') return next();
+    if (res.locals.secciones && res.locals.secciones[clave] === false) {
+      req.flash('error', 'Esta sección no está disponible en este momento.');
+      return res.redirect('/dashboard');
+    }
+    if (rol === 'admin') return next();
+    if (user && user[campoPermiso] === true) return next();
+    req.flash('error', 'No tienes permisos para acceder a esta sección.');
+    res.redirect('/dashboard');
+  };
+}
+
 // Permite gestionar (ver/crear/editar/eliminar) el panel de
 // Estaciones / Placas del Dashboard: admin y desarrollador siempre
 // pueden; el resto de roles solo si tienen el permiso explícito
@@ -106,6 +128,7 @@ module.exports = {
   requireAdminToDelete,
   requireDesarrollador,
   requireSeccionVisible,
+  requireSeccionYPermiso,
   requireEstacionesPlacas,
   redirectIfAuth,
   exposeUserRole

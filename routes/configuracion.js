@@ -11,6 +11,9 @@ const { requireAuth, requireDesarrollador } = require('../middleware/auth');
 // Etiquetas legibles para cada sección (deben existir también como
 // filas en configuracion_secciones — ver PLANILLA_INVENTARIO_DESARROLLADOR_MIGRATION.sql)
 const SECCIONES = [
+  { clave: 'combustible', nombre: 'Combustible', icono: 'fuel' },
+  { clave: 'personal', nombre: 'Personal', icono: 'users' },
+  { clave: 'inventario', nombre: 'Inventario', icono: 'package' },
   { clave: 'boletaje', nombre: 'Boletaje', icono: 'ticket' },
   { clave: 'consulta-documentos', nombre: 'Consulta de Documentos', icono: 'file-search' },
   { clave: 'servicios', nombre: 'Servicios', icono: 'layout-grid' },
@@ -37,7 +40,7 @@ router.get('/', requireAuth, requireDesarrollador, async (req, res) => {
   res.render('configuracion/index', {
     layout: 'main', title: 'Configuración',
     pageTitle: 'Configuración del Sistema',
-    pageSubtitle: 'Oculta secciones temporalmente mientras trabajas en ellas — Combustible, Personal e Inventario siempre quedan visibles',
+    pageSubtitle: 'Oculta secciones temporalmente mientras trabajas en ellas — solo el rol Desarrollador puede seguir entrando a una sección apagada',
     secciones,
     empresa: (empresaRows && empresaRows[0]) || { nombre: '', ruc: '' }
   });
