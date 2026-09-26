@@ -52,6 +52,16 @@ function requireDesarrollador(req, res, next) {
   res.redirect('/dashboard');
 }
 
+// Página "Roles" (permisos por defecto de cada rol): a diferencia de
+// requireDesarrollador, aquí NI SIQUIERA admin puede entrar — es
+// exclusiva del rol "desarrollador", tal como se pidió.
+function requireSoloDesarrollador(req, res, next) {
+  const rol = req.session && req.session.user && req.session.user.rol;
+  if (rol === 'desarrollador') return next();
+  req.flash('error', 'Solo el rol Desarrollador puede acceder a esta sección.');
+  res.redirect('/dashboard');
+}
+
 // Bloquea el acceso directo por URL a una sección que el Desarrollador
 // ocultó (el sidebar ya la oculta, pero esto evita que alguien entre
 // escribiendo la URL). SOLO el rol "desarrollador" ignora esta
@@ -127,6 +137,7 @@ module.exports = {
   requireAdminToCreate,
   requireAdminToDelete,
   requireDesarrollador,
+  requireSoloDesarrollador,
   requireSeccionVisible,
   requireSeccionYPermiso,
   requireEstacionesPlacas,

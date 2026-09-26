@@ -1,0 +1,35 @@
+<!-- PARTIAL: partials/permisos-grid.hbs
+     Uso (fuera de este comentario, con dobles llaves): partial "permisos-grid"
+     con los parámetros grupos, origen e idPrefix.
+     - grupos: arreglo GRUPOS_PERMISOS (config/permisos.js)
+     - origen: objeto del que se lee el valor actual de cada permiso (usuario o valores de un rol). Puede omitirse (ninguno marcado).
+     - idPrefix: prefijo opcional para que los ids de los checkboxes no se choquen si se repite el partial varias veces en una página (ej. Roles, un formulario por rol).
+-->
+<div class="perm-grid">
+  {{#each grupos}}
+  <div class="perm-grupo">
+    <div class="perm-grupo-title">{{nombre}}</div>
+    <div class="perm-grupo-items">
+      {{#each permisos}}
+      <label class="form-check-label perm-check" for="{{../../idPrefix}}{{clave}}">
+        <input type="checkbox" id="{{../../idPrefix}}{{clave}}" name="{{clave}}" class="form-check perm-input"
+               data-permiso="{{clave}}"
+               {{#if (lookup ../../origen clave)}}checked{{/if}} />
+        <span>{{label}}</span>
+      </label>
+      {{/each}}
+    </div>
+  </div>
+  {{/each}}
+</div>
+
+<style>
+.perm-grid { display: flex; flex-direction: column; gap: var(--space-4); }
+.perm-grupo { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
+.perm-grupo-title {
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--color-accent); margin-bottom: var(--space-2);
+}
+.perm-grupo-items { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+.perm-check { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); }
+</style>

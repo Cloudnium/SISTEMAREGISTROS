@@ -28,6 +28,10 @@ const SECCIONES = [
   { clave: 'mapa-asientos', nombre: 'Mapa de Asientos', icono: 'layout-dashboard' },
   { clave: 'planilla', nombre: 'Planilla', icono: 'wallet' }
 ];
+// Lista de claves reutilizada por app.js para que una sección que
+// todavía no tiene fila en configuracion_secciones se trate como
+// "visible" por defecto, en vez de desaparecer del menú.
+const CLAVES_SECCIONES = SECCIONES.map(s => s.clave);
 
 router.get('/', requireAuth, requireDesarrollador, async (req, res) => {
   const [{ data: filas }, { data: empresaRows }] = await Promise.all([
@@ -66,11 +70,18 @@ router.post('/:clave/toggle', requireAuth, requireDesarrollador, async (req, res
   }
   const { data: existente } = await db.select('configuracion_secciones', `select=visible&clave=eq.${clave}&limit=1`);
   const actual = existente && existente[0] ? existente[0].visible : true;
-  const { error } = await db.update('configuracion_secciones', `clave=eq.${clave}`, {
-    visible: !actual, actualizado_por: req.session.user.id, actualizado_en: new Date().toISOString()
-  });
+  // upsert (no update): si la fila todavía no existía para esta clave
+  // (ej. secciones nuevas como combustible/personal/inventario en
+  // instalaciones que no corrieron la migración a tiempo), un UPDATE
+  // simple no afecta ninguna fila y el cambio se "pierde" al recargar.
+  // Con upsert queda creada/actualizada siempre.
+  const { error } = await db.upsert('configuracion_secciones', {
+    clave, visible: !actual, actualizado_por: req.session.user.id, actualizado_en: new Date().toISOString()
+  }, 'clave');
   if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true, visible: !actual });
 });
 
 module.exports = router;
+module.exports.SECCIONES = SECCIONES;
+module.exports.CLAVES_SECCIONES = CLAVES_SECCIONES;

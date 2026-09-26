@@ -1,0 +1,35 @@
+<!-- VIEW: roles/index.hbs — Permisos por defecto de cada rol (solo Desarrollador) -->
+
+<div class="card" style="padding:22px 24px">
+  <div class="cfg-aviso">
+    <i data-lucide="info"></i>
+    <span>Estos valores son solo una <strong>plantilla</strong>: se copian a los permisos de un usuario
+    únicamente cuando le asignas ese rol en Usuarios. Cambiarlos aquí <strong>no modifica</strong> a los
+    usuarios que ya existen — cada uno conserva sus propios permisos hasta que alguien los edite a mano.
+    Los roles <strong>admin</strong> y <strong>desarrollador</strong> no aparecen aquí porque siempre
+    tienen acceso completo, sin importar estos permisos.</span>
+  </div>
+
+  {{#each roles}}
+  <div class="roles-card">
+    <div class="roles-card-header">
+      <h3><i data-lucide="{{#if (eq rol 'operador')}}user-cog{{else}}eye{{/if}}"></i> {{nombre}}</h3>
+    </div>
+    <form method="POST" action="/roles/{{rol}}/guardar">
+      {{> permisos-grid grupos=../grupos origen=valores idPrefix=(concat rol "_")}}
+      <div class="roles-card-actions">
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="save"></i> Guardar valores por defecto de {{nombre}}
+        </button>
+      </div>
+    </form>
+  </div>
+  {{/each}}
+</div>
+
+<style>
+.roles-card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-5); margin-top: var(--space-5); }
+.roles-card-header h3 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-4); font-size: var(--text-base); }
+.roles-card-header h3 svg { width: 18px; height: 18px; color: var(--color-accent); }
+.roles-card-actions { margin-top: var(--space-4); }
+</style>

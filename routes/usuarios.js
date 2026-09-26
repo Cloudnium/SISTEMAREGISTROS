@@ -6,6 +6,7 @@ const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const { db }   = require('../config/supabase');
 const { requireAuth, requireAdmin, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
+const { GRUPOS_PERMISOS } = require('../config/permisos');
 
 router.use(requireAuth, requireAdmin);
 
@@ -27,7 +28,7 @@ router.get('/nuevo', async (req, res) => {
   res.render('usuarios/form', {
     layout: 'main', title: 'Nuevo Usuario',
     pageTitle: 'Nuevo Usuario', pageSubtitle: 'Crea un nuevo acceso',
-    accion: 'crear', agencias: agencias || []
+    accion: 'crear', agencias: agencias || [], grupos: GRUPOS_PERMISOS
   });
 });
 
@@ -108,7 +109,7 @@ router.get('/:id/editar', requireAdminToEdit, async (req, res) => {
   res.render('usuarios/form', {
     layout: 'main', title: 'Editar Usuario',
     pageTitle: 'Editar Usuario', pageSubtitle: 'Modifica los datos',
-    accion: 'editar', usuario: data[0], agencias: agencias || []
+    accion: 'editar', usuario: data[0], agencias: agencias || [], grupos: GRUPOS_PERMISOS
   });
 });
 

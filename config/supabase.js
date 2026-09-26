@@ -20,7 +20,7 @@ try {
 }
 
 // ─── Helper REST nativo (bypasa restricciones de host) ───
-function rest(method, table, query, body) {
+function rest(method, table, query, body, preferHeader) {
   return new Promise((resolve, reject) => {
     const key     = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
     const baseUrl = process.env.SUPABASE_URL + '/rest/v1/' + table;
@@ -38,7 +38,7 @@ function rest(method, table, query, body) {
         'Authorization': 'Bearer ' + key,
         'Content-Type':  'application/json',
         'Accept':        'application/json',
-        'Prefer':        method === 'POST' ? 'return=representation' : 'return=minimal'
+        'Prefer':        preferHeader || (method === 'POST' ? 'return=representation' : 'return=minimal')
       }
     };
     if (bodyStr) opts.headers['Content-Length'] = Buffer.byteLength(bodyStr);
@@ -72,6 +72,14 @@ const db = {
   update: (table, query, body) => rest('PATCH', table, query, body),
   // DELETE
   delete: (table, query) => rest('DELETE', table, query),
+  // UPSERT — inserta o actualiza según una columna con constraint UNIQUE
+  // (ej. "clave"). Evita el bug de "toggle no persiste" cuando la fila
+  // todavía no existe: ej. db.upsert('configuracion_secciones', { clave: 'personal', visible: false }, 'clave')
+  upsert: (table, body, conflictCols) => rest(
+    'POST', table, conflictCols ? `on_conflict=${conflictCols}` : null,
+    Array.isArray(body) ? body : [body],
+    'resolution=merge-duplicates,return=representation'
+  ),
   // RPC — llama a una función de Postgres. ej: db.rpc('siguiente_correlativo', { p_agencia_id: id })
   rpc: (fn, params) => rest('POST', 'rpc/' + fn, null, params || {}),
 };

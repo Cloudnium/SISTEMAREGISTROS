@@ -124,12 +124,18 @@ app.use(flash());
 // para no consultar la BD en cada request, pero que los cambios se
 // reflejen casi al instante.
 const { db: dbLocals } = require('./config/supabase');
+const { CLAVES_SECCIONES } = require('./routes/configuracion');
 let seccionesCache = { data: {}, expira: 0 };
 async function obtenerSecciones() {
   if (Date.now() < seccionesCache.expira) return seccionesCache.data;
   const { data } = await dbLocals.select('configuracion_secciones', 'select=clave,visible');
+  // Todas las claves conocidas arrancan en "visible" por defecto; solo
+  // se marcan en false si existe una fila explícita en la BD que lo diga.
+  // Así una sección nunca "desaparece" del menú de admin solo porque
+  // todavía no tiene fila creada (ver bug de visibilidad/toggle).
   const mapa = {};
-  (data || []).forEach(s => { mapa[s.clave] = s.visible; });
+  CLAVES_SECCIONES.forEach(clave => { mapa[clave] = true; });
+  (data || []).forEach(s => { mapa[s.clave] = s.visible !== false; });
   seccionesCache = { data: mapa, expira: Date.now() + 5000 };
   return mapa;
 }
@@ -193,6 +199,7 @@ app.use(async (req, res, next) => {
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const usuariosRoutes = require('./routes/usuarios');
+const rolesRoutes    = require('./routes/roles');
 const combustibleRoutes = require('./routes/combustible');
 const personalRoutes     = require('./routes/personal');
 const boletajeRoutes     = require('./routes/boletaje');
@@ -216,6 +223,10 @@ const { requireSeccionVisible, requireSeccionYPermiso } = require('./middleware/
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/usuarios', requireSeccionVisible('usuarios'), usuariosRoutes);
+// "Roles" no pasa por requireSeccionVisible: es exclusiva de
+// desarrollador siempre, sin importar el sistema de visibilidad de
+// secciones (su propia ruta ya se protege con requireSoloDesarrollador).
+app.use('/roles', rolesRoutes);
 app.use('/combustible', requireSeccionYPermiso('combustible', 'puede_ver_combustible'), combustibleRoutes);
 app.use('/personal',     requireSeccionYPermiso('personal', 'puede_ver_personal'), personalRoutes);
 app.use('/boletaje',     requireSeccionVisible('boletaje'), boletajeRoutes);
