@@ -108,6 +108,32 @@ body { display: flex; overflow-x: hidden; }
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
+/* ── Grupos colapsables (Boletaje / General / Administración / Desarrollador) ── */
+.sidebar-group { margin-top: var(--space-2); }
+.sidebar-group-header {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-2); padding: var(--space-3) var(--space-3);
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  font-size: 0.67rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); border-radius: var(--radius-md);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+.sidebar-group-header:hover { color: var(--color-accent); background: var(--color-accent-light); }
+.sidebar-group-header-label { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.sidebar-group-header-label svg { width: 15px; height: 15px; flex-shrink: 0; stroke-width: 2.2; }
+.sidebar-group-chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform var(--transition-fast); }
+.sidebar-group-header[aria-expanded="false"] .sidebar-group-chevron { transform: rotate(-90deg); }
+.sidebar-group-items { display: flex; flex-direction: column; gap: 2px; }
+.sidebar-group-items.sidebar-group-collapsed { display: none; }
+
+/* Sidebar contraído a solo íconos: los grupos no se pueden desplegar/
+   colapsar (no hay texto que mostrar), así que se fuerzan siempre
+   visibles y el encabezado del grupo se oculta como cualquier otra
+   etiqueta de sección. */
+body.sidebar-collapsed .sidebar-group-header { display: none; }
+body.sidebar-collapsed .sidebar-group-items.sidebar-group-collapsed { display: flex; }
+body.sidebar-collapsed .sidebar-group { margin-top: 0; }
+
 /* ── Modo nocturno ── */
 .sidebar-theme {
   padding: var(--space-2) var(--space-3) var(--space-3);

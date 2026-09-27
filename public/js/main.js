@@ -40,6 +40,39 @@ function toggleSidebarCollapse() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+// ─── Grupos colapsables del sidebar (Boletaje / General / etc.) ───
+// Un clic alterna abierto/cerrado y recuerda la preferencia en
+// localStorage por nombre de grupo. El grupo que contiene la página
+// activa siempre arranca abierto (para no "perder" la página en la
+// que estás), sin importar lo que diga localStorage.
+function toggleSidebarGroup(key) {
+  const items  = document.getElementById('sidebarGroup-' + key);
+  const header = document.querySelector('[data-group-toggle="' + key + '"]');
+  if (!items || !header) return;
+  const abrirAhora = items.classList.contains('sidebar-group-collapsed');
+  items.classList.toggle('sidebar-group-collapsed', !abrirAhora);
+  header.setAttribute('aria-expanded', abrirAhora ? 'true' : 'false');
+  try { localStorage.setItem('sidebarGroup:' + key, abrirAhora ? 'open' : 'closed'); } catch (e) {}
+}
+
+function inicializarGruposSidebar() {
+  document.querySelectorAll('.sidebar-group').forEach(function (grupo) {
+    const key    = grupo.getAttribute('data-group');
+    const items  = document.getElementById('sidebarGroup-' + key);
+    const header = grupo.querySelector('.sidebar-group-header');
+    if (!key || !items || !header) return;
+
+    const tieneItemActivo = !!items.querySelector('.sidebar-nav-item.active');
+    let guardado = null;
+    try { guardado = localStorage.getItem('sidebarGroup:' + key); } catch (e) {}
+
+    const abrir = tieneItemActivo || guardado !== 'closed';
+    items.classList.toggle('sidebar-group-collapsed', !abrir);
+    header.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    header.addEventListener('click', function () { toggleSidebarGroup(key); });
+  });
+}
+
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
@@ -92,6 +125,11 @@ document.addEventListener('DOMContentLoaded', function () {
       if (window.innerWidth < 1024) closeSidebar();
     });
   });
+
+  // Abre/cierra los grupos colapsables del sidebar (Boletaje, General,
+  // Administración, Desarrollador) y deja abierto el que contiene la
+  // página actual.
+  inicializarGruposSidebar();
 
   // Cierra sidebar si se redimensiona a desktop
   window.addEventListener('resize', function () {

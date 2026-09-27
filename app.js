@@ -190,6 +190,33 @@ app.use(async (req, res, next) => {
   // Inventario ahora también forman parte de este sistema: se pueden
   // ocultar igual que las demás, ver SECCIONES en routes/configuracion.js)
   res.locals.secciones = await obtenerSecciones();
+
+  // Visibilidad de los GRUPOS colapsables del sidebar: un grupo solo
+  // se muestra si al menos uno de sus ítems sería visible para este
+  // usuario (misma condición que ese ítem tiene individualmente más
+  // abajo en el sidebar). Desarrollador siempre ve todo.
+  {
+    const s = res.locals.secciones;
+    const puedeProgramar = !!(req.session.user && req.session.user.puede_programar);
+
+    res.locals.mostrarGrupoBoletaje = !!(res.locals.isDesarrollador ||
+      s.boletaje || s['consulta-documentos'] || s.servicios || s.buses || s.ciudades || s.destinos);
+
+    res.locals.mostrarGrupoGeneral = !!(res.locals.isDesarrollador ||
+      (res.locals.puedeVerCombustible && s.combustible) ||
+      (res.locals.puedeVerPersonal && s.personal) ||
+      (res.locals.puedeVerInventario && s.inventario) ||
+      (res.locals.puedeVerPlanilla && s.planilla));
+
+    res.locals.mostrarGrupoAdministracion = !!(res.locals.isDesarrollador ||
+      s.comprobantes ||
+      (res.locals.puedeCrearCodigos && s.codigos) ||
+      ((res.locals.isAdmin || puedeProgramar) && s.programacion) ||
+      (res.locals.isAdmin && (s.usuarios || s.empresas || s['mapa-asientos'])));
+
+    // El grupo "Desarrollador" es simplemente isDesarrollador — se usa
+    // ese mismo flag directamente en el sidebar, sin uno nuevo.
+  }
   next();
 });
 
