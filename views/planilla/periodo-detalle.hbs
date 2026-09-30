@@ -52,7 +52,7 @@
 {{#if filas.length}}
 <div class="table-wrapper">
 <table class="table">
-  <thead><tr><th>Trabajador</th><th>Cargo</th><th>Área</th><th class="text-right">Sueldo base</th><th class="text-right">Bonos</th><th class="text-right">Descuentos</th><th class="text-right">Neto</th><th></th></tr></thead>
+  <thead><tr><th>Trabajador</th><th>Cargo</th><th>Área</th><th class="text-right">Sueldo base</th><th class="text-right">Bonos</th><th class="text-right">Vacaciones</th><th class="text-right">Descuentos</th><th class="text-right">Neto</th><th></th></tr></thead>
   <tbody>
     {{#each filas}}
     <tr>
@@ -63,6 +63,7 @@
       <td>{{area}}</td>
       <td class="text-right">{{formatSoles sueldo}}</td>
       <td class="text-right">{{formatSoles bonos}}</td>
+      <td class="text-right">{{formatSoles vacaciones}}</td>
       <td class="text-right">{{formatSoles descuentos}}</td>
       <td class="text-right" style="font-weight:700">{{formatSoles neto}}</td>
       <td><a href="/planilla/periodos/{{../periodo.id}}/trabajador/{{rosterId}}" class="btn btn-ghost btn-sm">Ver</a></td>

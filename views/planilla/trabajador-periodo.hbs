@@ -20,10 +20,29 @@
     {{#if puedeEditar}}<button class="btn btn-ghost btn-sm" style="margin-top:4px;padding:2px 8px" onclick="editarSueldo()">Editar</button>{{/if}}
   </div>
   <div class="pln-stat-card"><label>Bonos</label><span>{{formatSoles totales.bonos}}</span></div>
+  <div class="pln-stat-card"><label>Vacaciones</label><span>{{formatSoles totales.vacaciones}}</span></div>
   <div class="pln-stat-card"><label>Total ingresos</label><span>{{formatSoles totales.totalIngresos}}</span></div>
   <div class="pln-stat-card"><label>Descuentos cobrados</label><span>{{formatSoles totales.descuentos}}</span></div>
   <div class="pln-stat-card"><label>Neto a pagar</label><span style="color:var(--color-accent)">{{formatSoles totales.neto}}</span></div>
 </div>
+
+{{#if remuneracionesVac.length}}
+<div class="card" style="padding:22px;margin-bottom:18px">
+  <h3 style="margin:0 0 12px">Remuneración vacacional de este periodo</h3>
+  <table class="table">
+    <thead><tr><th>Concepto</th><th>Detalle</th><th class="text-right">Importe</th></tr></thead>
+    <tbody>
+      {{#each remuneracionesVac}}
+      <tr><td>{{concepto}}</td><td>{{detalle}}</td><td class="text-right">{{formatSoles importe}}</td></tr>
+      {{/each}}
+    </tbody>
+  </table>
+  <p class="text-muted" style="margin:10px 0 0;font-size:12px">
+    Se incluye aquí porque su fecha de pago cae en este periodo. Se registra desde
+    <a href="/planilla/vacaciones">Planilla → Vacaciones</a> — no es un bono, así que no lo dupliques ahí.
+  </p>
+</div>
+{{/if}}
 
 <div class="card" style="padding:22px;margin-bottom:18px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">

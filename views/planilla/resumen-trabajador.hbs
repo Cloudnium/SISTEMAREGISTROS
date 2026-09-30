@@ -55,13 +55,14 @@
   <h3 style="margin:0 0 14px">Histórico de planillas</h3>
   {{#if historial.length}}
   <table class="table">
-    <thead><tr><th>Periodo</th><th class="text-right">Sueldo</th><th class="text-right">Bonos</th><th class="text-right">Descuentos</th><th class="text-right">Neto</th><th>Estado</th><th></th></tr></thead>
+    <thead><tr><th>Periodo</th><th class="text-right">Sueldo</th><th class="text-right">Bonos</th><th class="text-right">Vacaciones</th><th class="text-right">Descuentos</th><th class="text-right">Neto</th><th>Estado</th><th></th></tr></thead>
     <tbody>
       {{#each historial}}
       <tr>
         <td>{{etiqueta}}</td>
         <td class="text-right">{{formatSoles sueldo}}</td>
         <td class="text-right">{{formatSoles bonos}}</td>
+        <td class="text-right">{{formatSoles vacaciones}}</td>
         <td class="text-right">{{formatSoles descuentos}}</td>
         <td class="text-right" style="font-weight:700">{{formatSoles neto}}</td>
         <td><span class="badge {{#if (eq estado 'cerrado')}}badge-success{{else}}badge-warning{{/if}}">{{estado}}</span></td>
@@ -81,7 +82,11 @@
     <div>
       <div class="text-muted" style="font-size:12px;text-transform:uppercase;margin-bottom:6px">Vacaciones</div>
       {{#each vacaciones}}
-      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">{{formatDate fecha_inicio}} — {{formatDate fecha_fin}} ({{dias}} días) <span class="badge badge-neutral">{{estado}}</span></div>
+      <div style="padding:6px 0;border-bottom:1px solid var(--color-border)">
+        {{inicioTxt}} — {{finTxt}} ({{dias}} días){{#if periodo}} · Periodo {{periodo.anio}}{{/if}}
+        <span class="badge badge-neutral">{{estado}}</span>
+        {{#if remuneracion}}<span class="badge {{#if (eq estado_pago 'Pagado')}}badge-success{{else}}badge-warning{{/if}}">{{formatSoles remuneracion}} · {{estado_pago}}</span>{{/if}}
+      </div>
       {{else}}<p class="text-muted">Sin registros.</p>{{/each}}
     </div>
     <div>

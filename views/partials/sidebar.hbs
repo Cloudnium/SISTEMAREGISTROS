@@ -43,6 +43,7 @@
         <i data-lucide="chevron-down" class="sidebar-group-chevron"></i>
       </button>
       <div class="sidebar-group-items" id="sidebarGroup-boletaje">
+        <div class="sidebar-flyout-titulo">Boletaje</div>
 
         {{#if (or isDesarrollador secciones.boletaje)}}
         <a href="/boletaje" class="sidebar-nav-item {{#if (eq currentPath '/boletaje')}}active{{/if}}" title="Boletaje">
@@ -91,6 +92,7 @@
         <i data-lucide="chevron-down" class="sidebar-group-chevron"></i>
       </button>
       <div class="sidebar-group-items" id="sidebarGroup-general">
+        <div class="sidebar-flyout-titulo">General</div>
 
         {{#if puedeVerCombustible}}
         {{#if (or isDesarrollador secciones.combustible)}}
@@ -141,6 +143,7 @@
         <i data-lucide="chevron-down" class="sidebar-group-chevron"></i>
       </button>
       <div class="sidebar-group-items" id="sidebarGroup-administracion">
+        <div class="sidebar-flyout-titulo">Administración</div>
 
         {{#if (or isDesarrollador secciones.comprobantes)}}
         <a href="/comprobantes" class="sidebar-nav-item {{#if (eq currentPath '/comprobantes')}}active{{/if}}" title="Comprobantes">
@@ -190,6 +193,7 @@
         <i data-lucide="chevron-down" class="sidebar-group-chevron"></i>
       </button>
       <div class="sidebar-group-items" id="sidebarGroup-desarrollador">
+        <div class="sidebar-flyout-titulo">Desarrollador</div>
         <a href="/configuracion" class="sidebar-nav-item {{#if (eq currentPath '/configuracion')}}active{{/if}}" title="Configuración">
           <i data-lucide="sliders-horizontal"></i><span>Configuración</span>
         </a>

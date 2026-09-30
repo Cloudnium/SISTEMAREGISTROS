@@ -126,13 +126,50 @@ body { display: flex; overflow-x: hidden; }
 .sidebar-group-items { display: flex; flex-direction: column; gap: 2px; }
 .sidebar-group-items.sidebar-group-collapsed { display: none; }
 
-/* Sidebar contraído a solo íconos: los grupos no se pueden desplegar/
-   colapsar (no hay texto que mostrar), así que se fuerzan siempre
-   visibles y el encabezado del grupo se oculta como cualquier otra
-   etiqueta de sección. */
-body.sidebar-collapsed .sidebar-group-header { display: none; }
-body.sidebar-collapsed .sidebar-group-items.sidebar-group-collapsed { display: flex; }
+/* Sidebar contraído a solo íconos: los grupos muestran solo su ícono
+   (como cualquier otro ítem del menú) y NO despliegan sus enlaces en
+   línea — eso ocupa demasiado espacio en un menú de solo íconos. En
+   su lugar, un clic abre un panel flotante al lado (ver .sidebar-flyout-open más abajo). */
+body.sidebar-collapsed .sidebar-group-header {
+  justify-content: center; padding: var(--space-3);
+}
+body.sidebar-collapsed .sidebar-group-header-label span,
+body.sidebar-collapsed .sidebar-group-chevron { display: none; }
+body.sidebar-collapsed .sidebar-group-items { display: none; }
 body.sidebar-collapsed .sidebar-group { margin-top: 0; }
+
+/* Panel flotante con los ítems del grupo, para cuando el sidebar está
+   contraído. Se posiciona por JS (top/left) junto al ícono del grupo. */
+body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open {
+  display: flex !important;
+  position: fixed;
+  z-index: 400;
+  min-width: 220px;
+  max-width: 280px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  gap: 2px;
+  animation: sidebarFlyoutIn var(--transition-fast) ease-out;
+}
+body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-nav-item {
+  justify-content: flex-start; padding: var(--space-3) var(--space-4);
+}
+body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-nav-item span {
+  display: inline;
+}
+.sidebar-flyout-titulo {
+  display: none;
+  font-size: 0.67rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); padding: var(--space-2) var(--space-3) var(--space-1);
+}
+body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-flyout-titulo { display: block; }
+@keyframes sidebarFlyoutIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
 
 /* ── Modo nocturno ── */
 .sidebar-theme {

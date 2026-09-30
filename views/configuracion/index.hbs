@@ -23,6 +23,22 @@
     <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Guardar</button>
   </form>
 
+  <h3 style="margin:0 0 4px">Parámetros laborales</h3>
+  <p style="margin:0 0 14px;color:var(--text-secondary);font-size:var(--text-sm)">
+    Valor predeterminado para los periodos vacacionales que se creen de aquí en adelante.
+    Los periodos ya creados conservan los días que se les asignó en su momento, aunque cambies este valor.
+  </p>
+  <form method="POST" action="/configuracion/empresa" class="cfg-empresa-form" style="margin-bottom:26px">
+    <input type="hidden" name="nombre" value="{{empresa.nombre}}" />
+    <input type="hidden" name="ruc" value="{{empresa.ruc}}" />
+    <div class="form-group">
+      <label class="form-label-pers">Días de vacaciones anuales</label>
+      <input type="number" name="dias_vacaciones_anuales" class="form-control" min="1" step="1"
+             value="{{empresa.dias_vacaciones_anuales}}" placeholder="Ej: 15" style="max-width:140px" required />
+    </div>
+    <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Guardar</button>
+  </form>
+
   <h3 style="margin:0 0 14px">Visibilidad de secciones</h3>
   <div class="cfg-grid">
     {{#each secciones}}

@@ -1,109 +1,404 @@
 <!-- VIEW: planilla/vacaciones.hbs -->
+{{> planilla-subnav}}
 
-<div class="pln-subnav">
-  <a href="/planilla" class="pln-subnav-item"><i data-lucide="wallet"></i> Resumen</a>
-  <a href="/planilla/periodos" class="pln-subnav-item"><i data-lucide="calendar-range"></i> Periodos</a>
-  <a href="/planilla/vacaciones" class="pln-subnav-item active"><i data-lucide="umbrella"></i> Vacaciones y Permisos</a>
-  <a href="/planilla/reportes" class="pln-subnav-item"><i data-lucide="bar-chart-3"></i> Reportes</a>
+<div class="pln-vac-stats">
+  <div class="dash-stat-card">
+    <div class="dash-stat-label">Días otorgados</div>
+    <div class="dash-stat-value">{{resumen.otorgados}}</div>
+    <div class="dash-stat-sub text-muted">Según los filtros de abajo</div>
+  </div>
+  <div class="dash-stat-card">
+    <div class="dash-stat-label">Días utilizados</div>
+    <div class="dash-stat-value">{{resumen.utilizados}}</div>
+    <div class="dash-stat-sub text-muted">Vacaciones no canceladas</div>
+  </div>
+  <div class="dash-stat-card">
+    <div class="dash-stat-label">Días restantes</div>
+    <div class="dash-stat-value">{{resumen.restantes}}</div>
+    <div class="dash-stat-sub text-muted">Otorgados − utilizados</div>
+  </div>
+  <div class="dash-stat-card {{#if resumen.pendientes}}dash-stat-alert{{/if}}">
+    <div class="dash-stat-label">Remuneraciones pendientes</div>
+    <div class="dash-stat-value {{#if resumen.pendientes}}dash-stat-value-alert{{/if}}">{{formatSoles resumen.pendientes}}</div>
+    <div class="dash-stat-sub text-muted">Vacaciones sin pago registrado</div>
+  </div>
 </div>
 
-<div class="card" style="padding:20px 22px;margin-bottom:18px">
-  <h3 style="margin:0 0 14px"><i data-lucide="plus-circle"></i> Registrar vacaciones o permiso</h3>
-  <form method="POST" action="/planilla/vacaciones" class="vac-form">
+{{#if puedeEditar}}
+<div class="card" style="padding:22px;margin-bottom:20px">
+  <h3 style="margin:0 0 4px">Registrar vacaciones</h3>
+  <p class="text-muted" style="margin:0 0 16px;font-size:var(--text-sm)">Los días se calculan automáticamente entre inicio y fin (ambas fechas incluidas).</p>
+
+  <div class="pln-buscador" style="margin-bottom:14px">
+    <i data-lucide="search" class="pln-buscador-icon"></i>
+    <input type="text" id="vacBuscarInput" class="form-control" placeholder="Busca al trabajador por nombre o DNI..." autocomplete="off" />
+    <div class="pln-sugerencias" id="vacBuscarLista"></div>
+  </div>
+  <div id="vacSeleccionado" class="text-muted" style="margin-bottom:14px;display:none">
+    Trabajador seleccionado: <b id="vacNombreSel"></b> <button type="button" class="btn btn-ghost btn-sm" onclick="Vac.limpiarSeleccion()">Cambiar</button>
+  </div>
+
+  <form method="POST" action="/planilla/vacaciones" id="formVacNueva" style="display:none">
+    <input type="hidden" name="personal_id" id="vacPersonalId" required />
+
+    <div class="form-group">
+      <label class="form-label-pers">Periodo vacacional</label>
+      <select name="periodo_id" id="vacPeriodoSelect" class="form-control" required onchange="Vac.onPeriodoChange()">
+        <option value="">— Selecciona al trabajador primero —</option>
+      </select>
+      <small id="vacPeriodoInfo" class="text-muted" style="display:block;margin-top:4px"></small>
+    </div>
+    <div class="pln-filtros-row" id="vacNuevoPeriodoRow" style="display:none">
+      <div class="form-group">
+        <label class="form-label-pers">Año del nuevo periodo</label>
+        <input type="number" name="anio_nuevo" id="vacAnioNuevo" class="form-control" min="2000" max="2100" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Días otorgados <small class="text-muted">(por defecto: {{diasEmpresa}}, configurable en Configuración → Parámetros laborales)</small></label>
+        <input type="number" name="dias_nuevo" id="vacDiasNuevo" class="form-control" min="1" step="1" placeholder="{{diasEmpresa}}" />
+      </div>
+    </div>
+
+    <div class="pln-filtros-row">
+      <div class="form-group"><label class="form-label-pers">Fecha inicio</label><input type="date" name="fecha_inicio" id="vacFechaInicio" class="form-control" required oninput="Vac.calcularDias()" /></div>
+      <div class="form-group"><label class="form-label-pers">Fecha fin</label><input type="date" name="fecha_fin" id="vacFechaFin" class="form-control" required oninput="Vac.calcularDias()" /></div>
+      <div class="form-group"><label class="form-label-pers">Días</label><input type="text" id="vacDiasCalculados" class="form-control" disabled placeholder="—" /></div>
+    </div>
+
+    <div class="pln-filtros-row">
+      <div class="form-group">
+        <label class="form-label-pers">Remuneración vacacional (S/)</label>
+        <input type="number" name="remuneracion" class="form-control" step="0.01" min="0" placeholder="0.00" style="max-width:200px" />
+      </div>
+      <div class="form-group">
+        <label class="form-label-pers">Estado de vacaciones</label>
+        <select name="estado" class="form-control">
+          {{#each estadosForm}}<option value="{{this}}">{{this}}</option>{{/each}}
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label-pers">Observación</label><input type="text" name="observacion" class="form-control" /></div>
+
+    <button type="submit" class="btn btn-primary"><i data-lucide="umbrella"></i> Registrar vacaciones</button>
+  </form>
+</div>
+{{/if}}
+
+<div class="card" style="padding:18px 22px;margin-bottom:18px">
+  <form method="GET" class="pln-filtros-row" style="margin:0">
     <div class="form-group">
       <label class="form-label-pers">Trabajador</label>
-      <select name="personal_id" class="form-control" required>
-        <option value="">— Selecciona —</option>
-        {{#each personal}}
-        <option value="{{id}}">{{apellidos}}, {{nombres}} ({{cargoMostrar}}) — {{dias_vacaciones_disponibles}} días disp.</option>
-        {{/each}}
+      <select name="personal_id" class="form-control">
+        <option value="">— Todos —</option>
+        {{#each trabajadoresFiltro}}<option value="{{id}}" {{#if (eq id ../filtros.personalId)}}selected{{/if}}>{{nombreCompleto}}</option>{{/each}}
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label-pers">Tipo</label>
-      <select name="tipo" class="form-control">
-        <option value="vacaciones">Vacaciones</option>
-        <option value="permiso">Permiso</option>
+      <label class="form-label-pers">Año</label>
+      <select name="anio" class="form-control">
+        <option value="">— Todos —</option>
+        {{#each aniosFiltro}}<option value="{{this}}" {{#if (eq this ../filtros.anio)}}selected{{/if}}>{{this}}</option>{{/each}}
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label-pers">Inicio</label>
-      <input type="date" name="fecha_inicio" class="form-control" required />
+      <label class="form-label-pers">Estado de vacaciones</label>
+      <select name="estado" class="form-control">
+        <option value="">— Todos —</option>
+        {{#each estadosFiltro}}<option value="{{this}}" {{#if (eq this ../filtros.estado)}}selected{{/if}}>{{this}}</option>{{/each}}
+      </select>
     </div>
     <div class="form-group">
-      <label class="form-label-pers">Fin</label>
-      <input type="date" name="fecha_fin" class="form-control" required />
+      <label class="form-label-pers">Estado de pago</label>
+      <select name="estado_pago" class="form-control">
+        <option value="">— Todos —</option>
+        <option value="Pendiente de pago" {{#if (eq filtros.estadoPago 'Pendiente de pago')}}selected{{/if}}>Pendiente de pago</option>
+        <option value="Pagado" {{#if (eq filtros.estadoPago 'Pagado')}}selected{{/if}}>Pagado</option>
+      </select>
     </div>
-    <div class="form-group">
-      <label class="form-label-pers">Días utilizados</label>
-      <input type="number" name="dias_utilizados" class="form-control" min="0.5" step="0.5" required />
-    </div>
-    <div class="form-group" style="flex:2">
-      <label class="form-label-pers">Motivo (opcional, para permisos)</label>
-      <input type="text" name="motivo" class="form-control" placeholder="Ej: cita médica" />
-    </div>
-    <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Registrar</button>
+    <button type="submit" class="btn btn-ghost"><i data-lucide="filter"></i> Filtrar</button>
+    {{#if filtros.personalId}}<a href="/planilla/vacaciones" class="btn btn-ghost">Limpiar</a>{{/if}}
   </form>
 </div>
 
-<div class="vac-lista">
-  {{#each personal}}
-  <div class="card vac-card">
-    <div class="vac-card-header">
-      <div>
-        <div class="pln-nombre">{{apellidos}}, {{nombres}}</div>
-        <div class="pln-cargo">{{cargoMostrar}}</div>
-      </div>
-      <div class="vac-dias-disp">
-        <span class="vac-dias-num">{{dias_vacaciones_disponibles}}</span>
-        <span class="vac-dias-lbl">días disponibles</span>
-      </div>
-    </div>
-    {{#if registros.length}}
-    <table class="table" style="margin-top:10px">
-      <thead><tr><th>Tipo</th><th>Del</th><th>Al</th><th>Días</th><th>Motivo</th><th></th></tr></thead>
-      <tbody>
-        {{#each registros}}
+<div class="card" style="padding:0;overflow:hidden">
+  <div class="table-wrapper">
+    <table class="table">
+      <thead>
         <tr>
-          <td><span class="badge {{#if (eq tipo 'vacaciones')}}badge-success{{else}}badge-warning{{/if}}">{{tipo}}</span></td>
-          <td>{{fecha_inicio}}</td>
-          <td>{{fecha_fin}}</td>
-          <td>{{dias_utilizados}}</td>
-          <td style="color:var(--text-muted)">{{#if motivo}}{{motivo}}{{else}}—{{/if}}</td>
-          <td>
-            <form method="POST" action="/planilla/vacaciones/{{id}}/eliminar" onsubmit="return confirm('¿Eliminar este registro? Los días se devuelven al saldo disponible.')">
-              <button type="submit" class="btn-icon btn-icon-delete" title="Eliminar"><i data-lucide="trash-2"></i></button>
-            </form>
+          <th>Trabajador</th><th>Periodo</th><th>Inicio</th><th>Fin</th><th>Días</th>
+          <th>Remuneración</th><th>Estado vacaciones</th><th>Estado pago</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each filas}}
+        <tr>
+          <td>{{trabajador}}</td>
+          <td>{{periodoTxt}}</td>
+          <td>{{inicioTxt}}</td>
+          <td>{{finTxt}}</td>
+          <td>{{dias}}</td>
+          <td>{{formatSoles remuneracion}}</td>
+          <td><span class="badge {{badgeEstado}}">{{estado}}</span></td>
+          <td><span class="badge {{badgePago}}">{{estadoPago}}</span></td>
+          <td class="pln-vac-acciones">
+            <button type="button" class="btn-icon" title="Ver" onclick="Vac.ver('{{id}}')"><i data-lucide="eye"></i></button>
+            {{#if ../puedeEditar}}
+            {{#if puedeEditarFila}}
+            <button type="button" class="btn-icon btn-icon-edit" title="Editar" onclick="Vac.editar('{{id}}')"><i data-lucide="pencil"></i></button>
+            {{/if}}
+            {{#if puedePagar}}
+            <button type="button" class="btn-icon" style="color:var(--color-success)" title="Registrar pago" onclick="Vac.abrirPago('{{id}}', '{{remuneracion}}')"><i data-lucide="banknote"></i></button>
+            {{/if}}
+            {{#if puedeCancelar}}
+            <button type="button" class="btn-icon btn-icon-delete" title="Cancelar" onclick="Vac.cancelar('{{id}}')"><i data-lucide="x-circle"></i></button>
+            {{/if}}
+            {{/if}}
           </td>
         </tr>
+        {{else}}
+        <tr><td colspan="9" class="text-muted" style="text-align:center;padding:24px">Sin vacaciones registradas para estos filtros.</td></tr>
         {{/each}}
       </tbody>
     </table>
-    {{else}}
-    <p style="color:var(--text-muted);font-size:var(--text-sm);margin:10px 0 0">Sin registros todavía.</p>
-    {{/if}}
   </div>
-  {{/each}}
 </div>
 
+<!-- ═══ Modal: Ver ═══ -->
+<div class="modal-backdrop" id="vacModalVer" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="eye"></i> Detalle de vacaciones</div>
+      <button class="modal-close" onclick="Vac.cerrar('vacModalVer')"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="vacVerBody">Cargando...</div>
+    <div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="Vac.cerrar('vacModalVer')">Cerrar</button></div>
+  </div>
+</div>
+
+{{#if puedeEditar}}
+<!-- ═══ Modal: Editar ═══ -->
+<div class="modal-backdrop" id="vacModalEditar" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="pencil"></i> Editar vacaciones</div>
+      <button class="modal-close" onclick="Vac.cerrar('vacModalEditar')"><i data-lucide="x"></i></button>
+    </div>
+    <form id="formVacEditar" onsubmit="return Vac.guardarEdicion(event)">
+      <div class="modal-body">
+        <p class="text-muted" id="vacEditarSaldoInfo" style="margin:0 0 12px;font-size:var(--text-sm)"></p>
+        <div class="pln-filtros-row">
+          <div class="form-group"><label class="form-label-pers">Fecha inicio</label><input type="date" name="fecha_inicio" id="vacEditFechaInicio" class="form-control" required /></div>
+          <div class="form-group"><label class="form-label-pers">Fecha fin</label><input type="date" name="fecha_fin" id="vacEditFechaFin" class="form-control" required /></div>
+        </div>
+        <div class="pln-filtros-row">
+          <div class="form-group">
+            <label class="form-label-pers">Remuneración vacacional (S/)</label>
+            <input type="number" name="remuneracion" id="vacEditRemuneracion" class="form-control" step="0.01" min="0" style="max-width:200px" />
+          </div>
+          <div class="form-group">
+            <label class="form-label-pers">Estado de vacaciones</label>
+            <select name="estado" id="vacEditEstado" class="form-control">
+              {{#each estadosForm}}<option value="{{this}}">{{this}}</option>{{/each}}
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label class="form-label-pers">Observación</label><input type="text" name="observacion" id="vacEditObservacion" class="form-control" /></div>
+        <input type="hidden" id="vacEditId" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Vac.cerrar('vacModalEditar')">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ Modal: Registrar pago ═══ -->
+<div class="modal-backdrop" id="vacModalPago" style="display:none">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title"><i data-lucide="banknote"></i> Registrar pago</div>
+      <button class="modal-close" onclick="Vac.cerrar('vacModalPago')"><i data-lucide="x"></i></button>
+    </div>
+    <form id="formVacPago" onsubmit="return Vac.confirmarPago(event)">
+      <div class="modal-body">
+        <p class="text-muted" style="margin:0 0 12px;font-size:var(--text-sm)">Al confirmar, esta vacación pasa a <b>Pagado</b> y no se puede volver a pagar.</p>
+        <div class="form-group"><label class="form-label-pers">Monto (S/)</label><input type="number" name="monto" id="vacPagoMonto" class="form-control" step="0.01" min="0.01" required /></div>
+        <div class="form-group"><label class="form-label-pers">Fecha de pago</label><input type="date" name="fecha_pago" id="vacPagoFecha" class="form-control" value="{{today}}" required /></div>
+        <input type="hidden" id="vacPagoId" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="Vac.cerrar('vacModalPago')">Cancelar</button>
+        <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Confirmar pago</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{/if}}
+
 <style>
-.pln-subnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
-.pln-subnav-item {
-  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
-  border-radius: var(--radius-md); border: 1px solid var(--color-border);
-  background: var(--color-surface); color: var(--text-secondary); font-size: var(--text-sm);
-  font-weight: 600; text-decoration: none;
-}
-.pln-subnav-item i { width: 16px; height: 16px; }
-.pln-subnav-item.active { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
-.vac-form { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
-.vac-form .form-group { min-width: 160px; }
-.vac-lista { display: flex; flex-direction: column; gap: 14px; }
-.vac-card { padding: 16px 20px; }
-.vac-card-header { display: flex; justify-content: space-between; align-items: center; }
-.pln-nombre { font-weight: 700; font-size: var(--text-md); }
-.pln-cargo { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
-.vac-dias-disp { text-align: right; }
-.vac-dias-num { display: block; font-size: 22px; font-weight: 800; color: var(--color-accent); }
-.vac-dias-lbl { font-size: var(--text-xs); color: var(--text-muted); }
+.pln-vac-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); margin-bottom: 20px; }
+.pln-vac-acciones { display: flex; gap: 2px; white-space: nowrap; }
+@media (max-width: 900px) { .pln-vac-stats { grid-template-columns: repeat(2, 1fr); } }
 </style>
+
+<script src="/js/planilla-buscador.js"></script>
+<script>
+var Vac = (function () {
+  var periodosTrabajadorActual = [];
+
+  function cerrar(id) { document.getElementById(id).style.display = 'none'; }
+  function abrir(id) { document.getElementById(id).style.display = 'flex'; }
+
+  function limpiarSeleccion() {
+    document.getElementById('vacSeleccionado').style.display = 'none';
+    document.getElementById('vacBuscarInput').value = '';
+    document.getElementById('vacBuscarInput').style.display = 'block';
+    document.getElementById('formVacNueva').style.display = 'none';
+  }
+
+  function calcularDias() {
+    var ini = document.getElementById('vacFechaInicio').value, fin = document.getElementById('vacFechaFin').value;
+    var out = document.getElementById('vacDiasCalculados');
+    if (!ini || !fin) { out.value = '—'; return; }
+    var a = new Date(ini + 'T00:00:00Z'), b = new Date(fin + 'T00:00:00Z');
+    var dias = Math.round((b - a) / 86400000) + 1;
+    out.value = dias >= 1 ? (dias + ' día' + (dias === 1 ? '' : 's')) : 'Fin debe ser ≥ inicio';
+  }
+
+  function onPeriodoChange() {
+    var val = document.getElementById('vacPeriodoSelect').value;
+    var nuevoRow = document.getElementById('vacNuevoPeriodoRow');
+    var info = document.getElementById('vacPeriodoInfo');
+    if (val === 'nuevo') {
+      nuevoRow.style.display = 'flex';
+      document.getElementById('vacAnioNuevo').value = new Date().getFullYear();
+      info.textContent = '';
+      return;
+    }
+    nuevoRow.style.display = 'none';
+    var p = periodosTrabajadorActual.find(function (x) { return x.id === val; });
+    info.textContent = p ? ('Otorgados: ' + p.otorgados + ' · Utilizados: ' + p.utilizados + ' · Restantes: ' + p.restantes) : '';
+  }
+
+  function cargarPeriodos(personalId) {
+    fetch('/planilla/vacaciones/trabajador/' + personalId + '/periodos', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        periodosTrabajadorActual = data.periodos || [];
+        var sel = document.getElementById('vacPeriodoSelect');
+        var opciones = '<option value="">— Selecciona un periodo —</option>';
+        periodosTrabajadorActual.forEach(function (p) {
+          opciones += '<option value="' + p.id + '">Periodo ' + p.anio + ' (restan ' + p.restantes + ' de ' + p.otorgados + ')</option>';
+        });
+        opciones += '<option value="nuevo">+ Nuevo periodo vacacional…</option>';
+        sel.innerHTML = opciones;
+        document.getElementById('vacAnioNuevo').placeholder = data.anioSugerido;
+        document.getElementById('vacDiasNuevo').placeholder = data.diasPorDefecto;
+        onPeriodoChange();
+      })
+      .catch(function () { alert('No se pudieron cargar los periodos de este trabajador.'); });
+  }
+
+  function ver(id) {
+    abrir('vacModalVer');
+    var body = document.getElementById('vacVerBody');
+    body.innerHTML = 'Cargando...';
+    fetch('/planilla/vacaciones/' + id, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { body.innerHTML = '<p class="text-muted">' + data.error + '</p>'; return; }
+        var v = data.vacacion;
+        var html = '<table class="table" style="margin:0">';
+        html += fila('Trabajador', v.personal ? (v.personal.nombres + ' ' + v.personal.apellidos) : '—');
+        html += fila('Periodo', v.periodo ? ('Periodo ' + v.periodo.anio) : '—');
+        html += fila('Fechas', v.fecha_inicio.split('-').reverse().join('/') + ' — ' + v.fecha_fin.split('-').reverse().join('/'));
+        html += fila('Días', v.dias);
+        html += fila('Remuneración', 'S/ ' + Number(v.remuneracion || 0).toFixed(2));
+        html += fila('Estado de vacaciones', v.estado);
+        html += fila('Estado de pago', v.estado_pago + (v.fecha_pago ? ' (' + v.fecha_pago.split('-').reverse().join('/') + ')' : ''));
+        if (v.observacion) html += fila('Observación', v.observacion);
+        if (data.saldo) html += fila('Saldo del periodo', data.saldo.utilizados + ' usados de ' + data.saldo.otorgados + ' (quedan ' + data.saldo.restantes + ')');
+        html += '</table>';
+        body.innerHTML = html;
+      })
+      .catch(function () { body.innerHTML = '<p class="text-muted">No se pudo cargar el detalle.</p>'; });
+  }
+  function fila(k, v) { return '<tr><td style="color:var(--text-secondary);width:40%">' + k + '</td><td><b>' + v + '</b></td></tr>'; }
+
+  function editar(id) {
+    fetch('/planilla/vacaciones/' + id, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.error) { alert(data.error); return; }
+        var v = data.vacacion;
+        document.getElementById('vacEditId').value = id;
+        document.getElementById('vacEditFechaInicio').value = v.fecha_inicio;
+        document.getElementById('vacEditFechaFin').value = v.fecha_fin;
+        document.getElementById('vacEditRemuneracion').value = v.remuneracion;
+        document.getElementById('vacEditRemuneracion').disabled = v.estado_pago === 'Pagado';
+        document.getElementById('vacEditEstado').value = v.estado;
+        document.getElementById('vacEditObservacion').value = v.observacion || '';
+        document.getElementById('vacEditarSaldoInfo').textContent = data.saldo
+          ? ('Periodo ' + v.periodo.anio + ' — otorgados ' + data.saldo.otorgados + ', utilizados ' + data.saldo.utilizados + ', restantes ' + data.saldo.restantes + ' (sin contar esta vacación)')
+          : '';
+        abrir('vacModalEditar');
+      })
+      .catch(function () { alert('No se pudo cargar la vacación.'); });
+  }
+
+  function guardarEdicion(ev) {
+    ev.preventDefault();
+    var id = document.getElementById('vacEditId').value;
+    var body = new URLSearchParams({
+      fecha_inicio: document.getElementById('vacEditFechaInicio').value,
+      fecha_fin: document.getElementById('vacEditFechaFin').value,
+      remuneracion: document.getElementById('vacEditRemuneracion').value,
+      estado: document.getElementById('vacEditEstado').value,
+      observacion: document.getElementById('vacEditObservacion').value
+    });
+    fetch('/planilla/vacaciones/' + id + '/editar', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+      .then(function () { location.reload(); });
+    return false;
+  }
+
+  function abrirPago(id, remuneracionSugerida) {
+    document.getElementById('vacPagoId').value = id;
+    document.getElementById('vacPagoMonto').value = Number(remuneracionSugerida || 0).toFixed(2);
+    abrir('vacModalPago');
+  }
+  function confirmarPago(ev) {
+    ev.preventDefault();
+    var id = document.getElementById('vacPagoId').value;
+    var body = new URLSearchParams({ monto: document.getElementById('vacPagoMonto').value, fecha_pago: document.getElementById('vacPagoFecha').value });
+    fetch('/planilla/vacaciones/' + id + '/pago', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+      .then(function () { location.reload(); });
+    return false;
+  }
+
+  function cancelar(id) {
+    if (!confirm('¿Cancelar estas vacaciones? Los días se devolverán al saldo del periodo.')) return;
+    fetch('/planilla/vacaciones/' + id + '/cancelar', { method: 'POST', credentials: 'same-origin' })
+      .then(function () { location.reload(); });
+  }
+
+  if (document.getElementById('vacBuscarInput')) {
+    PlanillaBuscador.iniciar({
+      inputId: 'vacBuscarInput', listaId: 'vacBuscarLista',
+      onSeleccionar: function (t) {
+        document.getElementById('vacPersonalId').value = t.id;
+        document.getElementById('vacNombreSel').textContent = t.nombreCompleto;
+        document.getElementById('vacSeleccionado').style.display = 'block';
+        document.getElementById('vacBuscarInput').style.display = 'none';
+        document.getElementById('formVacNueva').style.display = 'block';
+        cargarPeriodos(t.id);
+      }
+    });
+  }
+
+  return {
+    cerrar: cerrar, limpiarSeleccion: limpiarSeleccion, calcularDias: calcularDias, onPeriodoChange: onPeriodoChange,
+    ver: ver, editar: editar, guardarEdicion: guardarEdicion, abrirPago: abrirPago, confirmarPago: confirmarPago, cancelar: cancelar
+  };
+})();
+</script>

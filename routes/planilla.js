@@ -86,18 +86,94 @@ function diasEnPeriodo(fechaInicio, fechaFin, mes, anio) {
   return { dias, desde: desde.toISOString().slice(0, 10), hasta: hasta.toISOString().slice(0, 10) };
 }
 
+// ═══════════════════════════════════════════════
+// VACACIONES — helpers compartidos (módulo Vacaciones + planilla/boleta)
+//
+// Modelo: empresa (días por defecto) → periodo vacacional (guarda SUS
+// días otorgados) → vacaciones → pago. Días utilizados/restantes NO se
+// guardan: se calculan sumando las vacaciones no canceladas del periodo
+// (así cancelar devuelve los días solo y nada se descuenta dos veces).
+//
+// Planilla: la remuneración vacacional es un concepto PROPIO (no es un
+// bono). Se incluye en la planilla cuyo mes/año es el de la fecha de
+// pago, solo cuando el pago está registrado; un pago = una sola vez.
+// ═══════════════════════════════════════════════
+const ESTADOS_VACACION = ['Pendiente', 'Aprobado', 'En curso', 'Finalizado', 'Cancelado'];
+const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function rangoMes(mes, anio) {
+  return { desde: `${anio}-${pad2(mes)}-01`, hasta: `${anio}-${pad2(mes)}-${pad2(new Date(anio, mes, 0).getDate())}` };
+}
+// '2026-10-05' → '05/10/2026' sin pasar por zonas horarias
+function fechaTxt(iso) {
+  const f = String(iso || '').slice(0, 10);
+  return RE_FECHA.test(f) ? f.split('-').reverse().join('/') : '—';
+}
+// true solo para fechas reales yyyy-mm-dd (rechaza 2026-02-30, que JS "corrige" a marzo)
+function fechaValida(f) {
+  if (!RE_FECHA.test(f || '')) return false;
+  const t = Date.parse(f + 'T00:00:00Z');
+  return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === f;
+}
+// Días entre dos fechas ISO (yyyy-mm-dd) incluyendo ambas; null si alguna es inválida.
+function diasEntre(ini, fin) {
+  if (!fechaValida(ini) || !fechaValida(fin)) return null;
+  return Math.round((Date.parse(fin + 'T00:00:00Z') - Date.parse(ini + 'T00:00:00Z')) / 86400000) + 1;
+}
+
+// { [periodoVacId]: { otorgados, utilizados, restantes } }. excluirVacacionId
+// sirve para validar una edición sin contar los días de la propia vacación.
+async function saldosDePeriodos(periodoIds, excluirVacacionId) {
+  const saldos = {};
+  if (!periodoIds.length) return saldos;
+  const lista = periodoIds.join(',');
+  const [{ data: periodos }, { data: vacs }] = await Promise.all([
+    db.select('planilla_vacaciones_periodos', `select=id,dias_otorgados&id=in.(${lista})`),
+    db.select('planilla_vacaciones',
+      `select=periodo_vacacional_id,dias&estado=neq.Cancelado&periodo_vacacional_id=in.(${lista})` +
+      (excluirVacacionId ? `&id=neq.${excluirVacacionId}` : ''))
+  ]);
+  (periodos || []).forEach(p => {
+    saldos[p.id] = { otorgados: Number(p.dias_otorgados), utilizados: 0, restantes: Number(p.dias_otorgados) };
+  });
+  (vacs || []).forEach(v => {
+    const sd = saldos[v.periodo_vacacional_id];
+    if (sd) { sd.utilizados += Number(v.dias); sd.restantes = sd.otorgados - sd.utilizados; }
+  });
+  return saldos;
+}
+
+// Remuneraciones vacacionales PAGADAS cuyo mes de pago es el de este periodo.
+async function pagosVacacionalesDelMes(mes, anio, personalId) {
+  const { desde, hasta } = rangoMes(mes, anio);
+  let q = `select=id,personal_id,monto,fecha_pago,vacacion:planilla_vacaciones(fecha_inicio,fecha_fin,dias)` +
+          `&fecha_pago=gte.${desde}&fecha_pago=lte.${hasta}&order=fecha_pago.asc`;
+  if (personalId) q += `&personal_id=eq.${personalId}`;
+  const { data } = await db.select('planilla_vacaciones_pagos', q);
+  return (data || []).map(p => ({
+    ...p, monto: Number(p.monto),
+    detalle: p.vacacion ? `Vacaciones del ${fechaTxt(p.vacacion.fecha_inicio)} al ${fechaTxt(p.vacacion.fecha_fin)} (${p.vacacion.dias} día${Number(p.vacacion.dias) === 1 ? '' : 's'})` : ''
+  }));
+}
+const sumaPagosVac = (pagos) => (pagos || []).reduce((sum, p) => sum + Number(p.monto), 0);
+
 async function obtenerVacacionesPermisosDelPeriodo(personalId, mes, anio) {
-  const inicioPeriodo = `${anio}-${String(mes).padStart(2, '0')}-01`;
-  const finPeriodo = new Date(anio, mes, 0).toISOString().slice(0, 10);
+  const inicioPeriodo = `${anio}-${pad2(mes)}-01`;
+  const finPeriodo = rangoMes(mes, anio).hasta;
   const [{ data: vac }, { data: per }] = await Promise.all([
     db.select('planilla_vacaciones',
-      `select=id,fecha_inicio,fecha_fin,dias,estado,observacion&personal_id=eq.${personalId}` +
-      `&fecha_inicio=lte.${finPeriodo}&fecha_fin=gte.${inicioPeriodo}&order=fecha_inicio.asc`),
+      `select=id,fecha_inicio,fecha_fin,dias,estado,estado_pago,observacion,periodo:planilla_vacaciones_periodos(id,anio)&personal_id=eq.${personalId}` +
+      `&estado=neq.Cancelado&fecha_inicio=lte.${finPeriodo}&fecha_fin=gte.${inicioPeriodo}&order=fecha_inicio.asc`),
     db.select('planilla_permisos',
       `select=id,fecha,hora_inicio,hora_fin,dia_completo,con_goce,motivo,estado,tipo:planilla_tipos_permiso(nombre),descuento:planilla_descuentos(importe_original,saldo)&personal_id=eq.${personalId}` +
       `&fecha=gte.${inicioPeriodo}&fecha=lte.${finPeriodo}&order=fecha.asc`)
   ]);
-  const vacaciones = (vac || []).map(v => ({ ...v, ...diasEnPeriodo(v.fecha_inicio, v.fecha_fin, mes, anio) }));
+  const saldos = await saldosDePeriodos([...new Set((vac || []).filter(v => v.periodo).map(v => v.periodo.id))]);
+  const vacaciones = (vac || []).map(v => ({
+    ...v, ...diasEnPeriodo(v.fecha_inicio, v.fecha_fin, mes, anio),
+    periodoVac: v.periodo ? { anio: v.periodo.anio, ...(saldos[v.periodo.id] || {}) } : null
+  }));
   return { vacaciones, permisos: per || [] };
 }
 
@@ -143,16 +219,21 @@ router.get('/resumen/:personalId', async (req, res) => {
   const trabajador = rows && rows[0];
   if (!trabajador) { req.flash('error', 'Trabajador no encontrado.'); return res.redirect('/planilla/resumen'); }
 
-  const [{ data: roster }, { data: descuentos }, { data: vacaciones }, { data: permisos }] = await Promise.all([
+  const [{ data: roster }, { data: descuentos }, { data: vacaciones }, { data: permisos }, { data: pagosVac }] = await Promise.all([
     db.select('planilla_periodo_trabajadores',
       `select=id,periodo_id,sueldo_base,periodo:planilla_periodos(id,etiqueta,mes,anio,estado)&personal_id=eq.${req.params.personalId}`),
     db.select('planilla_descuentos',
       `select=id,origen_codigo,importe_original,saldo,estado,fecha,concepto:planilla_conceptos_descuento(nombre)&personal_id=eq.${req.params.personalId}&order=fecha.desc`),
     db.select('planilla_vacaciones',
-      `select=id,fecha_inicio,fecha_fin,dias,estado&personal_id=eq.${req.params.personalId}&order=fecha_inicio.desc&limit=10`),
+      `select=id,fecha_inicio,fecha_fin,dias,estado,estado_pago,remuneracion,periodo:planilla_vacaciones_periodos(anio)&personal_id=eq.${req.params.personalId}&order=fecha_inicio.desc&limit=10`),
     db.select('planilla_permisos',
-      `select=id,fecha,dia_completo,con_goce,estado,motivo&personal_id=eq.${req.params.personalId}&order=fecha.desc&limit=10`)
+      `select=id,fecha,dia_completo,con_goce,estado,motivo&personal_id=eq.${req.params.personalId}&order=fecha.desc&limit=10`),
+    db.select('planilla_vacaciones_pagos', `select=monto,fecha_pago&personal_id=eq.${req.params.personalId}`)
   ]);
+
+  // Remuneración vacacional PAGADA, por mes de pago (concepto separado de los bonos)
+  const vacPorMes = {};
+  (pagosVac || []).forEach(p => { const k = String(p.fecha_pago).slice(0, 7); vacPorMes[k] = (vacPorMes[k] || 0) + Number(p.monto); });
 
   const rosterIds = (roster || []).map(r => r.id);
   let bonosPorRoster = {}, cobrosPorRoster = {};
@@ -171,10 +252,11 @@ router.get('/resumen/:personalId', async (req, res) => {
       const bonos = bonosPorRoster[r.periodo_id] || 0;
       const descuentosCobrados = cobrosPorRoster[r.periodo_id] || 0;
       const sueldo = Number(r.sueldo_base || 0);
+      const remVac = vacPorMes[`${r.periodo.anio}-${pad2(r.periodo.mes)}`] || 0;
       return {
         periodoId: r.periodo_id, etiqueta: r.periodo.etiqueta, mes: r.periodo.mes, anio: r.periodo.anio,
         estado: r.periodo.estado, rosterId: r.id,
-        sueldo, bonos, descuentos: descuentosCobrados, neto: sueldo + bonos - descuentosCobrados
+        sueldo, bonos, vacaciones: remVac, descuentos: descuentosCobrados, neto: sueldo + bonos + remVac - descuentosCobrados
       };
     })
     .sort((a, b) => (b.anio - a.anio) || (b.mes - a.mes));
@@ -191,7 +273,8 @@ router.get('/resumen/:personalId', async (req, res) => {
     historial, ultimo,
     totalDescuentosPendientes: descuentosPendientes.reduce((s, d) => s + Number(d.saldo), 0),
     descuentosPendientes,
-    vacaciones: vacaciones || [], permisos: permisos || [],
+    vacaciones: (vacaciones || []).map(v => ({ ...v, inicioTxt: fechaTxt(v.fecha_inicio), finTxt: fechaTxt(v.fecha_fin), remuneracion: Number(v.remuneracion || 0) })),
+    permisos: permisos || [],
     puedeEditar: esAdminOEditor(req.usuarioFresco)
   });
 });
@@ -200,25 +283,28 @@ router.get('/resumen/:personalId', async (req, res) => {
 // 4-7. PERIODOS — sección principal de Planilla
 // ═══════════════════════════════════════════════
 
-async function totalesDelPeriodo(periodoId) {
-  const [{ data: roster }, { data: bonos }, { data: cobros }] = await Promise.all([
+async function totalesDelPeriodo(periodoId, periodo) {
+  const [{ data: roster }, { data: bonos }, { data: cobros }, pagosVac] = await Promise.all([
     db.select('planilla_periodo_trabajadores', `select=personal_id,sueldo_base&periodo_id=eq.${periodoId}`),
     db.select('planilla_bonos', `select=personal_id,importe&periodo_id=eq.${periodoId}`),
-    db.select('planilla_descuento_cobros', `select=personal_id,importe&periodo_id=eq.${periodoId}&cobrado=eq.true`)
+    db.select('planilla_descuento_cobros', `select=personal_id,importe&periodo_id=eq.${periodoId}&cobrado=eq.true`),
+    periodo ? pagosVacacionalesDelMes(periodo.mes, periodo.anio) : Promise.resolve([])
   ]);
+  const enRoster = new Set((roster || []).map(r => r.personal_id));
+  const totalVac = sumaPagosVac(pagosVac.filter(p => enRoster.has(p.personal_id)));
   const sueldos = (roster || []).reduce((s, r) => s + Number(r.sueldo_base || 0), 0);
   const totalBonos = (bonos || []).reduce((s, b) => s + Number(b.importe), 0);
   const totalCobrado = (cobros || []).reduce((s, c) => s + Number(c.importe), 0);
   return {
     trabajadores: (roster || []).length,
-    sueldos, bonos: totalBonos, descuentos: totalCobrado,
-    neto: sueldos + totalBonos - totalCobrado
+    sueldos, bonos: totalBonos, vacaciones: totalVac, descuentos: totalCobrado,
+    neto: sueldos + totalBonos + totalVac - totalCobrado
   };
 }
 
 router.get('/periodos', async (req, res) => {
   const { data: periodos } = await db.select('planilla_periodos', 'select=id,mes,anio,etiqueta,estado,creado_en,cerrado_en&order=anio.desc,mes.desc');
-  const lista = await Promise.all((periodos || []).map(async p => ({ ...p, totales: await totalesDelPeriodo(p.id) })));
+  const lista = await Promise.all((periodos || []).map(async p => ({ ...p, totales: await totalesDelPeriodo(p.id, p) })));
   const porAnio = {};
   lista.forEach(p => { (porAnio[p.anio] = porAnio[p.anio] || []).push(p); });
   const anios = Object.keys(porAnio).sort((a, b) => b - a).map(a => ({ anio: a, periodos: porAnio[a] }));
@@ -286,16 +372,22 @@ router.get('/periodos/:id', async (req, res) => {
     (pendientes || []).forEach(d => { pendientesPorPersonal[d.personal_id] = (pendientesPorPersonal[d.personal_id] || 0) + 1; });
   }
 
+  const vacPorPersonal = {};
+  (await pagosVacacionalesDelMes(periodo.mes, periodo.anio)).forEach(p => {
+    vacPorPersonal[p.personal_id] = (vacPorPersonal[p.personal_id] || 0) + p.monto;
+  });
+
   const filas = roster.map(r => {
     const sueldo = Number(r.sueldo_base || 0);
     const bonos = bonosPorPersonal[r.personal_id] || 0;
+    const remVac = vacPorPersonal[r.personal_id] || 0;
     const descuentos = cobrosPorPersonal[r.personal_id] || 0;
     return {
       rosterId: r.id, personalId: r.personal_id,
       nombreCompleto: r.personal ? `${r.personal.nombres} ${r.personal.apellidos}` : '—',
       dni: r.personal ? r.personal.dni : '—',
       cargoMostrar: r.categoria === 'tripulacion' ? (r.tipo || '—') : (r.cargo || '—'),
-      area: r.area || '—', sueldo, bonos, descuentos, neto: sueldo + bonos - descuentos,
+      area: r.area || '—', sueldo, bonos, vacaciones: remVac, descuentos, neto: sueldo + bonos + remVac - descuentos,
       tieneDescuentosPendientes: !!pendientesPorPersonal[r.personal_id],
       inactivo: r.personal && !r.personal.activo
     };
@@ -382,11 +474,12 @@ router.get('/periodos/:periodoId/trabajador/:rosterId', async (req, res) => {
   const roster = periodo && await cargarRosterTrabajador(req.params.periodoId, req.params.rosterId);
   if (!periodo || !roster) { req.flash('error', 'No se encontró esa planilla.'); return res.redirect(`/planilla/periodos/${req.params.periodoId}`); }
 
-  const [{ data: bonos }, { data: cobrosDelPeriodo }, { data: pendientesTrabajador }, vacPer] = await Promise.all([
+  const [{ data: bonos }, { data: cobrosDelPeriodo }, { data: pendientesTrabajador }, vacPer, pagosVac] = await Promise.all([
     db.select('planilla_bonos', `select=*&periodo_id=eq.${req.params.periodoId}&personal_id=eq.${roster.personal_id}&order=fecha.asc`),
     db.select('planilla_descuento_cobros', `select=*,descuento:planilla_descuentos(origen_codigo,importe_original,saldo,concepto:planilla_conceptos_descuento(nombre))&periodo_id=eq.${req.params.periodoId}&personal_id=eq.${roster.personal_id}`),
     db.select('planilla_descuentos', `select=*,concepto:planilla_conceptos_descuento(nombre,clave)&personal_id=eq.${roster.personal_id}&estado=eq.pendiente&order=fecha.asc`),
-    obtenerVacacionesPermisosDelPeriodo(roster.personal_id, periodo.mes, periodo.anio)
+    obtenerVacacionesPermisosDelPeriodo(roster.personal_id, periodo.mes, periodo.anio),
+    pagosVacacionalesDelMes(periodo.mes, periodo.anio, roster.personal_id)
   ]);
 
   const cobrosPorDescuento = {};
@@ -404,7 +497,8 @@ router.get('/periodos/:periodoId/trabajador/:rosterId', async (req, res) => {
   const totalBonos = (bonos || []).reduce((s, b) => s + Number(b.importe), 0);
   const totalDescontadoEstePeriodo = (cobrosDelPeriodo || []).filter(c => c.cobrado).reduce((s, c) => s + Number(c.importe), 0);
   const sueldo = Number(roster.sueldo_base || 0);
-  const totalIngresos = sueldo + totalBonos;
+  const totalVac = sumaPagosVac(pagosVac);
+  const totalIngresos = sueldo + totalBonos + totalVac;
   const neto = totalIngresos - totalDescontadoEstePeriodo;
 
   res.render('planilla/trabajador-periodo', {
@@ -415,7 +509,8 @@ router.get('/periodos/:periodoId/trabajador/:rosterId', async (req, res) => {
     cargoMostrar: roster.categoria === 'tripulacion' ? (roster.tipo || '—') : (roster.cargo || '—'),
     bonos: bonos || [], descuentosConDecision,
     vacaciones: vacPer.vacaciones, permisos: vacPer.permisos,
-    totales: { sueldo, bonos: totalBonos, totalIngresos, descuentos: totalDescontadoEstePeriodo, neto },
+    remuneracionesVac: pagosVac.map(x => ({ concepto: 'Remuneración vacacional', detalle: x.detalle, importe: x.monto, fechaPagoTxt: fechaTxt(x.fecha_pago) })),
+    totales: { sueldo, bonos: totalBonos, vacaciones: totalVac, totalIngresos, descuentos: totalDescontadoEstePeriodo, neto },
     puedeEditar: esAdminOEditor(req.usuarioFresco) && periodo.estado === 'abierto',
     periodoAbierto: periodo.estado === 'abierto',
     today: new Date().toISOString().slice(0, 10)
@@ -447,7 +542,7 @@ router.post('/periodos/:periodoId/trabajador/:rosterId/sueldo', requirePlanillaE
 // ── Bonos (ligados a trabajador + periodo, sección 8) ──
 router.post('/periodos/:periodoId/trabajador/:rosterId/bonos', requirePlanillaEditar, async (req, res) => {
   const roster = await cargarRosterTrabajador(req.params.periodoId, req.params.rosterId);
-  const { data: periodoRows } = await db.select('planilla_periodos', `select=estado&id=eq.${req.params.periodoId}&limit=1`);
+  const { data: periodoRows } = await db.select('planilla_periodos', `select=estado,mes,anio&id=eq.${req.params.periodoId}&limit=1`);
   if (!roster || !periodoRows || !periodoRows[0] || periodoRows[0].estado !== 'abierto') {
     req.flash('error', 'Solo se pueden agregar bonos mientras el periodo está abierto.');
     return res.redirect(`/planilla/periodos/${req.params.periodoId}/trabajador/${req.params.rosterId}`);
@@ -457,6 +552,15 @@ router.post('/periodos/:periodoId/trabajador/:rosterId/bonos', requirePlanillaEd
   if (!concepto || !concepto.trim() || isNaN(importeNum) || importeNum <= 0) {
     req.flash('error', 'Indica un concepto y un importe válido (mayor a 0).');
     return res.redirect(`/planilla/periodos/${req.params.periodoId}/trabajador/${req.params.rosterId}`);
+  }
+  // La remuneración vacacional es un concepto propio de la planilla: si ya
+  // está pagada en este periodo no se debe volver a cargar como bono.
+  if (/vacaci/i.test(concepto)) {
+    const yaIncluida = await pagosVacacionalesDelMes(periodoRows[0].mes, periodoRows[0].anio, roster.personal_id);
+    if (yaIncluida.length) {
+      req.flash('error', 'La remuneración vacacional de este trabajador ya se incluye en esta planilla como concepto separado; no la registres también como bono.');
+      return res.redirect(`/planilla/periodos/${req.params.periodoId}/trabajador/${req.params.rosterId}`);
+    }
   }
   const { data, error } = await db.insert('planilla_bonos', {
     periodo_id: req.params.periodoId, personal_id: roster.personal_id,
@@ -581,20 +685,301 @@ router.post('/descuentos/:id/eliminar', requirePlanillaEditar, async (req, res) 
 // 23-28. VACACIONES Y PERMISOS
 // ═══════════════════════════════════════════════
 
+const esUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v || '');
+const BADGE_VAC  = { 'Pendiente': 'badge-warning', 'Aprobado': 'badge-primary', 'En curso': 'badge-primary', 'Finalizado': 'badge-success', 'Cancelado': 'badge-error' };
+const BADGE_PAGO = { 'Pendiente de pago': 'badge-warning', 'Pagado': 'badge-success' };
+const numTxt = (n) => String(Number(n));
+
+// Días de vacaciones anuales por defecto (Configuración → Parámetros laborales)
+async function diasVacacionesEmpresa() {
+  const { data } = await db.select('planilla_empresa_datos', 'select=*&id=eq.1&limit=1');
+  const d = data && data[0] ? Number(data[0].dias_vacaciones_anuales) : 0;
+  return d > 0 ? d : 15;
+}
+
+// Valida y arma los datos de una vacación (alta o edición). No escribe en
+// la base de datos. Devuelve { error } o { registro, periodoNuevo }.
+async function prepararVacacion(body, { personalId, excluirId }) {
+  const { periodo_id, anio_nuevo, dias_nuevo, fecha_inicio, fecha_fin, remuneracion, fecha_pago, observacion } = body;
+  const estado = ESTADOS_VACACION.includes(body.estado) && body.estado !== 'Cancelado' ? body.estado : 'Pendiente';
+  if (!personalId || !periodo_id || !fecha_inicio || !fecha_fin) {
+    return { error: 'Completa trabajador, periodo vacacional, fecha de inicio y fecha de fin.' };
+  }
+  const dias = diasEntre(fecha_inicio, fecha_fin);
+  if (dias === null) return { error: 'Las fechas no son válidas.' };
+  if (dias < 1) return { error: 'La fecha de fin no puede ser anterior a la fecha de inicio.' };
+
+  const remu = (remuneracion === undefined || remuneracion === null || remuneracion === '') ? 0 : parseFloat(remuneracion);
+  if (isNaN(remu) || remu < 0) return { error: 'La remuneración vacacional debe ser un monto válido (0 o mayor).' };
+  if (fecha_pago && !fechaValida(fecha_pago)) return { error: 'La fecha de pago no es válida.' };
+
+  // No superponer con otras vacaciones (no canceladas) del mismo trabajador
+  let qTraslape = `select=id,fecha_inicio,fecha_fin&personal_id=eq.${personalId}&estado=neq.Cancelado` +
+                  `&fecha_inicio=lte.${fecha_fin}&fecha_fin=gte.${fecha_inicio}&limit=1`;
+  if (excluirId) qTraslape += `&id=neq.${excluirId}`;
+  const { data: traslape } = await db.select('planilla_vacaciones', qTraslape);
+  if (traslape && traslape.length) {
+    return { error: `Se superpone con otras vacaciones de este trabajador (${fechaTxt(traslape[0].fecha_inicio)} al ${fechaTxt(traslape[0].fecha_fin)}).` };
+  }
+
+  // Periodo vacacional: uno existente o uno nuevo (hereda los días de la configuración)
+  let periodoNuevo = null, otorgados, utilizados = 0;
+  if (periodo_id === 'nuevo') {
+    const anio = parseInt(anio_nuevo);
+    if (!anio || anio < 2000 || anio > 2100) return { error: 'Indica un año válido para el nuevo periodo vacacional.' };
+    const diasOtorgados = (dias_nuevo === undefined || dias_nuevo === null || dias_nuevo === '') ? await diasVacacionesEmpresa() : parseFloat(dias_nuevo);
+    if (isNaN(diasOtorgados) || diasOtorgados <= 0) return { error: 'Los días otorgados del periodo deben ser mayores a 0.' };
+    const { data: existe } = await db.select('planilla_vacaciones_periodos', `select=id&personal_id=eq.${personalId}&anio=eq.${anio}&limit=1`);
+    if (existe && existe.length) return { error: `Este trabajador ya tiene el periodo vacacional ${anio}; selecciónalo en la lista.` };
+    periodoNuevo = { personal_id: personalId, anio, dias_otorgados: diasOtorgados };
+    otorgados = diasOtorgados;
+  } else {
+    if (!esUuid(periodo_id)) return { error: 'Periodo vacacional inválido.' };
+    const { data: per } = await db.select('planilla_vacaciones_periodos', `select=id&id=eq.${periodo_id}&personal_id=eq.${personalId}&limit=1`);
+    if (!per || !per.length) return { error: 'Ese periodo vacacional no pertenece a este trabajador.' };
+    const saldo = (await saldosDePeriodos([periodo_id], excluirId))[periodo_id];
+    otorgados = saldo.otorgados; utilizados = saldo.utilizados;
+  }
+  if (dias > otorgados - utilizados) {
+    return { error: `Esas vacaciones son ${dias} día(s), pero en el periodo solo quedan ${numTxt(otorgados - utilizados)} (otorgados ${numTxt(otorgados)}, utilizados ${numTxt(utilizados)}).` };
+  }
+
+  return {
+    periodoNuevo,
+    registro: {
+      personal_id: personalId, periodo_vacacional_id: periodo_id === 'nuevo' ? null : periodo_id,
+      fecha_inicio, fecha_fin, dias, estado, remuneracion: remu,
+      fecha_pago: fecha_pago || null, observacion: observacion && observacion.trim() ? observacion.trim() : null
+    }
+  };
+}
+
+// ── Pantalla principal de Vacaciones ──
+router.get('/vacaciones', async (req, res) => {
+  const personalId = esUuid(req.query.personal_id) ? req.query.personal_id : null;
+  const anioNum = parseInt(req.query.anio) || null;
+  const estado = ESTADOS_VACACION.includes(req.query.estado) ? req.query.estado : '';
+  const estadoPago = ['Pendiente de pago', 'Pagado'].includes(req.query.estado_pago) ? req.query.estado_pago : '';
+
+  let qVac = 'select=id,personal_id,fecha_inicio,fecha_fin,dias,estado,estado_pago,remuneracion,personal:personal_tripulantes(nombres,apellidos),' +
+             'periodo:planilla_vacaciones_periodos(id,anio)&order=fecha_inicio.desc&limit=500';
+  let qPer = 'select=id,dias_otorgados&order=anio.desc';
+  let qUsadas = 'select=periodo_vacacional_id,dias,remuneracion,estado_pago&estado=neq.Cancelado';
+  if (personalId) { qVac += `&personal_id=eq.${personalId}`; qPer += `&personal_id=eq.${personalId}`; qUsadas += `&personal_id=eq.${personalId}`; }
+  if (estado)     qVac += `&estado=eq.${encodeURIComponent(estado)}`;
+  if (estadoPago) qVac += `&estado_pago=eq.${encodeURIComponent(estadoPago)}`;
+  if (anioNum)    qPer += `&anio=eq.${anioNum}`;
+
+  const [{ data: vacs }, { data: periodos }, { data: usadas }, { data: todosPeriodos }, { data: personalSel }, diasEmpresa, { data: trabajadores }] = await Promise.all([
+    db.select('planilla_vacaciones', qVac), db.select('planilla_vacaciones_periodos', qPer),
+    db.select('planilla_vacaciones', qUsadas), db.select('planilla_vacaciones_periodos', 'select=anio'),
+    personalId ? db.select('personal_tripulantes', `select=nombres,apellidos&id=eq.${personalId}&limit=1`) : Promise.resolve({ data: [] }),
+    diasVacacionesEmpresa(),
+    db.select('personal_tripulantes', 'select=id,nombres,apellidos&activo=eq.true&order=apellidos.asc')
+  ]);
+
+  // Tarjetas: días otorgados/utilizados/restantes (de los periodos en pantalla) y
+  // remuneraciones pendientes de pago (vacaciones no canceladas sin pagar).
+  const idsPeriodo = new Set((periodos || []).map(p => p.id));
+  const otorgados = (periodos || []).reduce((sum, p) => sum + Number(p.dias_otorgados), 0);
+  const enAlcance = (usadas || []).filter(u => !anioNum || idsPeriodo.has(u.periodo_vacacional_id));
+  const utilizados = enAlcance.filter(u => idsPeriodo.has(u.periodo_vacacional_id)).reduce((sum, u) => sum + Number(u.dias), 0);
+  const pendientes = enAlcance.filter(u => u.estado_pago === 'Pendiente de pago').reduce((sum, u) => sum + Number(u.remuneracion || 0), 0);
+
+  const filas = (vacs || []).filter(v => !anioNum || (v.periodo && v.periodo.anio === anioNum)).map(v => {
+    const cancelada = v.estado === 'Cancelado', pagada = v.estado_pago === 'Pagado';
+    return {
+      id: v.id, trabajador: v.personal ? `${v.personal.apellidos}, ${v.personal.nombres}` : '—',
+      periodoTxt: v.periodo ? `Periodo ${v.periodo.anio}` : '—',
+      inicioTxt: fechaTxt(v.fecha_inicio), finTxt: fechaTxt(v.fecha_fin), dias: Number(v.dias),
+      remuneracion: Number(v.remuneracion || 0), estado: v.estado, estadoPago: v.estado_pago,
+      badgeEstado: BADGE_VAC[v.estado] || 'badge-neutral', badgePago: BADGE_PAGO[v.estado_pago] || 'badge-neutral',
+      puedeEditarFila: !cancelada, puedePagar: !cancelada && !pagada, puedeCancelar: !cancelada && !pagada
+    };
+  });
+
+  res.render('planilla/vacaciones', {
+    layout: 'main', title: 'Vacaciones', pageTitle: 'Vacaciones',
+    pageSubtitle: 'Periodos vacacionales, vacaciones y su pago',
+    seccionActiva: 'vacaciones', filas,
+    resumen: { otorgados, utilizados, restantes: otorgados - utilizados, pendientes },
+    filtros: { personalId: personalId || '', personalNombre: personalSel && personalSel[0] ? `${personalSel[0].nombres} ${personalSel[0].apellidos}` : '', anio: anioNum || '', estado, estadoPago },
+    aniosFiltro: [...new Set((todosPeriodos || []).map(p => p.anio))].sort((a, b) => b - a),
+    estadosFiltro: ESTADOS_VACACION, estadosForm: ESTADOS_VACACION.filter(e => e !== 'Cancelado'),
+    trabajadoresFiltro: (trabajadores || []).map(t => ({ id: t.id, nombreCompleto: `${t.apellidos}, ${t.nombres}` })),
+    diasEmpresa, anioActual: new Date().getFullYear(), today: new Date().toISOString().slice(0, 10),
+    puedeEditar: esAdminOEditor(req.usuarioFresco)
+  });
+});
+
+// Periodos vacacionales de un trabajador (con su saldo) — para el formulario
+router.get('/vacaciones/trabajador/:personalId/periodos', async (req, res) => {
+  if (!esUuid(req.params.personalId)) return res.status(400).json({ error: 'Trabajador inválido.' });
+  const { data: periodos } = await db.select('planilla_vacaciones_periodos',
+    `select=id,anio,dias_otorgados&personal_id=eq.${req.params.personalId}&order=anio.desc`);
+  const saldos = await saldosDePeriodos((periodos || []).map(p => p.id));
+  res.json({
+    diasPorDefecto: await diasVacacionesEmpresa(), anioSugerido: new Date().getFullYear(),
+    periodos: (periodos || []).map(p => ({ id: p.id, anio: p.anio, ...saldos[p.id] }))
+  });
+});
+
+// Detalle de una vacación (botón "Ver" y precarga de "Editar")
+router.get('/vacaciones/:id', async (req, res) => {
+  if (!esUuid(req.params.id)) return res.status(400).json({ error: 'Registro inválido.' });
+  const [{ data: rows }, { data: pagos }] = await Promise.all([
+    db.select('planilla_vacaciones', `select=*,personal:personal_tripulantes(nombres,apellidos,dni),periodo:planilla_vacaciones_periodos(id,anio,dias_otorgados)&id=eq.${req.params.id}&limit=1`),
+    db.select('planilla_vacaciones_pagos', `select=monto,fecha_pago,creado_en&vacacion_id=eq.${req.params.id}&limit=1`)
+  ]);
+  const v = rows && rows[0];
+  if (!v) return res.status(404).json({ error: 'Vacación no encontrada.' });
+  const saldo = v.periodo ? (await saldosDePeriodos([v.periodo.id]))[v.periodo.id] : null;
+  res.json({ vacacion: v, saldo, pago: (pagos && pagos[0]) || null });
+});
+
+router.post('/vacaciones', requirePlanillaEditar, async (req, res) => {
+  const volver = '/planilla/vacaciones';
+  if (!esUuid(req.body.personal_id)) { req.flash('error', 'Selecciona un trabajador.'); return res.redirect(volver); }
+  const r = await prepararVacacion(req.body, { personalId: req.body.personal_id });
+  if (r.error) { req.flash('error', r.error); return res.redirect(volver); }
+
+  let periodoId = r.registro.periodo_vacacional_id;
+  if (r.periodoNuevo) {
+    const { data, error } = await db.insert('planilla_vacaciones_periodos', { ...r.periodoNuevo, creado_por: req.session.user.id });
+    if (error || !data || !data[0]) {
+      req.flash('error', 'No se pudo crear el periodo vacacional: ' + (error ? error.message : 'sin respuesta'));
+      return res.redirect(volver);
+    }
+    periodoId = data[0].id;
+  }
+  const { data, error } = await db.insert('planilla_vacaciones', { ...r.registro, periodo_vacacional_id: periodoId, creado_por: req.session.user.id });
+  if (error) {
+    if (r.periodoNuevo) await db.delete('planilla_vacaciones_periodos', `id=eq.${periodoId}`);
+    req.flash('error', 'Error al registrar las vacaciones: ' + error.message);
+    return res.redirect(volver);
+  }
+  await registrarAuditoria({
+    usuario: req.session.user, accion: 'registrar_vacaciones', entidad: 'vacacion', entidad_id: data && data[0] && data[0].id,
+    valor_nuevo: { personal_id: r.registro.personal_id, periodo_vacacional_id: periodoId, fecha_inicio: r.registro.fecha_inicio, fecha_fin: r.registro.fecha_fin, dias: r.registro.dias, remuneracion: r.registro.remuneracion }
+  });
+  req.flash('success', `Vacaciones registradas (${r.registro.dias} día${r.registro.dias === 1 ? '' : 's'}).`);
+  res.redirect(volver);
+});
+
+router.post('/vacaciones/:id/editar', requirePlanillaEditar, async (req, res) => {
+  const volver = '/planilla/vacaciones';
+  if (!esUuid(req.params.id)) { req.flash('error', 'Registro inválido.'); return res.redirect(volver); }
+  const { data: rows } = await db.select('planilla_vacaciones', `select=*&id=eq.${req.params.id}&limit=1`);
+  const actual = rows && rows[0];
+  if (!actual) { req.flash('error', 'Vacación no encontrada.'); return res.redirect(volver); }
+  if (actual.estado === 'Cancelado') { req.flash('error', 'Una vacación cancelada no se puede editar.'); return res.redirect(volver); }
+
+  // Si ya está pagada, la remuneración y la fecha de pago quedan fijas (son las del pago).
+  const body = { ...req.body };
+  if (actual.estado_pago === 'Pagado') { body.remuneracion = actual.remuneracion; body.fecha_pago = actual.fecha_pago || ''; }
+
+  const r = await prepararVacacion(body, { personalId: actual.personal_id, excluirId: actual.id });
+  if (r.error) { req.flash('error', r.error); return res.redirect(volver); }
+
+  let periodoId = r.registro.periodo_vacacional_id;
+  if (r.periodoNuevo) {
+    const { data, error } = await db.insert('planilla_vacaciones_periodos', { ...r.periodoNuevo, creado_por: req.session.user.id });
+    if (error || !data || !data[0]) { req.flash('error', 'No se pudo crear el periodo vacacional.'); return res.redirect(volver); }
+    periodoId = data[0].id;
+  }
+  const { error } = await db.update('planilla_vacaciones', `id=eq.${actual.id}`, { ...r.registro, periodo_vacacional_id: periodoId });
+  if (error) {
+    if (r.periodoNuevo) await db.delete('planilla_vacaciones_periodos', `id=eq.${periodoId}`);
+    req.flash('error', 'No se pudo guardar: ' + error.message);
+    return res.redirect(volver);
+  }
+  await registrarAuditoria({
+    usuario: req.session.user, accion: 'editar_vacaciones', entidad: 'vacacion', entidad_id: actual.id,
+    valor_anterior: { fecha_inicio: actual.fecha_inicio, fecha_fin: actual.fecha_fin, dias: actual.dias, estado: actual.estado, remuneracion: actual.remuneracion },
+    valor_nuevo: { fecha_inicio: r.registro.fecha_inicio, fecha_fin: r.registro.fecha_fin, dias: r.registro.dias, estado: r.registro.estado, remuneracion: r.registro.remuneracion }
+  });
+  req.flash('success', 'Vacaciones actualizadas.');
+  res.redirect(volver);
+});
+
+// Registrar el pago de la remuneración vacacional (una sola vez por vacación)
+router.post('/vacaciones/:id/pago', requirePlanillaEditar, async (req, res) => {
+  const volver = '/planilla/vacaciones';
+  if (!esUuid(req.params.id)) { req.flash('error', 'Registro inválido.'); return res.redirect(volver); }
+  const monto = parseFloat(req.body.monto);
+  const fechaPago = req.body.fecha_pago;
+  if (isNaN(monto) || monto <= 0) { req.flash('error', 'Indica el monto pagado (mayor a 0).'); return res.redirect(volver); }
+  if (!fechaValida(fechaPago)) { req.flash('error', 'Indica una fecha de pago válida.'); return res.redirect(volver); }
+
+  const { data: rows } = await db.select('planilla_vacaciones', `select=*&id=eq.${req.params.id}&limit=1`);
+  const v = rows && rows[0];
+  if (!v) { req.flash('error', 'Vacación no encontrada.'); return res.redirect(volver); }
+  if (v.estado === 'Cancelado') { req.flash('error', 'No se puede pagar una vacación cancelada.'); return res.redirect(volver); }
+  if (v.estado_pago === 'Pagado') { req.flash('error', 'Esta vacación ya tiene su pago registrado.'); return res.redirect(volver); }
+
+  // El pago entra en la planilla del mes de la fecha de pago: si ese mes ya
+  // está cerrado, no se puede alterar (reábrelo o usa otra fecha).
+  const [anioP, mesP] = fechaPago.split('-').map(Number);
+  const { data: periodoMes } = await db.select('planilla_periodos', `select=estado,etiqueta&mes=eq.${mesP}&anio=eq.${anioP}&limit=1`);
+  if (periodoMes && periodoMes[0] && periodoMes[0].estado === 'cerrado') {
+    req.flash('error', `La planilla ${periodoMes[0].etiqueta} está cerrada; elige otra fecha de pago o reabre ese periodo.`);
+    return res.redirect(volver);
+  }
+
+  // UNIQUE(vacacion_id) en la base impide un segundo pago aunque haya doble clic.
+  const { error: errPago } = await db.insert('planilla_vacaciones_pagos', {
+    vacacion_id: v.id, personal_id: v.personal_id, monto, fecha_pago: fechaPago, registrado_por: req.session.user.id
+  });
+  if (errPago) {
+    req.flash('error', /duplicate|unique/i.test(errPago.message) ? 'Esta vacación ya tiene su pago registrado.' : 'No se pudo registrar el pago: ' + errPago.message);
+    return res.redirect(volver);
+  }
+  const { error: errUpd } = await db.update('planilla_vacaciones', `id=eq.${v.id}`, { estado_pago: 'Pagado', fecha_pago: fechaPago, remuneracion: monto });
+  if (errUpd) {
+    await db.delete('planilla_vacaciones_pagos', `vacacion_id=eq.${v.id}`);
+    req.flash('error', 'No se pudo confirmar el pago: ' + errUpd.message);
+    return res.redirect(volver);
+  }
+  await registrarAuditoria({
+    usuario: req.session.user, accion: 'pagar_vacaciones', entidad: 'vacacion', entidad_id: v.id,
+    valor_nuevo: { monto, fecha_pago: fechaPago }
+  });
+  req.flash('success', `Pago registrado: S/ ${monto.toFixed(2)}. Se incluirá en la planilla de ${MESES[mesP]} ${anioP}.`);
+  res.redirect(volver);
+});
+
+// Cancelar: los días vuelven al saldo automáticamente (el saldo se calcula
+// sumando solo las vacaciones no canceladas). Con pago registrado no se cancela.
+router.post('/vacaciones/:id/cancelar', requirePlanillaEditar, async (req, res) => {
+  const volver = '/planilla/vacaciones';
+  if (!esUuid(req.params.id)) { req.flash('error', 'Registro inválido.'); return res.redirect(volver); }
+  const { data: rows } = await db.select('planilla_vacaciones', `select=id,dias,estado,estado_pago&id=eq.${req.params.id}&limit=1`);
+  const v = rows && rows[0];
+  if (!v) { req.flash('error', 'Vacación no encontrada.'); return res.redirect(volver); }
+  if (v.estado === 'Cancelado') { req.flash('error', 'Esta vacación ya estaba cancelada.'); return res.redirect(volver); }
+  if (v.estado_pago === 'Pagado') { req.flash('error', 'No se puede cancelar: la vacación ya tiene su pago registrado.'); return res.redirect(volver); }
+  const { error } = await db.update('planilla_vacaciones', `id=eq.${v.id}`, { estado: 'Cancelado' });
+  if (error) { req.flash('error', 'No se pudo cancelar: ' + error.message); return res.redirect(volver); }
+  await registrarAuditoria({
+    usuario: req.session.user, accion: 'cancelar_vacaciones', entidad: 'vacacion', entidad_id: v.id,
+    valor_anterior: { estado: v.estado }, valor_nuevo: { estado: 'Cancelado' }
+  });
+  req.flash('success', `Vacaciones canceladas. Se devolvieron ${numTxt(v.dias)} día(s) al saldo del periodo.`);
+  res.redirect(volver);
+});
+
+// ── Permisos (las vacaciones ahora viven en /planilla/vacaciones) ──
 router.get('/vacaciones-permisos', async (req, res) => {
-  const [{ data: tipos }, { data: proximasVac }, { data: proximosPer }] = await Promise.all([
+  const [{ data: tipos }, { data: proximosPer }] = await Promise.all([
     db.select('planilla_tipos_permiso', 'select=id,nombre&activo=eq.true&order=nombre.asc'),
-    db.select('planilla_vacaciones',
-      'select=id,fecha_inicio,fecha_fin,dias,estado,personal:personal_tripulantes(nombres,apellidos)&order=fecha_inicio.desc&limit=20'),
     db.select('planilla_permisos',
       'select=id,fecha,dia_completo,con_goce,estado,motivo,personal:personal_tripulantes(nombres,apellidos),tipo:planilla_tipos_permiso(nombre),descuento:planilla_descuentos(importe_original,saldo)&order=fecha.desc&limit=20')
   ]);
   res.render('planilla/vacaciones-permisos', {
-    layout: 'main', title: 'Vacaciones y Permisos',
-    pageTitle: 'Vacaciones y Permisos', pageSubtitle: 'Administra las ausencias de los trabajadores',
+    layout: 'main', title: 'Permisos',
+    pageTitle: 'Permisos', pageSubtitle: 'Administra los permisos de los trabajadores',
     seccionActiva: 'vacaciones-permisos', tipos: tipos || [],
-    vacaciones: proximasVac || [], permisos: proximosPer || [],
-    estadosVacacion: ['Programada', 'Aprobada', 'Tomada', 'Cancelada'],
+    permisos: proximosPer || [],
     estadosPermiso: ['Pendiente', 'Aprobado', 'Rechazado', 'Cancelado'],
     puedeEditar: esAdminOEditor(req.usuarioFresco)
   });
@@ -606,47 +991,6 @@ router.get('/vacaciones-permisos/trabajador/:personalId', async (req, res) => {
     db.select('planilla_permisos', `select=*,tipo:planilla_tipos_permiso(nombre)&personal_id=eq.${req.params.personalId}&order=fecha.desc`)
   ]);
   res.json({ vacaciones: vac || [], permisos: per || [] });
-});
-
-router.post('/vacaciones', requirePlanillaEditar, async (req, res) => {
-  const { personal_id, fecha_inicio, fecha_fin, observacion } = req.body;
-  if (!personal_id || !fecha_inicio || !fecha_fin) {
-    req.flash('error', 'Completa trabajador, fecha de inicio y fecha de fin.');
-    return res.redirect('/planilla/vacaciones-permisos');
-  }
-  const ini = new Date(fecha_inicio), fin = new Date(fecha_fin);
-  if (isNaN(ini) || isNaN(fin) || fin < ini) {
-    req.flash('error', 'El rango de fechas no es válido (la fecha de fin no puede ser anterior a la de inicio).');
-    return res.redirect('/planilla/vacaciones-permisos');
-  }
-  const dias = Math.round((fin - ini) / 86400000) + 1;
-  const { data, error } = await db.insert('planilla_vacaciones', {
-    personal_id, fecha_inicio, fecha_fin, dias, observacion: observacion || null, creado_por: req.session.user.id
-  });
-  if (error) { req.flash('error', 'Error al registrar vacaciones: ' + error.message); }
-  else {
-    await registrarAuditoria({
-      usuario: req.session.user, accion: 'registrar_vacaciones', entidad: 'vacacion',
-      entidad_id: data && data[0] && data[0].id, valor_nuevo: { personal_id, fecha_inicio, fecha_fin, dias }
-    });
-    req.flash('success', `Vacaciones registradas (${dias} día${dias === 1 ? '' : 's'}).`);
-  }
-  res.redirect('/planilla/vacaciones-permisos');
-});
-
-router.post('/vacaciones/:id/estado', requirePlanillaEditar, async (req, res) => {
-  const { estado } = req.body;
-  if (!['Programada', 'Aprobada', 'Tomada', 'Cancelada'].includes(estado)) return res.status(400).json({ error: 'Estado inválido.' });
-  await db.update('planilla_vacaciones', `id=eq.${req.params.id}`, { estado });
-  await registrarAuditoria({ usuario: req.session.user, accion: 'actualizar_estado_vacacion', entidad: 'vacacion', entidad_id: req.params.id, valor_nuevo: { estado } });
-  res.json({ ok: true });
-});
-
-router.post('/vacaciones/:id/eliminar', requirePlanillaEditar, async (req, res) => {
-  await db.delete('planilla_vacaciones', `id=eq.${req.params.id}`);
-  await registrarAuditoria({ usuario: req.session.user, accion: 'eliminar_vacacion', entidad: 'vacacion', entidad_id: req.params.id });
-  req.flash('success', 'Registro eliminado.');
-  res.redirect('/planilla/vacaciones-permisos');
 });
 
 router.post('/permisos', requirePlanillaEditar, async (req, res) => {
@@ -772,6 +1116,14 @@ async function generarReporte(tipo, filtros) {
   const periodosRango = periodosEnRango(todos, filtros.periodoDesde, filtros.periodoHasta);
   const idsPeriodo = periodosRango.map(p => p.id);
   const etiquetaPeriodo = {}; todos.forEach(p => { etiquetaPeriodo[p.id] = p.etiqueta; });
+  const mesDePeriodo = {}; todos.forEach(p => { mesDePeriodo[p.id] = `${p.anio}-${pad2(p.mes)}`; });
+  // Remuneración vacacional pagada: personal|YYYY-MM (mes de pago) → monto
+  const cargarVacPagadas = async () => {
+    const { data } = await db.select('planilla_vacaciones_pagos', 'select=personal_id,monto,fecha_pago');
+    const m = {};
+    (data || []).forEach(x => { const k = x.personal_id + '|' + String(x.fecha_pago).slice(0, 7); m[k] = (m[k] || 0) + Number(x.monto); });
+    return m;
+  };
 
   const coincideFiltroPersonal = (p) => {
     if (!p) return false;
@@ -820,14 +1172,15 @@ async function generarReporte(tipo, filtros) {
   }
 
   if (tipo === 'vacaciones') {
-    let q = 'select=fecha_inicio,fecha_fin,dias,estado,personal:personal_tripulantes(nombres,apellidos,area,cargo,tipo)&order=fecha_inicio.desc';
+    let q = 'select=fecha_inicio,fecha_fin,dias,estado,estado_pago,remuneracion,fecha_pago,periodo:planilla_vacaciones_periodos(anio),personal:personal_tripulantes(nombres,apellidos,area,cargo,tipo)&order=fecha_inicio.desc';
     if (filtros.personalId) q += `&personal_id=eq.${filtros.personalId}`;
-    if (filtros.estado) q += `&estado=eq.${filtros.estado}`;
+    if (filtros.estado) q += `&estado=eq.${encodeURIComponent(filtros.estado)}`;
     const { data } = await db.select('planilla_vacaciones', q);
     const rows = (data || []).filter(v => coincideFiltroPersonal(v.personal)).map(v => [
-      v.personal ? `${v.personal.nombres} ${v.personal.apellidos}` : '—', v.fecha_inicio, v.fecha_fin, v.dias, v.estado
+      v.personal ? `${v.personal.nombres} ${v.personal.apellidos}` : '—', v.periodo ? `Periodo ${v.periodo.anio}` : '—',
+      v.fecha_inicio, v.fecha_fin, v.dias, Number(v.remuneracion || 0).toFixed(2), v.estado, v.estado_pago, v.fecha_pago || '—'
     ]);
-    return { headers: ['Trabajador', 'Fecha inicio', 'Fecha fin', 'Días', 'Estado'], rows };
+    return { headers: ['Trabajador', 'Periodo', 'Fecha inicio', 'Fecha fin', 'Días', 'Remuneración', 'Estado vacaciones', 'Estado pago', 'Fecha pago'], rows };
   }
 
   if (tipo === 'permisos') {
@@ -844,32 +1197,35 @@ async function generarReporte(tipo, filtros) {
   }
 
   if (tipo === 'historico-trabajador') {
-    if (!filtros.personalId) return { headers: ['Periodo', 'Sueldo', 'Bonos', 'Descuentos', 'Neto'], rows: [] };
+    if (!filtros.personalId) return { headers: ['Periodo', 'Sueldo', 'Bonos', 'Vacaciones', 'Descuentos', 'Neto'], rows: [] };
     const { data: roster } = await db.select('planilla_periodo_trabajadores',
       `select=periodo_id,sueldo_base,periodo:planilla_periodos(etiqueta,mes,anio)&personal_id=eq.${filtros.personalId}`);
     const [{ data: bonos }, { data: cobros }] = await Promise.all([
       db.select('planilla_bonos', `select=periodo_id,importe&personal_id=eq.${filtros.personalId}`),
       db.select('planilla_descuento_cobros', `select=periodo_id,importe&personal_id=eq.${filtros.personalId}&cobrado=eq.true`)
     ]);
+    const vacPagadas = await cargarVacPagadas();
     const bonosPor = {}, cobrosPor = {};
     (bonos || []).forEach(b => { bonosPor[b.periodo_id] = (bonosPor[b.periodo_id] || 0) + Number(b.importe); });
     (cobros || []).forEach(c => { cobrosPor[c.periodo_id] = (cobrosPor[c.periodo_id] || 0) + Number(c.importe); });
     const rows = (roster || []).filter(r => r.periodo).sort((a, b) => (a.periodo.anio - b.periodo.anio) || (a.periodo.mes - b.periodo.mes))
       .map(r => {
         const sueldo = Number(r.sueldo_base || 0), bon = bonosPor[r.periodo_id] || 0, desc = cobrosPor[r.periodo_id] || 0;
-        return [r.periodo.etiqueta, sueldo.toFixed(2), bon.toFixed(2), desc.toFixed(2), (sueldo + bon - desc).toFixed(2)];
+        const vac = vacPagadas[filtros.personalId + '|' + `${r.periodo.anio}-${pad2(r.periodo.mes)}`] || 0;
+        return [r.periodo.etiqueta, sueldo.toFixed(2), bon.toFixed(2), vac.toFixed(2), desc.toFixed(2), (sueldo + bon + vac - desc).toFixed(2)];
       });
-    return { headers: ['Periodo', 'Sueldo', 'Bonos', 'Descuentos', 'Neto'], rows };
+    return { headers: ['Periodo', 'Sueldo', 'Bonos', 'Vacaciones', 'Descuentos', 'Neto'], rows };
   }
 
   // 'general' (por defecto)
-  if (!idsPeriodo.length) return { headers: ['Trabajador', 'Periodo', 'Sueldo', 'Bonos', 'Descuentos', 'Neto'], rows: [] };
+  if (!idsPeriodo.length) return { headers: ['Trabajador', 'Periodo', 'Sueldo', 'Bonos', 'Vacaciones', 'Descuentos', 'Neto'], rows: [] };
   let qRoster = `select=id,periodo_id,personal_id,sueldo_base,area,cargo,tipo,categoria,personal:personal_tripulantes(nombres,apellidos)&periodo_id=in.(${idsPeriodo.join(',')})`;
   if (filtros.personalId) qRoster += `&personal_id=eq.${filtros.personalId}`;
   const { data: roster } = await db.select('planilla_periodo_trabajadores', qRoster);
   const filtrado = (roster || []).filter(coincideFiltroPersonal);
   const rIds = filtrado.map(r => r.personal_id);
   let bonosPor = {}, cobrosPor = {};
+  const vacPagadas = rIds.length ? await cargarVacPagadas() : {};
   if (rIds.length) {
     const [{ data: bonos }, { data: cobros }] = await Promise.all([
       db.select('planilla_bonos', `select=periodo_id,personal_id,importe&periodo_id=in.(${idsPeriodo.join(',')})`),
@@ -881,10 +1237,11 @@ async function generarReporte(tipo, filtros) {
   const rows = filtrado.map(r => {
     const k = r.periodo_id + '|' + r.personal_id;
     const sueldo = Number(r.sueldo_base || 0), bon = bonosPor[k] || 0, desc = cobrosPor[k] || 0;
+    const vac = vacPagadas[r.personal_id + '|' + (mesDePeriodo[r.periodo_id] || '')] || 0;
     return [r.personal ? `${r.personal.nombres} ${r.personal.apellidos}` : '—', etiquetaPeriodo[r.periodo_id] || '—',
-      sueldo.toFixed(2), bon.toFixed(2), desc.toFixed(2), (sueldo + bon - desc).toFixed(2)];
+      sueldo.toFixed(2), bon.toFixed(2), vac.toFixed(2), desc.toFixed(2), (sueldo + bon + vac - desc).toFixed(2)];
   });
-  return { headers: ['Trabajador', 'Periodo', 'Sueldo', 'Bonos', 'Descuentos', 'Neto'], rows };
+  return { headers: ['Trabajador', 'Periodo', 'Sueldo', 'Bonos', 'Vacaciones', 'Descuentos', 'Neto'], rows };
 }
 
 function leerFiltrosReporte(q) {
@@ -965,12 +1322,14 @@ async function armarBoleta(periodoId, rosterId) {
   const periodo = periodoRows && periodoRows[0];
   if (!periodo || !roster) return null;
 
-  const [{ data: bonos }, { data: cobros }, vacPer] = await Promise.all([
+  const [{ data: bonos }, { data: cobros }, vacPer, pagosVac] = await Promise.all([
     db.select('planilla_bonos', `select=concepto,importe&periodo_id=eq.${periodoId}&personal_id=eq.${roster.personal_id}`),
     db.select('planilla_descuento_cobros',
       `select=importe,descuento:planilla_descuentos(origen_codigo,concepto:planilla_conceptos_descuento(nombre))&periodo_id=eq.${periodoId}&personal_id=eq.${roster.personal_id}&cobrado=eq.true`),
-    obtenerVacacionesPermisosDelPeriodo(roster.personal_id, periodo.mes, periodo.anio)
+    obtenerVacacionesPermisosDelPeriodo(roster.personal_id, periodo.mes, periodo.anio),
+    pagosVacacionalesDelMes(periodo.mes, periodo.anio, roster.personal_id)
   ]);
+  const totalVac = sumaPagosVac(pagosVac);
   const totalBonos = (bonos || []).reduce((s, b) => s + Number(b.importe), 0);
   const totalDescuentos = (cobros || []).reduce((s, c) => s + Number(c.importe), 0);
   const sueldo = Number(roster.sueldo_base || 0);
@@ -983,7 +1342,8 @@ async function armarBoleta(periodoId, rosterId) {
       origen: c.descuento ? c.descuento.origen_codigo : '—', importe: c.importe
     })),
     vacaciones: vacPer.vacaciones, permisos: vacPer.permisos,
-    sueldo, totalBonos, totalIngresos: sueldo + totalBonos, totalDescuentos, neto: sueldo + totalBonos - totalDescuentos,
+    remuneracionesVac: pagosVac.map(x => ({ concepto: 'Remuneración vacacional', detalle: x.detalle, importe: x.monto })),
+    sueldo, totalBonos, totalVac, totalIngresos: sueldo + totalBonos + totalVac, totalDescuentos, neto: sueldo + totalBonos + totalVac - totalDescuentos,
     fechaEmision: new Date().toLocaleDateString('es-PE')
   };
 }

@@ -64,6 +64,9 @@
           <thead><tr><th>Ingresos</th><th class="monto">Monto</th></tr></thead>
           <tbody>
             <tr><td>Sueldo base</td><td class="monto">{{formatSoles sueldo}}</td></tr>
+            {{#each remuneracionesVac}}
+            <tr><td>{{concepto}}{{#if detalle}} — {{detalle}}{{/if}}</td><td class="monto">{{formatSoles importe}}</td></tr>
+            {{/each}}
             {{#each bonos}}
             <tr><td>{{concepto}}</td><td class="monto">{{formatSoles importe}}</td></tr>
             {{/each}}

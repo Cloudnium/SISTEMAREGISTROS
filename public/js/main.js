@@ -38,13 +38,18 @@ function toggleSidebarCollapse() {
   if (icon) icon.setAttribute('data-lucide', collapsed ? 'panel-left-open' : 'panel-left-close');
   if (btn) btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  cerrarFlyoutSidebar();
 }
 
 // ─── Grupos colapsables del sidebar (Boletaje / General / etc.) ───
-// Un clic alterna abierto/cerrado y recuerda la preferencia en
-// localStorage por nombre de grupo. El grupo que contiene la página
-// activa siempre arranca abierto (para no "perder" la página en la
-// que estás), sin importar lo que diga localStorage.
+// Sidebar EXPANDIDO: un clic alterna abierto/cerrado en línea y
+// recuerda la preferencia en localStorage por nombre de grupo. El
+// grupo que contiene la página activa siempre arranca abierto (para
+// no "perder" la página en la que estás), sin importar localStorage.
+//
+// Sidebar CONTRAÍDO (solo íconos): un clic abre un panel flotante al
+// lado del ícono con los enlaces de ese grupo — no hay espacio para
+// desplegarlos en línea. Solo un panel puede estar abierto a la vez.
 function toggleSidebarGroup(key) {
   const items  = document.getElementById('sidebarGroup-' + key);
   const header = document.querySelector('[data-group-toggle="' + key + '"]');
@@ -53,6 +58,53 @@ function toggleSidebarGroup(key) {
   items.classList.toggle('sidebar-group-collapsed', !abrirAhora);
   header.setAttribute('aria-expanded', abrirAhora ? 'true' : 'false');
   try { localStorage.setItem('sidebarGroup:' + key, abrirAhora ? 'open' : 'closed'); } catch (e) {}
+}
+
+let flyoutPadreOriginal = null; // dónde vive normalmente el panel abierto, para devolverlo al cerrar
+
+function cerrarFlyoutSidebar() {
+  const abierto = document.querySelector('.sidebar-group-items.sidebar-flyout-open');
+  if (!abierto) return;
+  abierto.classList.remove('sidebar-flyout-open');
+  abierto.style.top = ''; abierto.style.left = '';
+  const header = document.querySelector('[data-group-toggle="' + abierto.getAttribute('data-group-key') + '"]');
+  if (header) header.setAttribute('aria-expanded', 'false');
+  // Lo regresa a su lugar original dentro del sidebar (ver por qué se
+  // mueve, en toggleFlyoutSidebar).
+  if (flyoutPadreOriginal) { flyoutPadreOriginal.appendChild(abierto); flyoutPadreOriginal = null; }
+}
+
+function toggleFlyoutSidebar(key, header, items) {
+  const yaAbierto = items.classList.contains('sidebar-flyout-open');
+  cerrarFlyoutSidebar();
+  if (yaAbierto) return; // era el mismo: solo lo cerramos
+
+  items.setAttribute('data-group-key', key);
+  // El panel usa position:fixed para "flotar" sobre toda la página,
+  // pero el <aside class="sidebar"> tiene will-change:transform (y en
+  // móvil, transform real para abrir/cerrar) — eso lo convierte en el
+  // contenedor de referencia para cualquier hijo fixed, así que el
+  // panel quedaría recortado dentro del propio sidebar en vez de
+  // flotar. Por eso se saca temporalmente al <body> mientras está
+  // abierto, y se regresa a su sitio al cerrarlo.
+  flyoutPadreOriginal = items.parentElement;
+  document.body.appendChild(items);
+  items.classList.add('sidebar-flyout-open');
+  header.setAttribute('aria-expanded', 'true');
+
+  // Posiciona el panel a la derecha del ícono, alineado con su borde
+  // superior, sin salirse de la pantalla por abajo.
+  const rectHeader = header.getBoundingClientRect();
+  const sidebarEl = document.getElementById('sidebar');
+  const left = (sidebarEl ? sidebarEl.getBoundingClientRect().right : rectHeader.right) + 8;
+  items.style.left = left + 'px';
+  items.style.top = rectHeader.top + 'px';
+  // Ajuste si se sale por abajo (se mide después de mostrarlo)
+  requestAnimationFrame(function () {
+    const rectItems = items.getBoundingClientRect();
+    const exceso = rectItems.bottom - (window.innerHeight - 12);
+    if (exceso > 0) items.style.top = Math.max(12, rectHeader.top - exceso) + 'px';
+  });
 }
 
 function inicializarGruposSidebar() {
@@ -69,8 +121,26 @@ function inicializarGruposSidebar() {
     const abrir = tieneItemActivo || guardado !== 'closed';
     items.classList.toggle('sidebar-group-collapsed', !abrir);
     header.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-    header.addEventListener('click', function () { toggleSidebarGroup(key); });
+    header.addEventListener('click', function (e) {
+      if (document.body.classList.contains('sidebar-collapsed')) {
+        e.stopPropagation();
+        toggleFlyoutSidebar(key, header, items);
+      } else {
+        toggleSidebarGroup(key);
+      }
+    });
   });
+
+  // Cierra el panel flotante al hacer clic fuera, con Escape, o al
+  // redimensionar la ventana (su posición ya no sería correcta).
+  document.addEventListener('click', function (e) {
+    const abierto = document.querySelector('.sidebar-group-items.sidebar-flyout-open');
+    if (abierto && !abierto.contains(e.target)) cerrarFlyoutSidebar();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') cerrarFlyoutSidebar();
+  });
+  window.addEventListener('resize', cerrarFlyoutSidebar);
 }
 
 function toggleSidebar() {
