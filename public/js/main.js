@@ -33,11 +33,7 @@ function toggleSidebarCollapse() {
   const collapsed = !document.body.classList.contains('sidebar-collapsed');
   document.body.classList.toggle('sidebar-collapsed', collapsed);
   try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
-  const icon = document.getElementById('sidebarToggleIcon');
-  const btn = document.getElementById('sidebarToggleBtn');
-  if (icon) icon.setAttribute('data-lucide', collapsed ? 'panel-left-open' : 'panel-left-close');
-  if (btn) btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+  sincronizarIconoToggle();
   cerrarFlyoutSidebar();
 }
 
@@ -168,6 +164,49 @@ function closeSidebar() {
 }
 
 // ─── Cierra sidebar al hacer clic en overlay ───
+// Sincroniza el ícono/tooltip del botón contraer con la clase actual
+// de <body>. Se usa al cargar y cada vez que el ancho de pantalla
+// obliga a corregir esa clase (ver reconciliarSidebarCollapsed).
+function sincronizarIconoToggle() {
+  const icon = document.getElementById('sidebarToggleIcon');
+  const btn = document.getElementById('sidebarToggleBtn');
+  const collapsed = document.body.classList.contains('sidebar-collapsed');
+  if (icon) icon.setAttribute('data-lucide', collapsed ? 'panel-left-open' : 'panel-left-close');
+  if (btn) btn.title = collapsed ? 'Expandir menú' : 'Contraer menú';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// El modo "solo íconos" (clase body.sidebar-collapsed) solo existe en
+// escritorio (≥1024px) — todas sus reglas CSS están protegidas con
+// @media (min-width: 1024px). Si la persona colapsa el sidebar en
+// escritorio y luego ACHICA la ventana sin recargar, esa clase se
+// queda pegada en <body> aunque el CSS que la interpreta ya no
+// aplique: el resultado es un sidebar a medio camino (ancho normal,
+// pero con los grupos mostrando solo el ícono, sin texto ni flecha).
+// Esta función corrige esa clase cada vez que cambia el ancho de
+// pantalla, para que ese estado roto nunca pueda quedar pintado.
+function reconciliarSidebarCollapsed() {
+  const esEscritorio = window.innerWidth >= 1024;
+  const tieneClase = document.body.classList.contains('sidebar-collapsed');
+  let prefGuardada = false;
+  try { prefGuardada = localStorage.getItem('sidebarCollapsed') === '1'; } catch (e) {}
+
+  if (!esEscritorio && tieneClase) {
+    // Se salió del rango de escritorio con el sidebar contraído: se
+    // quita la clase (sin tocar localStorage, para recordar la
+    // preferencia cuando vuelva a escritorio) y se cierra cualquier
+    // panel flotante que hubiera quedado abierto.
+    document.body.classList.remove('sidebar-collapsed');
+    cerrarFlyoutSidebar();
+    sincronizarIconoToggle();
+  } else if (esEscritorio && !tieneClase && prefGuardada) {
+    // Volvió a escritorio y la preferencia guardada era "contraído":
+    // se restaura.
+    document.body.classList.add('sidebar-collapsed');
+    sincronizarIconoToggle();
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   const overlay = document.getElementById('sidebarOverlay');
   if (overlay) overlay.addEventListener('click', closeSidebar);
@@ -182,12 +221,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Sincroniza el ícono/tooltip del botón contraer con el estado ya
   // aplicado (el estado en sí se aplica antes, en un script inline en
   // el <head>/<body>, para evitar parpadeo al cargar la página).
-  if (document.body.classList.contains('sidebar-collapsed')) {
-    const icon = document.getElementById('sidebarToggleIcon');
-    const btn = document.getElementById('sidebarToggleBtn');
-    if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
-    if (btn) btn.title = 'Expandir menú';
-  }
+  sincronizarIconoToggle();
 
   // Cierra sidebar al navegar (en móvil)
   document.querySelectorAll('.sidebar-nav-item').forEach(function (item) {
@@ -201,12 +235,15 @@ document.addEventListener('DOMContentLoaded', function () {
   // página actual.
   inicializarGruposSidebar();
 
-  // Cierra sidebar si se redimensiona a desktop
+  // Cierra sidebar si se redimensiona a desktop, y corrige la clase
+  // de "sidebar contraído" si el ancho cruzó el límite de escritorio
+  // (ver reconciliarSidebarCollapsed).
   window.addEventListener('resize', function () {
     if (window.innerWidth >= 1024) {
       closeSidebar();
       document.body.style.overflow = '';
     }
+    reconciliarSidebarCollapsed();
   });
 
   // Tecla ESC cierra sidebar

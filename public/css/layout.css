@@ -23,12 +23,22 @@ body { display: flex; overflow-x: hidden; }
   overflow-y: auto; overflow-x: hidden;
 }
 
-/* ── Barra superior (botón contraer/expandir) ── */
+/* ── Barra superior (logo + botón contraer/expandir) ── */
 .sidebar-brand {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
-  display: flex; align-items: center; justify-content: flex-end;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+}
+.sidebar-brand-logo { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; overflow: hidden; }
+.sidebar-brand-logo-name {
+  font-family: var(--font-display); font-size: 0.78rem; font-weight: 800;
+  color: var(--color-accent); letter-spacing: 0.2px; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar-brand-logo-tagline {
+  font-size: 0.6rem; color: var(--text-muted); font-weight: 400; margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .sidebar-toggle-btn {
   display: flex; align-items: center; justify-content: center;
@@ -126,21 +136,13 @@ body { display: flex; overflow-x: hidden; }
 .sidebar-group-items { display: flex; flex-direction: column; gap: 2px; }
 .sidebar-group-items.sidebar-group-collapsed { display: none; }
 
-/* Sidebar contraído a solo íconos: los grupos muestran solo su ícono
-   (como cualquier otro ítem del menú) y NO despliegan sus enlaces en
-   línea — eso ocupa demasiado espacio en un menú de solo íconos. En
-   su lugar, un clic abre un panel flotante al lado (ver .sidebar-flyout-open más abajo). */
-body.sidebar-collapsed .sidebar-group-header {
-  justify-content: center; padding: var(--space-3);
-}
-body.sidebar-collapsed .sidebar-group-header-label span,
-body.sidebar-collapsed .sidebar-group-chevron { display: none; }
-body.sidebar-collapsed .sidebar-group-items { display: none; }
-body.sidebar-collapsed .sidebar-group { margin-top: 0; }
-
-/* Panel flotante con los ítems del grupo, para cuando el sidebar está
-   contraído. Se posiciona por JS (top/left) junto al ícono del grupo. */
-body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open {
+/* Panel flotante con los ítems del grupo (sidebar contraído a solo
+   íconos): un clic en el ícono del grupo lo abre; JS lo posiciona
+   (top/left) junto a ese ícono. Cuándo se activa esto (y el resto de
+   las reglas de "sidebar contraído") vive en el único media query de
+   más abajo — así nunca queda una regla de "contraído" aplicándose
+   fuera del ancho de pantalla correcto. */
+.sidebar-group-items.sidebar-flyout-open {
   display: flex !important;
   position: fixed;
   z-index: 400;
@@ -154,10 +156,10 @@ body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open {
   gap: 2px;
   animation: sidebarFlyoutIn var(--transition-fast) ease-out;
 }
-body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-nav-item {
+.sidebar-group-items.sidebar-flyout-open .sidebar-nav-item {
   justify-content: flex-start; padding: var(--space-3) var(--space-4);
 }
-body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-nav-item span {
+.sidebar-group-items.sidebar-flyout-open .sidebar-nav-item span {
   display: inline;
 }
 .sidebar-flyout-titulo {
@@ -165,7 +167,7 @@ body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-nav-ite
   font-size: 0.67rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-muted); padding: var(--space-2) var(--space-3) var(--space-1);
 }
-body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-flyout-titulo { display: block; }
+.sidebar-group-items.sidebar-flyout-open .sidebar-flyout-titulo { display: block; }
 @keyframes sidebarFlyoutIn {
   from { opacity: 0; transform: translateX(-4px); }
   to   { opacity: 1; transform: translateX(0); }
@@ -200,10 +202,6 @@ body.sidebar-collapsed .sidebar-group-items.sidebar-flyout-open .sidebar-flyout-
 }
 .theme-switch.on { background: var(--color-accent); }
 .theme-switch.on .theme-switch-knob { transform: translateX(18px); }
-
-body.sidebar-collapsed .sidebar-theme-row #themeToggleLabel,
-body.sidebar-collapsed .theme-switch { display: none; }
-body.sidebar-collapsed .sidebar-theme-row { justify-content: center; }
 
 /* ── Footer ── */
 .sidebar-footer {
@@ -280,10 +278,22 @@ body.sidebar-collapsed .sidebar-theme-row { justify-content: center; }
   body.sidebar-collapsed .sidebar-version { display: none; }
 
   body.sidebar-collapsed .sidebar-brand { justify-content: center; }
+  body.sidebar-collapsed .sidebar-brand-logo { display: none; }
   body.sidebar-collapsed .sidebar-toggle-btn svg { transform: rotate(180deg); }
   body.sidebar-collapsed .sidebar-nav-item { justify-content: center; padding: var(--space-3); }
   body.sidebar-collapsed .sidebar-user { justify-content: center; padding: var(--space-4) var(--space-3); }
   body.sidebar-collapsed .sidebar-footer { justify-content: center; padding: var(--space-4) var(--space-3); }
+  body.sidebar-collapsed .sidebar-theme-row #themeToggleLabel,
+  body.sidebar-collapsed .theme-switch { display: none; }
+  body.sidebar-collapsed .sidebar-theme-row { justify-content: center; }
+
+  /* Grupos (Boletaje / General / Administración / Desarrollador): solo
+     su ícono, sin texto ni flecha; un clic abre el panel flotante. */
+  body.sidebar-collapsed .sidebar-group-header { justify-content: center; padding: var(--space-3); }
+  body.sidebar-collapsed .sidebar-group-header-label span,
+  body.sidebar-collapsed .sidebar-group-chevron { display: none; }
+  body.sidebar-collapsed .sidebar-group-items { display: none; }
+  body.sidebar-collapsed .sidebar-group { margin-top: 0; }
 }
 
 @media (max-width: 1023px) {
