@@ -12,10 +12,25 @@ const router  = express.Router();
 const { db }  = require('../config/supabase');
 const { requireAuth, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
 
+// Foto fija del nombre de la estación/placa al momento de guardar el
+// registro: así, si después la editas o la eliminas del catálogo, el
+// historial de combustible ya registrado no cambia (ver
+// SQL/COMBUSTIBLE_HISTORICO_ESTACION_PLACA_MIGRATION.sql).
+async function nombresActuales(estacion_id, placa_id) {
+  const [{ data: e }, { data: p }] = await Promise.all([
+    db.select('estaciones', `select=nombre&id=eq.${estacion_id}&limit=1`),
+    db.select('placas', `select=numero&id=eq.${placa_id}&limit=1`)
+  ]);
+  return {
+    estacion_nombre: e && e[0] ? e[0].nombre : null,
+    placa_numero: p && p[0] ? p[0].numero : null
+  };
+}
+
 // ─── LIST ─────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
   const { data: registros } = await db.select('combustible_registros',
-    'select=id,vale,fecha,estacion_id,placa_id,galones,precio,creado_en,estaciones(nombre),placas(numero)&order=creado_en.desc');
+    'select=id,vale,fecha,estacion_id,placa_id,estacion_nombre,placa_numero,galones,precio,creado_en,estaciones(nombre),placas(numero)&order=creado_en.desc');
   const { data: estaciones } = await db.select('estaciones',
     'select=id,nombre&activo=eq.true&order=nombre.asc');
   const { data: placas } = await db.select('placas',
@@ -36,7 +51,7 @@ router.get('/descargar', requireAuth, async (req, res) => {
     return res.redirect('/combustible');
   }
   const { data: registros, error } = await db.select('combustible_registros',
-    `select=id,vale,fecha,galones,precio,creado_en,estaciones(nombre),placas(numero)` +
+    `select=id,vale,fecha,galones,precio,creado_en,estacion_nombre,placa_numero,estaciones(nombre),placas(numero)` +
     `&fecha=gte.${desde}&fecha=lte.${hasta}&order=fecha.asc`);
   if (error) { req.flash('error', 'Error al generar el reporte.'); return res.redirect('/combustible'); }
 
@@ -44,8 +59,8 @@ router.get('/descargar', requireAuth, async (req, res) => {
   const headers = ['ID','Vale','Estacion','Placa','Galones','Precio (S/)','Fecha','Registrado'];
   const rows = (registros || []).map(r => [
     r.id, r.vale || '',
-    r.estaciones ? r.estaciones.nombre : '',
-    r.placas     ? r.placas.numero     : '',
+    r.estacion_nombre || (r.estaciones ? r.estaciones.nombre : ''),
+    r.placa_numero    || (r.placas     ? r.placas.numero     : ''),
     r.galones || 0, r.precio != null ? r.precio : '',
     r.fecha || '',
     r.creado_en ? new Date(r.creado_en).toLocaleString('es-PE') : ''
@@ -74,8 +89,9 @@ router.post('/', requireAuth, async (req, res) => {
     req.flash('error', 'Vale, Fecha, Estacion, Placa y Galones son obligatorios.');
     return res.redirect('/combustible');
   }
+  const { estacion_nombre, placa_numero } = await nombresActuales(estacion_id, placa_id);
   const { error } = await db.insert('combustible_registros', {
-    vale: vale.trim().toUpperCase(), fecha, estacion_id, placa_id,
+    vale: vale.trim().toUpperCase(), fecha, estacion_id, placa_id, estacion_nombre, placa_numero,
     galones: parseFloat(galones),
     precio: precio && precio.trim() !== '' ? parseFloat(precio) : null,
     usuario_id: req.session.user.id, creado_en: new Date().toISOString()
@@ -92,8 +108,13 @@ router.post('/:id/editar', requireAuth, requireAdminToEdit, async (req, res) => 
     req.flash('error', 'Completa todos los campos obligatorios.');
     return res.redirect('/combustible');
   }
+  // Se vuelve a tomar la foto del nombre actual: si el admin dejó la
+  // misma estación/placa, queda igual; si la cambió a propósito, la
+  // foto se actualiza a la nueva (es una edición explícita, no un
+  // cambio "invisible" del catálogo).
+  const { estacion_nombre, placa_numero } = await nombresActuales(estacion_id, placa_id);
   const { error } = await db.update('combustible_registros', `id=eq.${req.params.id}`, {
-    vale: vale.trim().toUpperCase(), fecha, estacion_id, placa_id,
+    vale: vale.trim().toUpperCase(), fecha, estacion_id, placa_id, estacion_nombre, placa_numero,
     galones: parseFloat(galones),
     precio: precio && precio.trim() !== '' ? parseFloat(precio) : null
   });

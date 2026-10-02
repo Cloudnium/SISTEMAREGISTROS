@@ -67,8 +67,8 @@
           <td class="cb-select-cell"><span class="cb-row-dot"></span></td>
           {{/if}}
           <td class="cb-vale">{{vale}}</td>
-          <td>{{#if estaciones}}{{estaciones.nombre}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
-          <td>{{#if placas}}{{placas.numero}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
+          <td>{{#if estacion_nombre}}{{estacion_nombre}}{{else}}{{#if estaciones}}{{estaciones.nombre}}{{else}}<span class="text-muted">-</span>{{/if}}{{/if}}</td>
+          <td>{{#if placa_numero}}{{placa_numero}}{{else}}{{#if placas}}{{placas.numero}}{{else}}<span class="text-muted">-</span>{{/if}}{{/if}}</td>
           <td class="cb-galones">{{galones}}</td>
           <td class="hide-sm">{{#if precio}}S/ {{precio}}{{else}}<span class="text-muted">-</span>{{/if}}</td>
           <td style="white-space:nowrap">{{fecha}}</td>
