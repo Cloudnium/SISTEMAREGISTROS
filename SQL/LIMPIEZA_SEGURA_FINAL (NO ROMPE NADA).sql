@@ -6,9 +6,17 @@
 -- Reemplaza/actualiza a LIMPIEZA_TOTAL_MENOS_COMBUSTIBLE.sql: borra
 -- ABSOLUTAMENTE TODO el sistema (ventas, programación, buses,
 -- ciudades, agencias, empresas, destinos, servicios, personal,
--- planilla completa, inventario de uniformes e inventario general,
--- chat, códigos de autorización, configuración de secciones y roles)
--- y reinicia todos los correlativos a 0.
+-- planilla completa —incluido el módulo de Vacaciones: periodos
+-- vacacionales y sus pagos—, inventario de uniformes e inventario
+-- general, chat, códigos de autorización, configuración de secciones
+-- y roles) y reinicia todos los correlativos a 0.
+--
+-- Actualizado para cubrir el módulo de Vacaciones (periodos
+-- vacacionales + historial de pagos). Cada vez que se agreguen tablas
+-- nuevas al sistema, este script debe actualizarse para incluirlas
+-- aquí; si no, esas tablas simplemente no se limpian (quedan con
+-- datos viejos), lo cual es más seguro que el error opuesto pero no
+-- es lo esperado por quien corre una "limpieza total".
 --
 -- Lo ÚNICO que se conserva intacto, pase lo que pase:
 --   • public.usuarios                (nadie se borra, ni sus contraseñas/roles/permisos)
@@ -107,6 +115,8 @@ TRUNCATE TABLE
   public.planilla_descuento_cobros,
   public.planilla_descuentos,
   public.planilla_conceptos_descuento,
+  public.planilla_vacaciones_pagos,
+  public.planilla_vacaciones_periodos,
   public.planilla_vacaciones,
   public.planilla_permisos,
   public.planilla_tipos_permiso,
@@ -209,6 +219,9 @@ SELECT
   (SELECT COUNT(*) FROM public.buses)                  AS buses_restantes,
   (SELECT COUNT(*) FROM public.personal_tripulantes)   AS personal_restante,
   (SELECT COUNT(*) FROM public.planilla_periodos)      AS periodos_restantes,
+  (SELECT COUNT(*) FROM public.planilla_vacaciones)              AS vacaciones_restantes,
+  (SELECT COUNT(*) FROM public.planilla_vacaciones_periodos)     AS vacaciones_periodos_restantes,
+  (SELECT COUNT(*) FROM public.planilla_vacaciones_pagos)        AS vacaciones_pagos_restantes,
   (SELECT COUNT(*) FROM public.inventario_categorias WHERE clave = 'uniformes') AS seccion_uniformes_ok,
   (SELECT COUNT(*) FROM public.configuracion_roles_permisos) AS roles_permisos_reseteados,
   (SELECT COUNT(*) FROM public.usuarios WHERE agencia_id IS NOT NULL) AS usuarios_con_agencia_huerfana
