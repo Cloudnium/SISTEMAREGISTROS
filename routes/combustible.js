@@ -10,6 +10,7 @@
 const express = require('express');
 const router  = express.Router();
 const { db }  = require('../config/supabase');
+const XLSX   = require('xlsx');
 const { requireAuth, requireAdminToEdit, requireAdminToDelete } = require('../middleware/auth');
 
 // Foto fija del nombre de la estación/placa al momento de guardar el
@@ -43,7 +44,7 @@ router.get('/', requireAuth, async (req, res) => {
   });
 });
 
-// ─── DESCARGAR CSV (antes de /:id) ────────────
+// ─── DESCARGAR EXCEL (antes de /:id) ──────────
 router.get('/descargar', requireAuth, async (req, res) => {
   const { desde, hasta } = req.query;
   if (!desde || !hasta) {
@@ -55,22 +56,29 @@ router.get('/descargar', requireAuth, async (req, res) => {
     `&fecha=gte.${desde}&fecha=lte.${hasta}&order=fecha.asc`);
   if (error) { req.flash('error', 'Error al generar el reporte.'); return res.redirect('/combustible'); }
 
-  const BOM = '\uFEFF';
-  const headers = ['ID','Vale','Estacion','Placa','Galones','Precio (S/)','Fecha','Registrado'];
-  const rows = (registros || []).map(r => [
+  const headers = ['ID', 'Vale', 'Estacion', 'Placa', 'Galones', 'Precio (S/)', 'Fecha', 'Registrado'];
+  const filas = (registros || []).map(r => [
     r.id, r.vale || '',
     r.estacion_nombre || (r.estaciones ? r.estaciones.nombre : ''),
     r.placa_numero    || (r.placas     ? r.placas.numero     : ''),
-    r.galones || 0, r.precio != null ? r.precio : '',
+    r.galones != null ? Number(r.galones) : 0,
+    r.precio  != null ? Number(r.precio)  : '',
     r.fecha || '',
     r.creado_en ? new Date(r.creado_en).toLocaleString('es-PE') : ''
   ]);
-  const csv = BOM + [headers, ...rows]
-    .map(row => row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(','))
-    .join('\r\n');
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="combustible_${desde}_al_${hasta}.csv"`);
-  res.send(csv);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...filas]);
+  ws['!cols'] = [
+    { wch: 10 }, { wch: 14 }, { wch: 26 }, { wch: 12 },
+    { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 20 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Combustible');
+
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="combustible_${desde}_al_${hasta}.xlsx"`);
+  res.send(buffer);
 });
 
 // ─── JSON para edición AJAX ───────────────────
